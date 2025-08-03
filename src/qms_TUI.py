@@ -1,30 +1,32 @@
-# src/qms_TUI.py
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
-from quantum_board import QuantumBoard, init_classical_board
+from quantum_board import QuantumBoard, init_classical_board, CellState, GameStatus
 
 console = Console()
 
 def render_rich(qb: QuantumBoard, prec=1):
-    obs = qb.explored
     table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
-
     table.add_column(" ", justify="right")  # row index label
     for col in range(1, qb.cols + 1):
         table.add_column(str(col), justify="center")
 
     for r in range(qb.rows):
-        row = [str(r + 1)]  # row label
+        row = [str(r + 1)]
         for c in range(qb.cols):
-            if not qb.explored[r, c]:
+            state = qb.cell_state[r, c]
+            if state == CellState.UNEXPLORED:
                 cell = Text("▢", style="dim")
-            else:
+            elif state == CellState.PINNED:
+                cell = Text("⚑", style="yellow")
+            elif state == CellState.EXPLORED:
                 val = qb.get_clue(r, c)
                 if val == 9:
                     cell = Text("💥", style="bold red")
                 else:
                     cell = Text(f"{val:.{prec}f}", style="bold green")
+            else:
+                cell = Text("?", style="red")
             row.append(cell)
         table.add_row(*row)
 
@@ -71,26 +73,38 @@ def game_setup():
 def game_loop_classical(rows, cols, n_bombs):
     qb = init_classical_board((rows, cols), n_bombs)
     render_rich(qb)
-    console.print("Click a cell: e.g. [bold]3,4[/]")
+    console.print("Click a cell: e.g. [bold]3,4[/] or use P 3,4 to pin")
 
-    while qb.status not in ["WIN", "LOSE"]:
+    while qb.game_status == GameStatus.ONGOING:
         try:
-            cell = console.input("[yellow]Your move[/] (row,col or q): ").strip()
+            cell = console.input("[yellow]Your move[/] (M or P row,col or q): ").strip()
             if cell.lower() in ("q", "quit", "exit"):
                 console.print("[italic]Game exited.[/]")
                 break
 
-            r, c = map(int, cell.split(","))
+            if cell[0].upper() in ("M", "P"):
+                cmd, pos = cell[0].upper(), cell[1:].strip()
+            else:
+                cmd, pos = "M", cell
+
+            r, c = map(int, pos.split(","))
             if not (1 <= r <= rows and 1 <= c <= cols):
                 console.print("[red]Cell out of bounds.[/]")
                 continue
             r -= 1
             c -= 1
 
-            qb.measure_connected(r, c)
-            qb.check_game_status()
+            if cmd == "M":
+                qb.measure_connected(r, c)
+                qb.check_game_status()
+            elif cmd == "P":
+                if qb.cell_state[r, c] == CellState.PINNED:
+                    qb.cell_state[r, c] = CellState.UNEXPLORED
+                elif qb.cell_state[r, c] == CellState.UNEXPLORED:
+                    qb.cell_state[r, c] = CellState.PINNED
+
             render_rich(qb)
-            console.print(f"[cyan]Game status:[/] [bold]{qb.status}[/]")
+            console.print(f"[cyan]Game status:[/] [bold]{qb.game_status.name}[/]")
 
         except Exception as e:
             console.print(f"[red]Invalid input:[/] {e}")
