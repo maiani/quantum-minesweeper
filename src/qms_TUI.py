@@ -1,7 +1,7 @@
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
-from quantum_board import QuantumBoard, init_classical_board, CellState, GameStatus
+from quantum_board import QuantumBoard, init_classical_board, CellState, GameStatus, MoveType
 
 console = Console()
 
@@ -73,36 +73,76 @@ def game_setup():
 def game_loop_classical(rows, cols, n_bombs):
     qb = init_classical_board((rows, cols), n_bombs)
     render_rich(qb)
-    console.print("Click a cell: e.g. [bold]3,4[/] or use P 3,4 to pin")
+    console.print("Click a cell: e.g. [bold]3,4[/], [bold]P 3,4[/] to pin, [bold]X 2,2[/] to apply gate")
+
+    command_map = {
+        "M": MoveType.MEASURE,
+        "P": MoveType.PIN_TOGGLE
+    }
 
     while qb.game_status == GameStatus.ONGOING:
         try:
-            cell = console.input("[yellow]Your move[/] (M or P row,col or q): ").strip()
+            cell = console.input("[yellow]Your move[/] ([M/P] row,col or q): ").strip()
             if cell.lower() in ("q", "quit", "exit"):
                 console.print("[italic]Game exited.[/]")
                 break
 
-            if cell[0].upper() in ("M", "P"):
-                cmd, pos = cell[0].upper(), cell[1:].strip()
+            # Parse move type and coordinates
+            if cell[0].upper() in command_map:
+                cmd_str, pos = cell[0].upper(), cell[1:].strip()
             else:
-                cmd, pos = "M", cell
+                cmd_str, pos = "M", cell  # default to MEASURE
 
+            move_type = command_map.get(cmd_str, MoveType.MEASURE)
             r, c = map(int, pos.split(","))
             if not (1 <= r <= rows and 1 <= c <= cols):
                 console.print("[red]Cell out of bounds.[/]")
                 continue
-            r -= 1
-            c -= 1
 
-            if cmd == "M":
-                qb.measure_connected(r, c)
-                qb.check_game_status()
-            elif cmd == "P":
-                if qb.cell_state[r, c] == CellState.PINNED:
-                    qb.cell_state[r, c] = CellState.UNEXPLORED
-                elif qb.cell_state[r, c] == CellState.UNEXPLORED:
-                    qb.cell_state[r, c] = CellState.PINNED
+            qb.move(move_type, (r - 1, c - 1))  # zero-based index
+            render_rich(qb)
+            console.print(f"[cyan]Game status:[/] [bold]{qb.game_status.name}[/]")
 
+        except Exception as e:
+            console.print(f"[red]Invalid input:[/] {e}")
+
+    console.print("[bold]Game over![/bold]")
+
+def game_loop_quantum(rows, cols, n_bombs):
+    qb = init_classical_board((rows, cols), n_bombs)
+    render_rich(qb)
+    console.print("Click a cell: e.g. [bold]3,4[/], [bold]P 3,4[/] to pin, [bold]X 2,2[/] to apply gate")
+
+    command_map = {
+        "M": MoveType.MEASURE,
+        "P": MoveType.PIN_TOGGLE,
+        "X": MoveType.X_GATE,
+        "Y": MoveType.Y_GATE,
+        "Z": MoveType.Z_GATE,
+        "H": MoveType.H_GATE,
+        "S": MoveType.S_GATE,
+    }
+
+    while qb.game_status == GameStatus.ONGOING:
+        try:
+            cell = console.input("[yellow]Your move[/] ([M/P/X/Y/Z/H/S] row,col or q): ").strip()
+            if cell.lower() in ("q", "quit", "exit"):
+                console.print("[italic]Game exited.[/]")
+                break
+
+            # Parse move type and coordinates
+            if cell[0].upper() in command_map:
+                cmd_str, pos = cell[0].upper(), cell[1:].strip()
+            else:
+                cmd_str, pos = "M", cell  # default to MEASURE
+
+            move_type = command_map.get(cmd_str, MoveType.MEASURE)
+            r, c = map(int, pos.split(","))
+            if not (1 <= r <= rows and 1 <= c <= cols):
+                console.print("[red]Cell out of bounds.[/]")
+                continue
+
+            qb.move(move_type, (r - 1, c - 1))  # zero-based index
             render_rich(qb)
             console.print(f"[cyan]Game status:[/] [bold]{qb.game_status.name}[/]")
 
@@ -117,6 +157,8 @@ def main():
 
     if game_type == 1:
         game_loop_classical(rows, cols, n_bombs)
+    elif game_type == 2:
+        game_loop_quantum(rows, cols, n_bombs)
     else:
         console.print("[italic]Quantum mode not implemented yet.[/italic]")
 

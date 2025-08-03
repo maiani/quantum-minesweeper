@@ -2,7 +2,7 @@ from enum import IntEnum
 import numpy as np
 from qiskit import QuantumCircuit, QiskitError
 from qiskit.quantum_info import StabilizerState, Pauli, Clifford
-from qiskit.circuit.library import HGate, SGate, CXGate, XGate
+from qiskit.circuit.library import HGate, SGate, CXGate, XGate, YGate, ZGate
 
 
 class CellState(IntEnum):
@@ -15,6 +15,16 @@ class GameStatus(IntEnum):
     ONGOING = 0
     WIN = 1
     LOSE = 2
+
+
+class MoveType(IntEnum):
+    MEASURE     = 0
+    PIN_TOGGLE  = 1
+    X_GATE      = 2
+    Y_GATE      = 3
+    Z_GATE      = 4
+    H_GATE      = 5
+    S_GATE      = 6
 
 
 class WinCondition(IntEnum):
@@ -106,10 +116,6 @@ class QuantumBoard:
             else:
                 self.game_status = GameStatus.ONGOING
 
-    def probe_move(self, row, col):
-        outcome = self.measure(row, col)
-        self.check_game_status()
-
     def apply_gate(self, gate, targets):
         try:
             cl = Clifford(gate)
@@ -122,6 +128,35 @@ class QuantumBoard:
             raise ValueError("Number of targets does not match gate arity")
 
         self.state = self.state.evolve(cl, targets)
+
+    def move(self, move_type: MoveType, coord_1, coord_2=None):
+        r1, c1 = coord_1
+        idx = self.index(r1, c1)
+
+        if move_type == MoveType.MEASURE:
+            self.measure_connected(r1, c1)
+            self.check_game_status()
+
+        elif move_type == MoveType.PIN_TOGGLE:
+            if self.cell_state[r1, c1] == CellState.PINNED:
+                self.cell_state[r1, c1] = CellState.UNEXPLORED
+            elif self.cell_state[r1, c1] == CellState.UNEXPLORED:
+                self.cell_state[r1, c1] = CellState.PINNED
+
+        elif move_type in [MoveType.X_GATE, MoveType.Y_GATE,
+                        MoveType.Z_GATE, MoveType.H_GATE, MoveType.S_GATE]:
+            gate_cls = {
+                MoveType.X_GATE: XGate,
+                MoveType.Y_GATE: YGate,
+                MoveType.Z_GATE: ZGate,
+                MoveType.H_GATE: HGate,
+                MoveType.S_GATE: SGate,
+            }[move_type]
+            self.apply_gate(gate_cls(), [idx])
+
+        else:
+            raise ValueError(f"Unsupported move type: {move_type}")
+
 
 
 # ___________________INIT FUNCTION_________________
