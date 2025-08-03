@@ -128,8 +128,11 @@ class QuantumBoard:
 
 def init_classical_board(dim, nbombs):
     qb = QuantumBoard(*dim, WinCondition.CLASSIC)
-    for _ in range(nbombs):
-        i = np.random.randint(0, dim[0])
-        j = np.random.randint(0, dim[1])
-        qb.apply_gate(XGate(), [qb.index(i, j)])
+    rows, cols = dim
+    all_coords = [(r, c) for r in range(rows) for c in range(cols)]
+    bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
+
+    for i in bomb_coords:
+        r, c = all_coords[i]
+        qb.apply_gate(XGate(), [qb.index(r, c)])
     return qb
