@@ -27,9 +27,10 @@ class MoveType(IntEnum):
     S_GATE      = 6
 
 
-class WinCondition(IntEnum):
+class GameMode(IntEnum):
     CLASSIC = 0
-    ZERO = 1
+    QUANTUM_IDENTIFY = 1
+    QUANTUM_CLEAR = 2
 
 
 nbr_offsets = [(-1, -1), (-1, 0), (-1, 1),
@@ -49,7 +50,7 @@ class QuantumBoard:
         self.cell_state = np.full((rows, cols), CellState.UNEXPLORED, dtype=np.int8)
         self.game_status = GameStatus.ONGOING
 
-        if isinstance(win_condition, WinCondition):
+        if isinstance(win_condition, GameMode):
             self.win_condition = win_condition
         else:
             raise ValueError("Win condition unsupported")
@@ -105,16 +106,44 @@ class QuantumBoard:
                         self.cell_state[nr, nc] == CellState.UNEXPLORED):
                         to_explore.append((nr, nc))
 
+
     def check_game_status(self):
-        if self.win_condition == WinCondition.CLASSIC:
-            bombs = (1.0 - self.board_expectations()) / 2
-            explored = (self.cell_state == CellState.EXPLORED)
-            if np.allclose(bombs + explored, 1.0):
-                self.game_status = GameStatus.WIN
-            elif np.max(bombs * explored) > 0.0:
+        bombs = (1.0 - self.board_expectations()) / 2
+        explored = (self.cell_state == CellState.EXPLORED)
+        pinned = (self.cell_state == CellState.PINNED)
+
+        tol = 1e-6
+        p0 = bombs <= tol
+        p1 = bombs >= 1 - tol
+
+        if self.win_condition == GameMode.CLASSIC:
+            if np.any(explored[bombs > tol]):
                 self.game_status = GameStatus.LOSE
+            elif np.allclose(bombs + explored, 1.0):
+                self.game_status = GameStatus.WIN
             else:
                 self.game_status = GameStatus.ONGOING
+
+        elif self.win_condition == GameMode.QUANTUM_IDENTIFY:
+            all_certain_bombs_pinned = np.all(pinned[p1])
+            all_pins_match_bombs = np.all(p1[pinned])
+            all_zero_prob_explored = np.all(explored[p0])
+
+            if np.any(explored[bombs > tol]):
+                self.game_status = GameStatus.LOSE
+            elif all_certain_bombs_pinned and all_pins_match_bombs and all_zero_prob_explored:
+                self.game_status = GameStatus.WIN
+            else:
+                self.game_status = GameStatus.ONGOING
+
+        elif self.win_condition == GameMode.QUANTUM_CLEAR:
+            if np.any(explored[bombs > tol]):
+                self.game_status = GameStatus.LOSE
+            elif np.all(bombs <= tol):
+                self.game_status = GameStatus.WIN
+            else:
+                self.game_status = GameStatus.ONGOING
+
 
     def apply_gate(self, gate, targets):
         try:
@@ -135,8 +164,7 @@ class QuantumBoard:
 
         if move_type == MoveType.MEASURE:
             self.measure_connected(r1, c1)
-            self.check_game_status()
-
+           
         elif move_type == MoveType.PIN_TOGGLE:
             if self.cell_state[r1, c1] == CellState.PINNED:
                 self.cell_state[r1, c1] = CellState.UNEXPLORED
@@ -153,21 +181,19 @@ class QuantumBoard:
                 MoveType.S_GATE: SGate,
             }[move_type]
             self.apply_gate(gate_cls(), [idx])
-
         else:
             raise ValueError(f"Unsupported move type: {move_type}")
 
+        # Check game status after each move        
+        self.check_game_status()
 
 
-# ___________________INIT FUNCTION_________________
 
-def init_classical_board(dim, nbombs):
-    qb = QuantumBoard(*dim, WinCondition.CLASSIC)
-    rows, cols = dim
-    all_coords = [(r, c) for r in range(rows) for c in range(cols)]
-    bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
+    def span_classical_bombs(self, nbombs):
 
-    for i in bomb_coords:
-        r, c = all_coords[i]
-        qb.apply_gate(XGate(), [qb.index(r, c)])
-    return qb
+        all_coords = [(r, c) for r in range(self.rows) for c in range(self.cols)]
+        bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
+
+        for i in bomb_coords:
+            r, c = all_coords[i]
+            self.apply_gate(XGate(), [self.index(r, c)])
