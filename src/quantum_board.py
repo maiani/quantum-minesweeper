@@ -111,15 +111,23 @@ class QuantumBoard:
                 self.game_status = GameStatus.ONGOING
 
         elif self.win_condition == GameMode.QUANTUM_IDENTIFY:
-            all_certain_bombs_pinned = np.all(pinned[p1])
-            all_pins_match_bombs = np.all(p1[pinned])
-            all_zero_prob_explored = np.all(explored[p0])
             if np.any(explored[bombs > tol]):
                 self.game_status = GameStatus.LOSE
-            elif all_certain_bombs_pinned and all_pins_match_bombs and all_zero_prob_explored:
+            elif np.all(~explored[p1]) and np.all(explored[p0]):
                 self.game_status = GameStatus.WIN
             else:
                 self.game_status = GameStatus.ONGOING
+
+        # elif self.win_condition == GameMode.QUANTUM_IDENTIFY:
+        #     all_certain_bombs_pinned = np.all(pinned[p1])
+        #     all_pins_match_bombs = np.all(p1[pinned])
+        #     all_zero_prob_explored = np.all(explored[p0])
+        #     if np.any(explored[bombs > tol]):
+        #         self.game_status = GameStatus.LOSE
+        #     elif all_certain_bombs_pinned and all_pins_match_bombs and all_zero_prob_explored:
+        #         self.game_status = GameStatus.WIN
+        #     else:
+        #         self.game_status = GameStatus.ONGOING
 
         elif self.win_condition == GameMode.QUANTUM_CLEAR:
             if np.any(explored[bombs > tol]):
@@ -164,6 +172,9 @@ class QuantumBoard:
         self.check_game_status()
 
     def span_classical_bombs(self, nbombs : int):
+        """
+        Randomly place nbombs on the board by applying X gates to the corresponding qubits.        
+        """
         all_coords = [(r, c) for r in range(self.rows) for c in range(self.cols)]
         bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
         for i in bomb_coords:
