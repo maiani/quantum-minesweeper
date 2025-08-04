@@ -1,31 +1,26 @@
 from enum import IntEnum
 import numpy as np
-from qiskit import QuantumCircuit, QiskitError
-from qiskit.quantum_info import StabilizerState, Pauli, Clifford
-from qiskit.circuit.library import HGate, SGate, CXGate, XGate, YGate, ZGate
-
+from backend import QuantumBackend
+from qiskit_backend import QiskitBackend 
 
 class CellState(IntEnum):
     UNEXPLORED = 0
     PINNED = 1
     EXPLORED = 2
 
-
 class GameStatus(IntEnum):
     ONGOING = 0
     WIN = 1
     LOSE = 2
 
-
 class MoveType(IntEnum):
-    MEASURE     = 0
-    PIN_TOGGLE  = 1
-    X_GATE      = 2
-    Y_GATE      = 3
-    Z_GATE      = 4
-    H_GATE      = 5
-    S_GATE      = 6
-
+    MEASURE = 0
+    PIN_TOGGLE = 1
+    X_GATE = 2
+    Y_GATE = 3
+    Z_GATE = 4
+    H_GATE = 5
+    S_GATE = 6
 
 class GameMode(IntEnum):
     CLASSIC = 0
@@ -37,15 +32,12 @@ nbr_offsets = [(-1, -1), (-1, 0), (-1, 1),
                ( 0, -1),          ( 0, 1),
                ( 1, -1), ( 1, 0), ( 1, 1)]
 
-
 class QuantumBoard:
-    def __init__(self, rows, cols, win_condition):
+    def __init__(self, rows : int, cols : int, win_condition : GameMode):
         self.rows = rows
         self.cols = cols
         self.n = rows * cols
-
-        self.qc = QuantumCircuit(self.n)
-        self.state = StabilizerState(self.qc)
+        self.backend = QiskitBackend(self.n)
 
         self.cell_state = np.full((rows, cols), CellState.UNEXPLORED, dtype=np.int8)
         self.game_status = GameStatus.ONGOING
@@ -55,45 +47,40 @@ class QuantumBoard:
         else:
             raise ValueError("Win condition unsupported")
 
-    def index(self, row, col):
+    def index(self, row :int, col: int) -> int:
         return row * self.cols + col
 
-    def coords(self, idx):
+    def coords(self, idx : int) -> tuple[int, int]:
         return divmod(idx, self.cols)
 
-    def expectation_z(self, idx):
-        label = 'I' * (self.n - idx - 1) + 'Z' + 'I' * idx
-        return self.state.expectation_value(Pauli(label))
+    def expectation_z(self, idx : int) -> float:
+        return self.backend.expectation_z(idx)
 
-    def board_expectations(self):
-        grid = np.zeros((self.rows, self.cols))
-        for r in range(self.rows):
-            for c in range(self.cols):
-                grid[r, c] = self.expectation_z(self.index(r, c))
-        return grid
+    def board_expectations(self) -> np.ndarray:
+        return np.array([[self.expectation_z(self.index(r, c))
+                          for c in range(self.cols)]
+                         for r in range(self.rows)])
 
-    def neighbors(self, row, col):
+    def neighbors(self, row: int, col: int) -> list[tuple[int, int]]:
         return [(r, c) for dr, dc in nbr_offsets
                 if 0 <= (r := row + dr) < self.rows
                 and 0 <= (c := col + dc) < self.cols]
 
-    def get_clue(self, row, col):
+    def get_clue(self, row: int, col: int) -> float:
         idx = self.index(row, col)
         if self.expectation_z(idx) == -1:
             return 9.0
-        else:
-            return sum((1 - self.expectation_z(self.index(r, c))) / 2 for r, c in self.neighbors(row, col))
+        return sum((1 - self.expectation_z(self.index(r, c))) / 2
+                   for r, c in self.neighbors(row, col))
 
-    def measure(self, row, col):
+    def measure(self, row: int, col: int):
         idx = self.index(row, col)
         if self.cell_state[row, col] == CellState.PINNED:
             return None
-        else:
-            self.cell_state[row, col] = CellState.EXPLORED
-            outcome, self.state = self.state.measure([idx])
-            return outcome
+        self.cell_state[row, col] = CellState.EXPLORED
+        return self.backend.measure(idx)
 
-    def measure_connected(self, row, col):
+    def measure_connected(self, row: int, col: int):
         to_explore = [(row, col)]
         while to_explore:
             r, c = to_explore.pop()
@@ -105,7 +92,6 @@ class QuantumBoard:
                     if (0 <= nr < self.rows and 0 <= nc < self.cols and
                         self.cell_state[nr, nc] == CellState.UNEXPLORED):
                         to_explore.append((nr, nc))
-
 
     def check_game_status(self):
         bombs = (1.0 - self.board_expectations()) / 2
@@ -128,7 +114,6 @@ class QuantumBoard:
             all_certain_bombs_pinned = np.all(pinned[p1])
             all_pins_match_bombs = np.all(p1[pinned])
             all_zero_prob_explored = np.all(explored[p0])
-
             if np.any(explored[bombs > tol]):
                 self.game_status = GameStatus.LOSE
             elif all_certain_bombs_pinned and all_pins_match_bombs and all_zero_prob_explored:
@@ -144,19 +129,8 @@ class QuantumBoard:
             else:
                 self.game_status = GameStatus.ONGOING
 
-
-    def apply_gate(self, gate, targets):
-        try:
-            cl = Clifford(gate)
-        except QiskitError as err:
-            raise ValueError(f"Gate not Clifford-compatible: {err}") from err
-
-        if cl.num_qubits not in (1, 2):
-            raise ValueError("Only 1- or 2-qubit Clifford gates are supported")
-        if cl.num_qubits != len(targets):
-            raise ValueError("Number of targets does not match gate arity")
-
-        self.state = self.state.evolve(cl, targets)
+    def apply_gate(self, gate: str, targets):
+        self.backend.apply_gate(gate, targets)
 
     def move(self, move_type: MoveType, coord_1, coord_2=None):
         r1, c1 = coord_1
@@ -164,36 +138,34 @@ class QuantumBoard:
 
         if move_type == MoveType.MEASURE:
             self.measure_connected(r1, c1)
-           
+
         elif move_type == MoveType.PIN_TOGGLE:
             if self.cell_state[r1, c1] == CellState.PINNED:
                 self.cell_state[r1, c1] = CellState.UNEXPLORED
             elif self.cell_state[r1, c1] == CellState.UNEXPLORED:
                 self.cell_state[r1, c1] = CellState.PINNED
 
-        elif move_type in [MoveType.X_GATE, MoveType.Y_GATE,
-                        MoveType.Z_GATE, MoveType.H_GATE, MoveType.S_GATE]:
-            gate_cls = {
-                MoveType.X_GATE: XGate,
-                MoveType.Y_GATE: YGate,
-                MoveType.Z_GATE: ZGate,
-                MoveType.H_GATE: HGate,
-                MoveType.S_GATE: SGate,
-            }[move_type]
-            self.apply_gate(gate_cls(), [idx])
+        elif move_type in [
+            MoveType.X_GATE, MoveType.Y_GATE, MoveType.Z_GATE,
+            MoveType.H_GATE, MoveType.S_GATE
+        ]:
+            gate_map = {
+                MoveType.X_GATE: "X",
+                MoveType.Y_GATE: "Y",
+                MoveType.Z_GATE: "Z",
+                MoveType.H_GATE: "H",
+                MoveType.S_GATE: "S",
+            }
+            self.apply_gate(gate_map[move_type], [idx])
+
         else:
             raise ValueError(f"Unsupported move type: {move_type}")
 
-        # Check game status after each move        
         self.check_game_status()
 
-
-
-    def span_classical_bombs(self, nbombs):
-
+    def span_classical_bombs(self, nbombs : int):
         all_coords = [(r, c) for r in range(self.rows) for c in range(self.cols)]
         bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
-
         for i in bomb_coords:
             r, c = all_coords[i]
-            self.apply_gate(XGate(), [self.index(r, c)])
+            self.apply_gate("X", [self.index(r, c)])

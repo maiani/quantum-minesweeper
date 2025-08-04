@@ -117,7 +117,7 @@ def game_loop(rows: int, cols: int, n_bombs: int, mode: GameMode):
             "S": MoveType.S_GATE,
         })
 
-    console.print("Select a cell: e.g. [bold]3,4[/], [bold]P 3,4[/] to pin" +
+    console.print("Select a cell: e.g. [bold]3,4[/], [bold]P 3,4[/] to Pin" +
                   (", or gate name coords, e.g. [bold]X 2,2[/], to apply gate" if mode != GameMode.CLASSIC else ""))
 
     while qb.game_status == GameStatus.ONGOING:
