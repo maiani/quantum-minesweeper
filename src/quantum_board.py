@@ -1,4 +1,5 @@
 from enum import IntEnum
+import random
 import numpy as np
 from backend import QuantumBackend
 from qiskit_backend import QiskitBackend 
@@ -94,13 +95,18 @@ class QuantumBoard:
                         to_explore.append((nr, nc))
 
     def check_game_status(self):
+        """
+        Check the game status based on the current board state and win condition.
+        Updates self.game_status to WIN, LOSE, or ONGOING.
+        """
+
         bombs = (1.0 - self.board_expectations()) / 2
         explored = (self.cell_state == CellState.EXPLORED)
         pinned = (self.cell_state == CellState.PINNED)
 
         tol = 1e-6
-        p0 = bombs <= tol
-        p1 = bombs >= 1 - tol
+        p0 = (bombs <= tol)
+        p1 = (bombs >= 1 - tol)
 
         if self.win_condition == GameMode.CLASSIC:
             if np.any(explored[bombs > tol]):
@@ -117,17 +123,6 @@ class QuantumBoard:
                 self.game_status = GameStatus.WIN
             else:
                 self.game_status = GameStatus.ONGOING
-
-        # elif self.win_condition == GameMode.QUANTUM_IDENTIFY:
-        #     all_certain_bombs_pinned = np.all(pinned[p1])
-        #     all_pins_match_bombs = np.all(p1[pinned])
-        #     all_zero_prob_explored = np.all(explored[p0])
-        #     if np.any(explored[bombs > tol]):
-        #         self.game_status = GameStatus.LOSE
-        #     elif all_certain_bombs_pinned and all_pins_match_bombs and all_zero_prob_explored:
-        #         self.game_status = GameStatus.WIN
-        #     else:
-        #         self.game_status = GameStatus.ONGOING
 
         elif self.win_condition == GameMode.QUANTUM_CLEAR:
             if np.any(explored[bombs > tol]):
@@ -164,11 +159,17 @@ class QuantumBoard:
                 MoveType.H_GATE: "H",
                 MoveType.S_GATE: "S",
             }
+
+            # Apply the gate to the specified qubit
             self.apply_gate(gate_map[move_type], [idx])
+
+            # A gate move is applied to an already explored cell, we change the cell state to unexplored
+            self.cell_state[r1, c1] = CellState.UNEXPLORED
 
         else:
             raise ValueError(f"Unsupported move type: {move_type}")
 
+        # After any move, we check the game status
         self.check_game_status()
 
     def span_classical_bombs(self, nbombs : int):
@@ -180,3 +181,33 @@ class QuantumBoard:
         for i in bomb_coords:
             r, c = all_coords[i]
             self.apply_gate("X", [self.index(r, c)])
+
+    def span_quantum_product_bombs(self, nbombs: int):
+        """
+        Randomly place `nbombs` quantum bombs in random single-qubit stabilizer states.
+        Each bomb is initialized independently using Clifford gates applied to |0⟩.
+        The states used are the 6 single-qubit stabilizer states:
+        |0⟩, |1⟩, |+⟩, |–⟩, |+i⟩, |–i⟩.
+        """
+        if nbombs > self.n:
+            raise ValueError("Too many bombs for board size")
+
+        all_coords = [(r, c) for r in range(self.rows) for c in range(self.cols)]
+        bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
+
+        # Define gate sequences for the 6 single-qubit stabilizer states
+        stabilizer_gates = [
+            [],                          # |0⟩
+            ["X"],                       # |1⟩
+            ["H"],                       # |+⟩
+            ["X", "H"],                  # |–⟩
+            ["H", "S"],                  # |+i⟩
+            ["X", "H", "S"],             # |–i⟩
+        ]
+
+        for i in bomb_coords:
+            r, c = all_coords[i]
+            idx = self.index(r, c)
+            gate_seq = random.choice(stabilizer_gates)
+            for gate in gate_seq:
+                self.apply_gate(gate, [idx])

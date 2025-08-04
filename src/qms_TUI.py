@@ -99,7 +99,13 @@ def game_setup():
 
 def game_loop(rows: int, cols: int, n_bombs: int, mode: GameMode):
     qb = QuantumBoard(rows, cols, mode)
-    qb.span_classical_bombs(n_bombs)
+    if mode == GameMode.CLASSIC:
+        qb.span_classical_bombs(n_bombs)
+    elif mode == GameMode.QUANTUM_IDENTIFY:
+        qb.span_quantum_product_bombs(n_bombs)
+    elif mode == GameMode.QUANTUM_CLEAR:
+        qb.span_quantum_product_bombs(n_bombs)
+
     render_rich(qb)
 
     # Build command map depending on mode
