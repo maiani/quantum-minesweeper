@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quantum Minesweeper – Setup</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b0b0b; color:#eee; }
+    .card { max-width: 540px; margin: 5rem auto; padding: 1.5rem; background: #141414; border: 1px solid #222; border-radius: 10px; }
+    label { display:block; margin-top: .8rem; }
+    input, select { width: 100%; padding: .6rem .7rem; margin-top: .3rem; background:#0f0f0f; border:1px solid #2a2a2a; color:#eee; border-radius:8px;}
+    button { margin-top:1rem; padding:.7rem 1rem; background:#2b6cb0; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+    button:hover { background:#2c77c5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>New Game</h2>
+    <form method="post">
+      <label>Mode
+        <select name="mode">
+          <option value="1">Classical</option>
+          <option value="2">Quantum Identify</option>
+          <option value="3">Quantum Clear</option>
+        </select>
+      </label>
+      <label>Rows, Cols</label>
+      <div style="display:flex; gap:.6rem;">
+        <input type="number" name="rows" value="5" min="2" max="20">
+        <input type="number" name="cols" value="5" min="2" max="20">
+      </div>
+      <label>Bombs
+        <input type="number" name="bombs" value="5" min="1" max="200">
+      </label>
+      <label>Bomb Type
+        <select name="btype">
+          <option value="1">Classical (|1⟩)</option>
+          <option value="2">Quantum Product (stabilizers)</option>
+        </select>
+      </label>
+      <button type="submit">Start</button>
+    </form>
+  </div>
+</body>
+</html>
