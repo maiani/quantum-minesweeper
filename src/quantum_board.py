@@ -1,8 +1,11 @@
+# ./src/quantum_board.py
+from __future__ import annotations
 from enum import IntEnum
 import random
 import numpy as np
-from backend import QuantumBackend
-from qiskit_backend import QiskitBackend 
+
+from quantum_backend import QuantumBackend, StabilizerQuantumState
+
 
 class CellState(IntEnum):
     UNEXPLORED = 0
@@ -33,12 +36,20 @@ nbr_offsets = [(-1, -1), (-1, 0), (-1, 1),
                ( 0, -1),          ( 0, 1),
                ( 1, -1), ( 1, 0), ( 1, 1)]
 
+
 class QuantumBoard:
-    def __init__(self, rows : int, cols : int, win_condition : GameMode):
+    def __init__(self, rows: int, cols: int, win_condition: GameMode,
+                 backend: QuantumBackend):
         self.rows = rows
         self.cols = cols
         self.n = rows * cols
-        self.backend = QiskitBackend(self.n)
+
+        # Backend factory + runtime state
+        self.backend: QuantumBackend = backend 
+        self.state: StabilizerQuantumState = self.backend.generate_stabilizer_state(self.n)
+
+        # Store the preparation recipe: list of (gate_name, [targets])
+        self.preparation_circuit: list[tuple[str, list[int]]] = []
 
         self.cell_state = np.full((rows, cols), CellState.UNEXPLORED, dtype=np.int8)
         self.game_status = GameStatus.ONGOING
@@ -48,14 +59,15 @@ class QuantumBoard:
         else:
             raise ValueError("Win condition unsupported")
 
-    def index(self, row :int, col: int) -> int:
+    # ---------- utils ----------
+    def index(self, row: int, col: int) -> int:
         return row * self.cols + col
 
-    def coords(self, idx : int) -> tuple[int, int]:
+    def coords(self, idx: int) -> tuple[int, int]:
         return divmod(idx, self.cols)
 
-    def expectation_z(self, idx : int) -> float:
-        return self.backend.expectation_z(idx)
+    def expectation_z(self, idx: int) -> float:
+        return self.state.expectation_z(idx)
 
     def board_expectations(self) -> np.ndarray:
         return np.array([[self.expectation_z(self.index(r, c))
@@ -67,6 +79,20 @@ class QuantumBoard:
                 if 0 <= (r := row + dr) < self.rows
                 and 0 <= (c := col + dc) < self.cols]
 
+    # ---------- reset using stored prep circuit ----------
+    def reset_board(self):
+        """
+        Reset quantum state to |0>^n, reset visible state, and replay the stored
+        preparation circuit to rebuild the same board configuration deterministically.
+        """
+        self.state.reset()
+        self.cell_state.fill(CellState.UNEXPLORED)
+        self.game_status = GameStatus.ONGOING
+
+        for gate, targets in self.preparation_circuit:
+            self.state.apply_gate(gate, targets)
+
+    # ---------- gameplay ----------
     def get_clue(self, row: int, col: int) -> float:
         idx = self.index(row, col)
         if self.expectation_z(idx) == -1:
@@ -79,7 +105,7 @@ class QuantumBoard:
         if self.cell_state[row, col] == CellState.PINNED:
             return None
         self.cell_state[row, col] = CellState.EXPLORED
-        return self.backend.measure(idx)
+        return self.state.measure(idx)
 
     def measure_connected(self, row: int, col: int):
         to_explore = [(row, col)]
@@ -95,14 +121,8 @@ class QuantumBoard:
                         to_explore.append((nr, nc))
 
     def check_game_status(self):
-        """
-        Check the game status based on the current board state and win condition.
-        Updates self.game_status to WIN, LOSE, or ONGOING.
-        """
-
         bombs = (1.0 - self.board_expectations()) / 2
         explored = (self.cell_state == CellState.EXPLORED)
-        pinned = (self.cell_state == CellState.PINNED)
 
         tol = 1e-6
         p0 = (bombs <= tol)
@@ -132,10 +152,10 @@ class QuantumBoard:
             else:
                 self.game_status = GameStatus.ONGOING
 
-    def apply_gate(self, gate: str, targets):
-        self.backend.apply_gate(gate, targets)
+    def apply_gate(self, gate: str, targets: list[int]):
+        self.state.apply_gate(gate, targets)
 
-    def move(self, move_type: MoveType, coord_1, coord_2=None):
+    def move(self, move_type: IntEnum, coord_1, coord_2=None):
         r1, c1 = coord_1
         idx = self.index(r1, c1)
 
@@ -148,10 +168,8 @@ class QuantumBoard:
             elif self.cell_state[r1, c1] == CellState.UNEXPLORED:
                 self.cell_state[r1, c1] = CellState.PINNED
 
-        elif move_type in [
-            MoveType.X_GATE, MoveType.Y_GATE, MoveType.Z_GATE,
-            MoveType.H_GATE, MoveType.S_GATE
-        ]:
+        elif move_type in (MoveType.X_GATE, MoveType.Y_GATE, MoveType.Z_GATE,
+                           MoveType.H_GATE, MoveType.S_GATE):
             gate_map = {
                 MoveType.X_GATE: "X",
                 MoveType.Y_GATE: "Y",
@@ -159,55 +177,34 @@ class QuantumBoard:
                 MoveType.H_GATE: "H",
                 MoveType.S_GATE: "S",
             }
-
-            # Apply the gate to the specified qubit
             self.apply_gate(gate_map[move_type], [idx])
-
-            # A gate move is applied to an already explored cell, we change the cell state to unexplored
             self.cell_state[r1, c1] = CellState.UNEXPLORED
-
         else:
             raise ValueError(f"Unsupported move type: {move_type}")
 
-        # After any move, we check the game status
         self.check_game_status()
 
-    def span_classical_bombs(self, nbombs : int):
-        """
-        Randomly place nbombs on the board by applying X gates to the corresponding qubits.        
-        """
-        all_coords = [(r, c) for r in range(self.rows) for c in range(self.cols)]
-        bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
-        for i in bomb_coords:
-            r, c = all_coords[i]
-            self.apply_gate("X", [self.index(r, c)])
-
-    def span_quantum_product_bombs(self, nbombs: int):
-        """
-        Randomly place `nbombs` quantum bombs in random single-qubit stabilizer states.
-        Each bomb is initialized independently using Clifford gates applied to |0⟩.
-        The states used are the 6 single-qubit stabilizer states:
-        |0⟩, |1⟩, |+⟩, |–⟩, |+i⟩, |–i⟩.
-        """
+    # ---------- spanners now *write* circuit then reset ----------
+    def span_classical_bombs(self, nbombs: int):
         if nbombs > self.n:
             raise ValueError("Too many bombs for board size")
 
-        all_coords = [(r, c) for r in range(self.rows) for c in range(self.cols)]
-        bomb_coords = np.random.choice(len(all_coords), size=nbombs, replace=False)
+        chosen = np.random.choice(np.arange(self.n), size=nbombs, replace=False)
+        circuit: list[tuple[str, list[int]]] = [("X", [int(i)]) for i in chosen]
+        self.preparation_circuit = circuit
+        self.reset_board()
 
-        # Define gate sequences for the 6 single-qubit stabilizer states
+    def span_quantum_product_bombs(self, nbombs: int):
+        if nbombs > self.n:
+            raise ValueError("Too many bombs for board size")
+
         stabilizer_gates = [
-            [],                          # |0⟩
-            ["X"],                       # |1⟩
-            ["H"],                       # |+⟩
-            ["X", "H"],                  # |–⟩
-            ["H", "S"],                  # |+i⟩
-            ["X", "H", "S"],             # |–i⟩
+            [], ["X"], ["H"], ["X", "H"], ["H", "S"], ["X", "H", "S"]
         ]
-
-        for i in bomb_coords:
-            r, c = all_coords[i]
-            idx = self.index(r, c)
-            gate_seq = random.choice(stabilizer_gates)
-            for gate in gate_seq:
-                self.apply_gate(gate, [idx])
+        chosen = np.random.choice(np.arange(self.n), size=nbombs, replace=False)
+        circuit: list[tuple[str, list[int]]] = []
+        for i in chosen:
+            for g in random.choice(stabilizer_gates):
+                circuit.append((g, [int(i)]))
+        self.preparation_circuit = circuit
+        self.reset_board()

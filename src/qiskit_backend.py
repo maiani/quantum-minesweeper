@@ -1,41 +1,46 @@
-from backend import QuantumBackend
+# ./src/qiskit_backend.py
+from __future__ import annotations
+from typing import List
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import StabilizerState, Pauli, Clifford
 from qiskit.circuit.library import XGate, YGate, ZGate, HGate, SGate, CXGate
 
+from quantum_backend import QuantumBackend, StabilizerQuantumState
 
-class QiskitBackend(QuantumBackend):
+
+class QiskitState(StabilizerState):
     def __init__(self, n_qubits: int):
-        super().__init__(n_qubits)
-        self.state = StabilizerState(QuantumCircuit(n_qubits))
+        self.n = n_qubits
+        self._init_state()
+
+    def _init_state(self):
+        self.state = StabilizerState(QuantumCircuit(self.n))
+
+    def reset(self) -> None:
+        self._init_state()
 
     def expectation_z(self, idx: int) -> float:
+        # Z on idx: I...(Z at idx)...I   (Qiskit qubit 0 is leftmost in string)
         label = 'I' * (self.n - idx - 1) + 'Z' + 'I' * idx
         return self.state.expectation_value(Pauli(label))
 
     def measure(self, idx: int) -> int:
         outcome, self.state = self.state.measure([idx])
-        return outcome
+        return int(outcome)
 
-    def apply_gate(self, gate: str, targets: list[int]):
-        gate_map = {
-            "X": XGate,
-            "Y": YGate,
-            "Z": ZGate,
-            "H": HGate,
-            "S": SGate,
-            "CX": CXGate,
-        }
-
-        gate_cls = gate_map.get(gate)
-
+    def apply_gate(self, gate: str, targets: List[int]) -> None:
+        gate_cls = {
+            "X": XGate, "Y": YGate, "Z": ZGate, "H": HGate, "S": SGate, "CX": CXGate
+        }.get(gate)
         if gate_cls is None:
             raise ValueError(f"Unsupported gate: {gate}")
 
-        gate_obj = gate_cls()
-        cl = Clifford(gate_obj)
-
+        cl = Clifford(gate_cls())
         if cl.num_qubits != len(targets):
             raise ValueError(f"Gate {gate} expects {cl.num_qubits} qubits, got {len(targets)}")
 
         self.state = self.state.evolve(cl, targets)
+
+class QiskitBackend(QuantumBackend):
+    def generate_stabilizer_state(self, n_qubits: int) -> StabilizerQuantumState:
+        return QiskitState(n_qubits)
