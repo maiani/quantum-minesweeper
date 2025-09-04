@@ -3,14 +3,8 @@
 <head>
   <meta charset="utf-8">
   <title>Quantum Minesweeper – Setup</title>
-  <style>
-    body { font-family: system-ui, sans-serif; background: #0b0b0b; color:#eee; }
-    .card { max-width: 540px; margin: 5rem auto; padding: 1.5rem; background: #141414; border: 1px solid #222; border-radius: 10px; }
-    label { display:block; margin-top: .8rem; }
-    input, select { width: 100%; padding: .6rem .7rem; margin-top: .3rem; background:#0f0f0f; border:1px solid #2a2a2a; color:#eee; border-radius:8px;}
-    button { margin-top:1rem; padding:.7rem 1rem; background:#2b6cb0; color:#fff; border:none; border-radius:8px; cursor:pointer; }
-    button:hover { background:#2c77c5; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  
 </head>
 <body>
   <div class="card">

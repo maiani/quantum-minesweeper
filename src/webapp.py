@@ -1,6 +1,6 @@
 # ./src/webapp.py
 from __future__ import annotations
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, Response
 from uuid import uuid4
 
 from quantum_board import QuantumBoard, GameMode, MoveType, CellState
@@ -31,6 +31,10 @@ def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -
         qb.span_quantum_product_bombs(n_bombs)
     return qb
 
+
+@app.get("/health")
+def health():
+    return Response("ok", status=200, mimetype="text/plain")
 
 @app.route("/")
 def home():
