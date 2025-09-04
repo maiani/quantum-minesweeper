@@ -1,4 +1,4 @@
-name: qminesweep
+name: qminesweeper
 channels:
   - conda-forge
   - defaults

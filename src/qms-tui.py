@@ -3,7 +3,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from quantum_board import QuantumBoard, CellState, GameStatus, MoveType, GameMode
+from quantum_board import QMineSweeperGame, CellState, GameStatus, MoveType, GameMode
 from qiskit_backend import QiskitBackend  # backend factory
 
 console = Console()
@@ -17,30 +17,27 @@ def clue_style(val: float) -> str:
     return f"rgb({r},{g},0)"
 
 
-def render_rich(qb: QuantumBoard, prec: int = 1):
+def render_rich(qb: QMineSweeperGame, prec: int = 1):
     table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
-    table.add_column(" ", justify="right")
+    table.add_column(" ", justify="right")  # row index label
     for col in range(1, qb.cols + 1):
         table.add_column(str(col), justify="center")
 
+    grid = qb.export_grid()
     for r in range(qb.rows):
-        row = [str(r + 1)]
+        row = [str(r + 1)]  # add row label first
         for c in range(qb.cols):
-            state = qb.cell_state[r, c]
-            if state == CellState.UNEXPLORED:
-                cell = Text("■", style="dim")  # filled square
-            elif state == CellState.PINNED:
+            val = grid[r, c]
+            if val == -1:
+                cell = Text("■", style="dim")
+            elif val == -2:
                 cell = Text("⚑", style="yellow")
-            elif state == CellState.EXPLORED:
-                val = qb.get_clue(r, c)
-                if val == 9:
-                    cell = Text("💥", style="bold red")
-                elif val == 0:
-                    cell = Text(" ", style="on black")  # empty tile for 0.0
-                else:
-                    cell = Text(f"{val:.1f}", style=clue_style(val))
+            elif val == 9.0:
+                cell = Text("💥", style="bold red")
+            elif val == 0.0:
+                cell = Text(" ", style="on black")
             else:
-                cell = Text("?", style="red")
+                cell = Text(f"{val:.{prec}f}", style=clue_style(val))
             row.append(cell)
         table.add_row(*row)
 
@@ -104,8 +101,8 @@ def game_setup():
     return mode, rows, cols, n_bombs, btype
 
 
-def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QuantumBoard:
-    qb = QuantumBoard(rows, cols, mode, backend=QiskitBackend())
+def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QMineSweeperGame:
+    qb = QMineSweeperGame(rows, cols, mode, backend=QiskitBackend())
     if btype == 1:
         qb.span_classical_bombs(n_bombs)
     else:
@@ -116,7 +113,7 @@ def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -
 # ---------- Single loop that also supports Reset/New ----------
 def game_loop(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int):
     def make_board():
-        qb_ = QuantumBoard(rows, cols, mode, backend=QiskitBackend())
+        qb_ = QMineSweeperGame(rows, cols, mode, backend=QiskitBackend())
         if btype == 1:
             qb_.span_classical_bombs(n_bombs)
         else:

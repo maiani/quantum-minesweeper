@@ -1,9 +1,9 @@
-# ./src/webapp.py
+# ./src/flask-webapp.py
 from __future__ import annotations
 from flask import Flask, render_template, request, redirect, url_for, session, Response
 from uuid import uuid4
 
-from quantum_board import QuantumBoard, GameMode, MoveType, CellState
+from quantum_board import QMineSweeperGame, GameMode, MoveType, CellState
 from qiskit_backend import QiskitBackend
 
 app = Flask(
@@ -23,8 +23,8 @@ def get_sid() -> str:
     return session["sid"]
 
 
-def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QuantumBoard:
-    qb = QuantumBoard(rows, cols, mode, backend=QiskitBackend())
+def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QMineSweepGame:
+    qb = QMineSweepGame(rows, cols, mode, backend=QiskitBackend())
     if btype == 1:
         qb.span_classical_bombs(n_bombs)
     else:
@@ -82,7 +82,7 @@ def game():
     if sid not in GAMES:
         return redirect(url_for("setup"))
 
-    qb: QuantumBoard = GAMES[sid]["board"]
+    qb: QMineSweepGame = GAMES[sid]["board"]
     cfg = GAMES[sid]["config"]
     mode = cfg["mode"]
 
@@ -135,7 +135,7 @@ def game():
     for r in range(qb.rows):
         row = []
         for c in range(qb.cols):
-            state = qb.cell_state[r, c]
+            state = qb.exploration_state[r, c]
             cell = {"r": r, "c": c, "text": "", "style": ""}
             if state == CellState.UNEXPLORED:
                 cell["text"] = "■"

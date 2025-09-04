@@ -1,4 +1,3 @@
-# ./src/qiskit_backend.py
 from __future__ import annotations
 from typing import List
 from qiskit import QuantumCircuit
@@ -8,7 +7,7 @@ from qiskit.circuit.library import XGate, YGate, ZGate, HGate, SGate, CXGate
 from quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
-class QiskitState(StabilizerState):
+class QiskitState(StabilizerQuantumState):
     def __init__(self, n_qubits: int):
         self.n = n_qubits
         self._init_state()
@@ -19,9 +18,15 @@ class QiskitState(StabilizerState):
     def reset(self) -> None:
         self._init_state()
 
-    def expectation_z(self, idx: int) -> float:
-        # Z on idx: I...(Z at idx)...I   (Qiskit qubit 0 is leftmost in string)
-        label = 'I' * (self.n - idx - 1) + 'Z' + 'I' * idx
+    def expectation_pauli(self, idx: int, basis: str) -> float:
+        """
+        Return ⟨basis⟩ for a single qubit at index.
+        basis ∈ {"X","Y","Z"}.
+        """
+        if basis not in ("X", "Y", "Z"):
+            raise ValueError("Basis must be one of 'X','Y','Z'")
+        # Build Pauli string: leftmost = qubit 0 in Qiskit
+        label = "I" * (self.n - idx - 1) + basis + "I" * idx
         return self.state.expectation_value(Pauli(label))
 
     def measure(self, idx: int) -> int:
@@ -30,7 +35,8 @@ class QiskitState(StabilizerState):
 
     def apply_gate(self, gate: str, targets: List[int]) -> None:
         gate_cls = {
-            "X": XGate, "Y": YGate, "Z": ZGate, "H": HGate, "S": SGate, "CX": CXGate
+            "X": XGate, "Y": YGate, "Z": ZGate,
+            "H": HGate, "S": SGate, "CX": CXGate
         }.get(gate)
         if gate_cls is None:
             raise ValueError(f"Unsupported gate: {gate}")
@@ -40,6 +46,7 @@ class QiskitState(StabilizerState):
             raise ValueError(f"Gate {gate} expects {cl.num_qubits} qubits, got {len(targets)}")
 
         self.state = self.state.evolve(cl, targets)
+
 
 class QiskitBackend(QuantumBackend):
     def generate_stabilizer_state(self, n_qubits: int) -> StabilizerQuantumState:
