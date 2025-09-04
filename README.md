@@ -20,3 +20,7 @@ For the web interface
 
 and then open `http://127.0.0.1:5000` on the broswer.
 
+## Ideas for the future:
+- New move: draw a line on the board and return the bipartite entanglement. Can a player get advantage of this?
+- Select the basis for the clue: X, Y
+- 
