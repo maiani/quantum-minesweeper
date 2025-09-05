@@ -3,10 +3,14 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from quantum_board import QMineSweeperGame, CellState, GameStatus, MoveType, GameMode
+from quantum_board import QMineSweeperGame, GameStatus, MoveType, GameMode
 from qiskit_backend import QiskitBackend  # backend factory
+from stim_backend import StimBackend  # alternative backend factory
 
 console = Console()
+
+# BACKEND = QiskitBackend()
+BACKEND = StimBackend()
 
 
 # ---------- Coloring helper for fractional clues ----------
@@ -102,7 +106,7 @@ def game_setup():
 
 
 def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QMineSweeperGame:
-    qb = QMineSweeperGame(rows, cols, mode, backend=QiskitBackend())
+    qb = QMineSweeperGame(rows, cols, mode, backend=BACKEND)
     if btype == 1:
         qb.span_classical_bombs(n_bombs)
     else:
@@ -113,7 +117,7 @@ def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -
 # ---------- Single loop that also supports Reset/New ----------
 def game_loop(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int):
     def make_board():
-        qb_ = QMineSweeperGame(rows, cols, mode, backend=QiskitBackend())
+        qb_ = QMineSweeperGame(rows, cols, mode, backend=BACKEND)
         if btype == 1:
             qb_.span_classical_bombs(n_bombs)
         else:
