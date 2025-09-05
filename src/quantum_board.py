@@ -81,7 +81,7 @@ class QMineSweeperGame:
 
         # Clue basis
         self.clue_basis: str = "Z"
-        
+
         # Expectation caches: per-basis dicts
         self._exp_cache: Dict[str, np.ndarray] = {
             "X": np.full((rows, cols), np.nan, dtype=float),
@@ -108,7 +108,7 @@ class QMineSweeperGame:
                 and 0 <= (c := col + dc) < self.cols]
 
     # ---------- cache helpers ----------
-    def _invalidate_cache_selectively(self, *, gate_targets: list[int] = None, measured: list[int] = None):
+    def _invalidate_cache_selectively(self, *, gate_targets: list[int] | None = None, measured: list[int] | None = None):
         gate_targets = gate_targets or []
         measured = measured or []
 
@@ -292,7 +292,7 @@ class QMineSweeperGame:
         if nbombs > self.n:
             raise ValueError("Too many bombs for board size")
         stabilizer_gates = [
-            [], ["X"], ["H"], ["X", "H"], ["H", "S"], ["X", "H", "S"]
+            ["X"], ["H"], ["X", "H"], ["H", "S"], ["X", "H", "S"]
         ]
         chosen = np.random.choice(np.arange(self.n), size=nbombs, replace=False)
         circuit: List[Tuple[str, List[int]]] = []
