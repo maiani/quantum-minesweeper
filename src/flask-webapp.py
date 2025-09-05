@@ -23,8 +23,8 @@ def get_sid() -> str:
     return session["sid"]
 
 
-def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QMineSweepGame:
-    qb = QMineSweepGame(rows, cols, mode, backend=QiskitBackend())
+def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QMineSweeperGame:
+    qb = QMineSweeperGame(rows, cols, mode, backend=QiskitBackend())
     if btype == 1:
         qb.span_classical_bombs(n_bombs)
     else:
@@ -82,7 +82,7 @@ def game():
     if sid not in GAMES:
         return redirect(url_for("setup"))
 
-    qb: QMineSweepGame = GAMES[sid]["board"]
+    qb: QMineSweeperGame = GAMES[sid]["board"]
     cfg = GAMES[sid]["config"]
     mode = cfg["mode"]
 
