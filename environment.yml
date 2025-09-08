@@ -9,6 +9,7 @@ dependencies:
   - gymnasium
   - flask
   - pytest
+  - typer
   - pip
   - pip:
       - qiskit
