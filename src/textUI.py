@@ -1,17 +1,12 @@
-# ./src/qms-tui.py
+# ./src/textUI.py
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
 from quantum_board import QMineSweeperGame, GameStatus, MoveType, GameMode
-from qiskit_backend import QiskitBackend  # backend factory
-from stim_backend import StimBackend  # alternative backend factory
+from quantum_backend import QuantumBackend  # interface
 
 console = Console()
-
-# BACKEND = QiskitBackend()
-BACKEND = StimBackend()
-
 
 # ---------- Coloring helper for fractional clues ----------
 def clue_style(val: float) -> str:
@@ -25,11 +20,11 @@ def render_rich(qb: QMineSweeperGame, prec: int = 1):
     table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
     table.add_column(" ", justify="right")  # row index label
     for col in range(1, qb.cols + 1):
-        table.add_column(str(col), justify="center")
+        table.add_column(Text(str(col)), justify="center")
 
     grid = qb.export_grid()
     for r in range(qb.rows):
-        row = [str(r + 1)]  # add row label first
+        row = [Text(str(r + 1))]  # add row label first
         for c in range(qb.cols):
             val = grid[r, c]
             if val == -1:
@@ -91,40 +86,37 @@ def game_setup():
             pass
         console.print("[red]Enter a valid number of bombs.[/]")
 
-    # Choose classical or quantum product bombs for spanning
-    console.print("Bomb type:\n  [cyan]1.[/] Classical (|1⟩)\n  [cyan]2.[/] Quantum product stabilizers")
+    console.print("Entanglement level:\n"
+                  "  [cyan]0.[/] Classical bombs (|1⟩)\n"
+                  "  [cyan]1.[/] Product stabilizers\n"
+                  "  [cyan]2.[/] Entangled pairs\n"
+                  "  [cyan]3.[/] 3-body stabilizers (etc.)")
     while True:
         try:
-            btype = int(console.input("Enter choice [1-2]: ").strip())
-            if btype in (1, 2):
+            ent_level = int(console.input("Enter level [0-3]: ").strip())
+            if ent_level >= 0:
                 break
         except ValueError:
             pass
-        console.print("[red]Invalid input. Please enter 1 or 2.[/]")
+        console.print("[red]Invalid input. Please enter a non-negative integer.[/]")
 
-    return mode, rows, cols, n_bombs, btype
+    return mode, rows, cols, n_bombs, ent_level
 
 
-def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int) -> QMineSweeperGame:
-    qb = QMineSweeperGame(rows, cols, mode, backend=BACKEND)
-    if btype == 1:
+def make_board(backend : QuantumBackend, mode: GameMode, rows: int, cols: int, n_bombs: int, ent_level: int) -> QMineSweeperGame:
+    qb = QMineSweeperGame(rows, cols, mode, backend=backend)
+    if ent_level == 0:
         qb.span_classical_bombs(n_bombs)
     else:
-        qb.span_quantum_product_bombs(n_bombs)
+        qb.span_random_stabilizer_bombs(nbombs=n_bombs, level=ent_level)
     return qb
 
 
 # ---------- Single loop that also supports Reset/New ----------
-def game_loop(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int):
-    def make_board():
-        qb_ = QMineSweeperGame(rows, cols, mode, backend=BACKEND)
-        if btype == 1:
-            qb_.span_classical_bombs(n_bombs)
-        else:
-            qb_.span_quantum_product_bombs(n_bombs)
-        return qb_
+def game_loop(backend: QuantumBackend, mode: GameMode, rows: int, cols: int, n_bombs: int, ent_level: int):
 
-    qb = make_board()
+    qb = make_board(backend=backend, mode=mode, rows=rows, cols=cols, n_bombs=n_bombs, ent_level=ent_level)
+
     render_rich(qb)
     console.print(
         "Move examples: [bold]3,4[/] (measure), [bold]P 3,4[/] (pin), "
@@ -193,7 +185,7 @@ def game_loop(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int):
                 return "NEW_RULES"
             elif choice == "S":
                 # regenerate with the same rules & fresh bombs
-                qb = make_board()
+                qb = make_board(backend=backend, mode=mode, rows=rows, cols=cols, n_bombs=n_bombs, ent_level=ent_level)
                 render_rich(qb)
                 break  # back to inner gameplay loop
             elif choice == "R":
@@ -205,17 +197,13 @@ def game_loop(mode: GameMode, rows: int, cols: int, n_bombs: int, btype: int):
                 console.print("[red]Please choose N, S, R, or Q.[/]")
 
 
-def main():
+def run_tui(backend: QuantumBackend):
     welcome_screen()
     while True:
-        mode, rows, cols, n_bombs, btype = game_setup()
-        outcome = game_loop(mode, rows, cols, n_bombs, btype)
+        mode, rows, cols, n_bombs, ent_level = game_setup()
+        outcome = game_loop(backend, mode, rows, cols, n_bombs, ent_level)
         if outcome == "QUIT":
             break
         if outcome == "NEW_RULES":
             # loop back to setup for new rules
             continue
-
-
-if __name__ == "__main__":
-    main()

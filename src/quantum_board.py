@@ -5,6 +5,8 @@ import random
 import numpy as np
 from typing import Dict, Tuple, List
 
+from qiskit.quantum_info import random_clifford, Clifford
+
 from quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
@@ -288,17 +290,45 @@ class QMineSweeperGame:
         self.preparation_circuit = circuit
         self.reset_board()
 
-    def span_quantum_product_bombs(self, nbombs: int):
+    def span_random_stabilizer_bombs(self, nbombs: int, level: int):
+        """
+        Place `nbombs` bombs in groups of size `level`.
+        Each group is initialized in a uniformly random stabilizer state,
+        excluding trivial states completely empty as |0...0>.
+        """
         if nbombs > self.n:
             raise ValueError("Too many bombs for board size")
-        stabilizer_gates = [
-            ["X"], ["H"], ["X", "H"], ["H", "S"], ["X", "H", "S"]
-        ]
-        chosen = np.random.choice(np.arange(self.n), size=nbombs, replace=False)
-        circuit: List[Tuple[str, List[int]]] = []
-        for i in chosen:
-            for g in random.choice(stabilizer_gates):
-                circuit.append((g, [int(i)]))
+
+        indices = list(np.random.choice(self.n, size=nbombs, replace=False))
+        circuit: list[tuple[str, list[int]]] = []
+
+        while indices:
+            group_size = min(level, len(indices))
+            group = [indices.pop() for _ in range(group_size)]
+
+            # Sample until we don't hit a trivial state
+            while True:
+                cl = random_clifford(group_size)
+                # reject identity Clifford (|0…0>)
+                if cl == Clifford(np.eye(2 * group_size, dtype=int)):
+                    continue
+                break
+
+            qc = cl.to_circuit()
+            # map Qiskit qubits -> our board indices
+            q_to_idx = {q: group[i] for i, q in enumerate(qc.qubits)}
+
+            for instr in qc.data:
+                op = instr.operation
+                qargs = instr.qubits
+
+                name = op.name.upper()
+                if name == "SDG":
+                    name = "Sdg"
+
+                targets = [q_to_idx[q] for q in qargs]
+                circuit.append((name, targets))
+
         self.preparation_circuit = circuit
         self.reset_board()
 
