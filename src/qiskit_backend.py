@@ -27,7 +27,8 @@ class QiskitState(StabilizerQuantumState):
             raise ValueError("Basis must be one of 'X','Y','Z'")
         # Build Pauli string: leftmost = qubit 0 in Qiskit
         label = "I" * (self.n - idx - 1) + basis + "I" * idx
-        return self.state.expectation_value(Pauli(label))
+        value = self.state.expectation_value(Pauli(label))
+        return float(value.real)
 
     def measure(self, idx: int) -> int:
         outcome, self.state = self.state.measure([idx])

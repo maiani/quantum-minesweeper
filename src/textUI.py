@@ -129,72 +129,104 @@ def game_loop(backend: QuantumBackend, mode: GameMode, rows: int, cols: int, n_b
         cmd_map.update({
             "X": MoveType.X_GATE, "Y": MoveType.Y_GATE, "Z": MoveType.Z_GATE,
             "H": MoveType.H_GATE, "S": MoveType.S_GATE,
+            "CX": MoveType.CX_GATE,
+            "CY": MoveType.CY_GATE,
+            "CZ": MoveType.CZ_GATE,
+            "SWAP": MoveType.SWAP_GATE,
         })
 
-    while True:  # outer loop lets us reset/regenerate without leaving the function
-        while qb.game_status == GameStatus.ONGOING:
-            try:
-                raw = console.input("[yellow]Your move[/] ([M/P/X/Y/Z/H/S] row,col | R | N | Q): ").strip()
-                if not raw:
-                    continue
+        while True:  # outer loop lets us reset/regenerate without leaving the function
+            while qb.game_status == GameStatus.ONGOING:
+                try:
+                    raw = console.input(
+                        "[yellow]Your move[/] "
+                        "([M/P/X/Y/Z/H/S] row,col | CX/CY/CZ/SWAP r1,c1 r2,c2 | R | N | Q): "
+                    ).strip()
+                    if not raw:
+                        continue
 
-                # global commands
-                if raw.upper() in ("Q", "QUIT", "EXIT"):
-                    console.print("[italic]Game exited.[/]")
+                    # global commands
+                    if raw.upper() in ("Q", "QUIT", "EXIT"):
+                        console.print("[italic]Game exited.[/]")
+                        return "QUIT"
+
+                    if raw.upper() == "R":
+                        qb.reset_board()
+                        render_rich(qb)
+                        console.print("[green]Board reset.[/]")
+                        continue
+
+                    if raw.upper() == "N":
+                        return "NEW_RULES"
+
+                    # parse command and args
+                    parts = raw.split()
+                    cmd = parts[0].upper()
+
+                    print(cmd)
+
+                    # two-qubit gates
+                    if cmd in ("CX", "CY", "CZ", "SWAP"):
+                        if len(parts) != 3:
+                            console.print(f"[red]Format: {cmd} r1,c1 r2,c2[/]")
+                            continue
+                        try:
+                            r1, c1 = map(int, parts[1].split(","))
+                            r2, c2 = map(int, parts[2].split(","))
+                        except ValueError:
+                            console.print("[red]Invalid coordinates. Use row,col format.[/]")
+                            continue
+                        qb.move(cmd_map[cmd], (r1 - 1, c1 - 1), (r2 - 1, c2 - 1))
+
+                    # one-qubit gates or measure/pin
+                    else:
+                        if cmd in cmd_map:
+                            if len(parts) < 2:
+                                console.print(f"[red]Format: {cmd} row,col[/]")
+                                continue
+                            pos = parts[1]
+                        else:
+                            cmd, pos = "M", raw  # default to measure
+                        try:
+                            r, c = map(int, pos.split(","))
+                        except ValueError:
+                            console.print("[red]Invalid coordinates. Use row,col format.[/]")
+                            continue
+                        qb.move(cmd_map[cmd], (r - 1, c - 1))
+
+                    render_rich(qb)
+                    console.print(f"[cyan]Game status:[/] [bold]{qb.game_status.name}[/]")
+
+                except Exception as e:
+                    console.print(f"[red]Invalid input:[/] {e}")
+
+            # game over: offer post-game options
+            console.print("[bold]Game over![/bold]")
+            console.print(
+                "Choose: [bold]N[/] new game (new rules) · [bold]S[/] new game (same rules) · "
+                "[bold]R[/] reset board · [bold]Q[/] quit"
+            )
+            while True:
+                choice = console.input("[yellow]Post-game[/] (N/S/R/Q): ").strip().upper()
+                if choice == "Q":
                     return "QUIT"
-
-                if raw.upper() == "R":
+                elif choice == "N":
+                    return "NEW_RULES"
+                elif choice == "S":
+                    # regenerate with the same rules & fresh bombs
+                    qb = make_board(
+                        backend=backend, mode=mode, rows=rows,
+                        cols=cols, n_bombs=n_bombs, ent_level=ent_level
+                    )
+                    render_rich(qb)
+                    break  # back to inner gameplay loop
+                elif choice == "R":
+                    # reset to the same preparation circuit and let user explore again
                     qb.reset_board()
                     render_rich(qb)
-                    console.print("[green]Board reset.[/]")
-                    continue
-
-                if raw.upper() == "N":
-                    # end this run and go back to menu to pick new rules
-                    return "NEW_RULES"
-
-                # parse (cmd, r,c), default to MEASURE
-                if raw[0].upper() in cmd_map:
-                    cmd, pos = raw[0].upper(), raw[1:].strip()
+                    break  # back to inner gameplay loop
                 else:
-                    cmd, pos = "M", raw
-
-                r, c = map(int, pos.split(","))
-                if not (1 <= r <= rows and 1 <= c <= cols):
-                    console.print("[red]Cell out of bounds.[/]")
-                    continue
-
-                qb.move(cmd_map[cmd], (r - 1, c - 1))
-                render_rich(qb)
-                console.print(f"[cyan]Game status:[/] [bold]{qb.game_status.name}[/]")
-
-            except Exception as e:
-                console.print(f"[red]Invalid input:[/] {e}")
-
-        # game over: offer post-game options
-        console.print("[bold]Game over![/bold]")
-        console.print(
-            "Choose: [bold]N[/] new game (new rules) · [bold]S[/] new game (same rules) · "
-            "[bold]R[/] reset board · [bold]Q[/] quit"
-        )
-        while True:
-            choice = console.input("[yellow]Post-game[/] (N/S/R/Q): ").strip().upper()
-            if choice == "Q":
-                return "QUIT"
-            elif choice == "N":
-                return "NEW_RULES"
-            elif choice == "S":
-                # regenerate with the same rules & fresh bombs
-                qb = make_board(backend=backend, mode=mode, rows=rows, cols=cols, n_bombs=n_bombs, ent_level=ent_level)
-                render_rich(qb)
-                break  # back to inner gameplay loop
-            elif choice == "R":
-                # reset to the same preparation circuit and let user explore again
-                qb.reset_board()
-                render_rich(qb)
-                break  # back to inner gameplay loop
-            else:
-                console.print("[red]Please choose N, S, R, or Q.[/]")
+                    console.print("[red]Please choose N, S, R, or Q.[/]")
 
 
 def run_tui(backend: QuantumBackend):

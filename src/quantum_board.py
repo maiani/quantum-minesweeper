@@ -249,7 +249,13 @@ class QMineSweeperGame:
 
     def move(self, move_type: IntEnum, coord_1, coord_2=None):
         r1, c1 = coord_1
-        idx = self.index(r1, c1)
+        idx1 = self.index(r1, c1)
+
+        if coord_2 is not None:
+            r2, c2 = coord_2
+            idx2 = self.index(r2, c2)
+            if idx2 == idx1:
+                raise ValueError("Two-qubit gate requires two distinct targets")
 
         if move_type == MoveType.MEASURE:
             self.measure_connected(r1, c1)
@@ -278,8 +284,13 @@ class QMineSweeperGame:
             }
             if MoveType(move_type) not in gate_map:
                 raise ValueError(f"Unsupported move type: {move_type}")
-            self.apply_gate(gate_map[MoveType(move_type)], [idx] if coord_2 is None else [idx, self.index(*coord_2)])
+            
+            self.apply_gate(gate_map[MoveType(move_type)], 
+                            [idx1] if coord_2 is None else [idx1, idx2])
+            
             self.exploration_state[r1, c1] = CellState.UNEXPLORED
+            if coord_2 is not None:
+                self.exploration_state[r2, c2] = CellState.UNEXPLORED
 
     # ---------- spanners ----------
     def span_classical_bombs(self, nbombs: int):
