@@ -8,6 +8,7 @@ dependencies:
   - rich
   - gymnasium
   - flask
+  - pytest
   - pip
   - pip:
       - qiskit

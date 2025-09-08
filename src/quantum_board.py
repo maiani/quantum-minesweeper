@@ -274,9 +274,9 @@ class QMineSweeperGame:
                 MoveType.CZ_GATE: "CZ",
                 MoveType.SWAP_GATE: "SWAP",
             }
-            if move_type not in gate_map:
+            if MoveType(move_type) not in gate_map:
                 raise ValueError(f"Unsupported move type: {move_type}")
-            self.apply_gate(gate_map[move_type], [idx] if coord_2 is None else [idx, self.index(*coord_2)])
+            self.apply_gate(gate_map[MoveType(move_type)], [idx] if coord_2 is None else [idx, self.index(*coord_2)])
             self.exploration_state[r1, c1] = CellState.UNEXPLORED
 
     # ---------- spanners ----------
