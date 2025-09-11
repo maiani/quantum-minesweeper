@@ -1,0 +1,29 @@
+# .github/workflows/tests.yml
+name: Run Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install micromamba
+        uses: mamba-org/provision-with-micromamba@v15
+        with:
+          environment-file: environment.yml
+          environment-name: qminesweeper
+          micromamba-version: "latest"
+
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+          pytest -v --maxfail=5 --disable-warnings
