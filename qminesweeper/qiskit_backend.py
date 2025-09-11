@@ -1,10 +1,11 @@
+#./src/qiskit_backend.py
 from __future__ import annotations
 from typing import List
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import StabilizerState, Pauli, Clifford
 from qiskit.circuit.library import XGate, YGate, ZGate, HGate, SGate, CXGate
 
-from quantum_backend import QuantumBackend, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
 class QiskitState(StabilizerQuantumState):

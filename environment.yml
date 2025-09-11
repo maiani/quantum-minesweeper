@@ -10,6 +10,10 @@ dependencies:
   - flask
   - pytest
   - typer
+  - starlette
+  - fastapi
+  - jinja2
+  - uvicorn
   - pip
   - pip:
       - qiskit

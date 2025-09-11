@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quantum Minesweeper – Game</title>
+  <!-- FastAPI/Starlette static resolver: use 'path=', not 'filename=' -->
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body class="{{ 'light' if theme=='light' else '' }}">
+  <div class="wrap">
+    <h3>Status: {{ status }}</h3>
+
+    <div class="toolbar">
+      <form method="post" action="{{ url_for('game_post') }}">
+        <input type="hidden" name="action" value="reset">
+        <button class="btn" type="submit">Reset Board</button>
+      </form>
+      <form method="post" action="{{ url_for('game_post') }}">
+        <input type="hidden" name="action" value="new_same">
+        <button class="btn" type="submit">New Game (Same Rules)</button>
+      </form>
+      <form method="post" action="{{ url_for('game_post') }}">
+        <input type="hidden" name="action" value="new_rules">
+        <button class="btn" type="submit">New Game (New Rules)</button>
+      </form>
+
+      <div style="flex:1"></div>
+
+      <!-- Theme toggle -->
+      <form method="post" action="{{ url_for('game_post') }}">
+        <input type="hidden" name="action" value="toggle_theme">
+        <button class="btn" type="submit">{{ 'Dark' if theme=='light' else 'Light' }} Theme</button>
+      </form>
+    </div>
+
+    <!-- Tool buttons -->
+    <div class="toolbar">
+      <div class="toolset" id="toolset">
+        {% for t in tools %}
+          <form method="post" action="{{ url_for('game_post') }}">
+            <input type="hidden" name="action" value="set_tool">
+            <input type="hidden" name="tool" value="{{ t }}">
+            <button type="submit" class="toolbtn {{ 'active' if current_tool==t else '' }}" data-tool="{{ t }}">
+              {{ t }}
+            </button>
+          </form>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Board -->
+    <div class="grid" style="grid-template-columns: repeat({{ cols }}, 48px);">
+      {% for row in grid %}
+        <div class="row">
+        {% for cell in row %}
+          <div class="cell">
+            <form method="post" action="{{ url_for('game_post') }}">
+              <input type="hidden" name="action" value="cell">
+              <input type="hidden" name="r" value="{{ cell.r }}">
+              <input type="hidden" name="c" value="{{ cell.c }}">
+              <button type="submit" style="{{ cell.style }}">{% autoescape false %}{{ cell.text }}{% endautoescape %}</button>
+            </form>
+          </div>
+        {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="status">
+      Active move: <strong>{{ current_tool }}</strong>.<br>
+      Keyboard: press
+      <code>M</code>, <code>P</code>, <code>X</code>, <code>Y</code>, <code>Z</code>, <code>H</code>, <code>S</code>
+      to switch tool.
+    </div>
+  </div>
+
+  <script>
+    // Keyboard shortcuts to switch tool (posts a tiny form).
+    const allowed = new Set({{ tools|tojson }});
+    document.addEventListener('keydown', (e) => {
+      const k = e.key.toUpperCase();
+      if (allowed.has(k)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("game_post") }}';
+        form.innerHTML = `
+          <input type="hidden" name="action" value="set_tool">
+          <input type="hidden" name="tool" value="${k}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+      }
+    }, { passive: true });
+  </script>
+</body>
+</html>

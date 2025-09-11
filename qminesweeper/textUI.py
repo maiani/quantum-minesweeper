@@ -3,8 +3,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from quantum_board import QMineSweeperGame, GameStatus, MoveType, GameMode
-from quantum_backend import QuantumBackend  # interface
+from qminesweeper.quantum_board import QMineSweeperGame, GameStatus, MoveType, GameMode
+from qminesweeper.quantum_backend import QuantumBackend  # interface
 
 console = Console()
 

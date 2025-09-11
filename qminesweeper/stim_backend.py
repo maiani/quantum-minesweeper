@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List
 import stim
 
-from quantum_backend import QuantumBackend, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
 class StimState(StabilizerQuantumState):

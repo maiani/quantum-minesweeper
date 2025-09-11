@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quantum Minesweeper – Setup</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+  <div class="card">
+    <h2>New Game</h2>
+    <form method="post" action="{{ url_for('setup_post') }}">
+      <label>Mode
+        <select name="mode">
+          <option value="1">Classical</option>
+          <option value="2">Quantum Identify</option>
+          <option value="3">Quantum Clear</option>
+        </select>
+      </label>
+
+      <label>Rows, Cols</label>
+      <div style="display:flex; gap:.6rem;">
+        <input type="number" name="rows" value="5" min="2" max="20">
+        <input type="number" name="cols" value="5" min="2" max="20">
+      </div>
+
+      <label>Bombs
+        <input type="number" name="bombs" value="5" min="1" max="200">
+      </label>
+
+      <label>Entanglement level
+        <select name="ent_level">
+          <option value="0">Level 0 – Classical (|1⟩ bombs)</option>
+          <option value="1">Level 1 – Product stabilizers</option>
+          <option value="2">Level 2 – 2-body entangled bombs</option>
+          <option value="3">Level 3 – 3-body entangled bombs</option>
+        </select>
+      </label>
+
+      <button type="submit">Start</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -7,7 +7,7 @@ from typing import Dict, Tuple, List
 
 from qiskit.quantum_info import random_clifford, Clifford
 
-from quantum_backend import QuantumBackend, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
 class CellState(IntEnum):

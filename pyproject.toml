@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qminesweeper"
+version = "0.1.0"
+description = "Quantum Minesweeper with TUI and FastAPI web UI"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name="Your Name"}]
+
+# Core runtime deps (keep minimal; choose Stim or Qiskit at runtime)
+dependencies = [
+  "numpy",
+  "rich",
+  "typer>=0.9",
+  "fastapi",
+  "uvicorn[standard]",
+  "jinja2",
+]
+
+# Optional backends
+[project.optional-dependencies]
+qiskit = ["qiskit"]
+stim = ["stim"]
+
+[project.scripts]
+qminesweeper = "qminesweeper.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qminesweeper*"]
+
+# Include templates/static in the installed package
+[tool.setuptools.package-data]
+qminesweeper = ["templates/*.html", "static/*", "static/**/*"]
