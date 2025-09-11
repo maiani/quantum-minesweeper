@@ -1,48 +1,30 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Quantum Minesweeper – Setup</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
-</head>
-<body class="{{ 'light' if theme=='light' else '' }}">
-  <div class="wrap">
-    <h2>Setup New Game</h2>
-    <form method="post" action="{{ url_for('setup_post') }}">
-      <div class="form-group">
-        <label>Game Mode:</label>
-        <select name="mode" required>
-          <option value="1">Classical</option>
-          <option value="2">Quantum Identify</option>
-          <option value="3">Quantum Clear</option>
-        </select>
-      </div>
+{% extends "base.html" %}
+{% block title %}Setup — Quantum Minesweeper{% endblock %}
 
-      <div class="form-group">
-        <label>Board Dimensions:</label>
-        <input type="number" name="rows" min="2" value="5"> ×
-        <input type="number" name="cols" min="2" value="5">
-      </div>
+{% block content %}
+<h1>Quantum Minesweeper — Setup</h1>
+<form action="/setup" method="post">
+  <label>Rows: <input type="number" name="rows" value="5" min="2" required></label><br>
+  <label>Cols: <input type="number" name="cols" value="5" min="2" required></label><br>
+  <label>Bombs: <input type="number" name="bombs" value="5" min="1" required></label><br>
+  <label>Entanglement level: <input type="number" name="ent_level" value="0" min="0" required></label><br>
 
-      <div class="form-group">
-        <label>Number of Bombs:</label>
-        <input type="number" name="bombs" min="1" value="5">
-      </div>
+  <label>Win Condition:
+    <select name="win_condition">
+      <option value="identify">Identify (classic)</option>
+      <option value="clear">Clear (all bomb prob ~ 0)</option>
+    </select>
+  </label><br>
 
-      <div class="form-group">
-        <label>Entanglement Level:</label>
-        <select name="ent_level" required>
-          <option value="0">Level 0 – Classical bombs (|1⟩)</option>
-          <option value="1">Level 1 – Quantum product stabilizers</option>
-          <option value="2">Level 2 – 2-qubit entangled stabilizers</option>
-          <option value="3">Level 3 – 3-qubit stabilizers (GHZ/W-like)</option>
-        </select>
-      </div>
+  <label>Move Set:
+    <select name="move_set">
+      <option value="classic">Classic (M,P)</option>
+      <option value="one">One-qubit</option>
+      <option value="one_complete">One-qubit complete</option>
+      <option value="two">Two-qubit</option>
+    </select>
+  </label><br>
 
-      <div class="form-group">
-        <button class="btn" type="submit">Start Game</button>
-      </div>
-    </form>
-  </div>
-</body>
-</html>
+  <button type="submit">Start Game</button>
+</form>
+{% endblock %}

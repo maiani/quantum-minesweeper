@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Bomb body -->
+  <circle cx="28" cy="40" r="18" fill="currentColor"/>
+  <!-- Shine -->
+  <path d="M20 30a12 12 0 0 1 9-5" stroke="white" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+  <!-- Fuse wire -->
+  <path d="M37 24 C 44 18, 49 16, 54 12" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Spark -->
+  <circle cx="56" cy="10" r="4" fill="#FFC93C" fill-opacity=".25"/>
+  <g stroke="#FFC93C" stroke-width="3" stroke-linecap="round">
+    <line x1="54" y1="8" x2="58" y2="12"/>
+    <line x1="58" y1="8" x2="54" y2="12"/>
+    <line x1="56" y1="5.5" x2="56" y2="14.5"/>
+    <line x1="51.5" y1="10" x2="60.5" y2="10"/>
+  </g>
+</svg>

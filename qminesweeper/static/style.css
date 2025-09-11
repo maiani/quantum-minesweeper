@@ -1,0 +1,177 @@
+/* ---------- Base theme ---------- */
+:root {
+  --bg: #0f1115;
+  --fg: #e8e8e8;
+  --muted: #7a7f87;
+  --tile-muted: #5a6070;
+  --pin: #ffcf33;
+  --boom: #ff4d4d;
+  --zero-bg: #1a1d24;
+  --btn: #202431;
+  --btn-h: #2a2f3f;
+  --accent: #6aa0ff;
+  --accent-h: #82b4ff;
+  --radius: 8px;
+}
+
+/* ---------- Layout ---------- */
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+main {
+  max-width: 800px;
+  width: 100%;
+  padding: 24px;
+}
+
+h1 {
+  font-size: 1.8em;
+  margin-bottom: 4px;
+}
+h2 {
+  font-size: 1.2em;
+  font-weight: normal;
+  opacity: 0.85;
+  margin-top: 0;
+}
+
+/* ---------- Board ---------- */
+.board {
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+.board td {
+  padding: 2px;
+}
+.board button {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--btn);
+  color: var(--fg);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.05s;
+}
+.board button:hover:not(:disabled) {
+  background: var(--btn-h);
+}
+.board button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.board button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Forms & Buttons ---------- */
+form button {
+  margin: 4px 4px 0 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--btn);
+  color: var(--fg);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.05s;
+}
+form button:hover {
+  background: var(--btn-h);
+}
+form button:active {
+  transform: scale(0.96);
+}
+button.active {
+  outline: 2px solid var(--accent);
+  background: var(--accent);
+  color: #000;
+}
+
+/* ---------- Tools ---------- */
+.tools {
+  margin: 12px 0;
+}
+.tools button {
+  min-width: 44px;
+}
+
+/* ---------- Game Over overlay ---------- */
+.gameover-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 17, 21, 0.25); /* translucent, board visible */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  text-align: center;
+  transition: background 0.3s ease-in-out;
+}
+
+.gameover-box {
+  background: var(--btn);
+  border-radius: var(--radius);
+  padding: 24px 32px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  max-width: 320px;
+  animation: pop 0.25s ease;
+}
+
+.gameover-box h2 {
+  color: var(--accent);
+  font-size: 2em;
+  margin-bottom: 12px;
+}
+
+.gameover-box::before {
+  content: "💣";
+  display: block;
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.gameover-box .actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.gameover-box button {
+  padding: 10px 18px;
+  font-size: 15px;
+  border-radius: var(--radius);
+}
+
+/* ---------- Light theme ---------- */
+body.light {
+  --bg: #fafafa;
+  --fg: #222;
+  --muted: #555;
+  --tile-muted: #bbb;
+  --pin: #d5a800;
+  --boom: #c80000;
+  --zero-bg: #eee;
+  --btn: #ddd;
+  --btn-h: #ccc;
+  --accent: #006dff;
+  --accent-h: #3388ff;
+}
+
+/* ---------- Animations ---------- */
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
