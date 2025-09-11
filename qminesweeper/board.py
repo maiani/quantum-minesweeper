@@ -168,25 +168,30 @@ class QMineSweeperBoard:
             # Deterministic Z=0 measurement if <Z> == +1
             return isclose(self.expectation(idx, "Z"), 1.0, rel_tol=0.0, abs_tol=tol)
 
-    def _auto_reveal_zero_regions(self) -> None:
-        """After a state change (gate/basis switch), reveal any leftover
-        zero-clue pockets that are deterministically safe in Z.
-        Uses measure_cell so flood-fill behaves consistently."""
-        if not self._flood_fill:
-            return
-        changed = True
-        while changed:
-            changed = False
-            for r in range(self.rows):
-                for c in range(self.cols):
-                    if self._exploration[r, c] != CellState.UNEXPLORED:
-                        continue
-                    idx = self.index(r, c)
-                    if self._is_deterministic_zero(idx) and self.clue_value(r, c, self._clue_basis) == 0.0:
-                        res = self.measure_cell(r, c)  # safe: deterministic 0
-                        if not res.skipped:
-                            changed = True
-
+    def _auto_reveal_zero_regions(self, exclude: set[int] | None = None) -> None:
+        """After a state change (gate/basis), reveal leftover zero-clue pockets
+        that are deterministically safe in Z. Exclude 'freshly gated' indices
+        so a gate doesn't look like an immediate measurement of the same cell.
+        """
+        return 
+        # if not self._flood_fill:
+        #     return
+        # exclude = exclude or set()
+        # changed = True
+        # while changed:
+        #     changed = False
+        #     for r in range(self.rows):
+        #         for c in range(self.cols):
+        #             if self._exploration[r, c] != CellState.UNEXPLORED:
+        #                 continue
+        #             idx = self.index(r, c)
+        #             if idx in exclude:
+        #                 continue
+        #             if self._is_deterministic_zero(idx) and self.clue_value(r, c, self._clue_basis) == 0.0:
+        #                 res = self.measure_cell(r, c)  # safe: deterministic 0
+        #                 if not res.skipped:
+        #                     changed = True
+    
     # ---------- mechanics: expectations/clues ----------
     def _invalidate_all_caches(self):
         self._exp_cache = {"X": {}, "Y": {}, "Z": {}}
@@ -241,7 +246,7 @@ class QMineSweeperBoard:
 
         # Conservative invalidation (simple & safe)
         self._invalidate_all_caches()
-        self._auto_reveal_zero_regions()
+        self._auto_reveal_zero_regions(exclude=set(idxs))
 
     def measure_cell(self, r: int, c: int) -> MeasureResult:
         """Measure (r,c) in Z and, if flood_fill=True and clue==0, expand."""
