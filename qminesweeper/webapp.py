@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
+import logging  # DEBUG
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -18,13 +19,17 @@ from qminesweeper.stim_backend import StimBackend
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="change-me-in-prod")
 
+# DEBUG: basic logger
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+log = logging.getLogger("qminesweeper.web")
+
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# Static mount if folder exists; otherwise serve fallback CSS so the page isn't bare
+# Static mount
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Optional: quiet favicon 404s if no file present
@@ -43,6 +48,7 @@ def get_sid(request: Request) -> str:
     if not sid:
         sid = str(uuid4())
         request.session["sid"] = sid
+        log.info(f"SID created: {sid}")  # DEBUG
     return sid
 
 # --------- Game building ---------
@@ -77,6 +83,7 @@ async def home(request: Request):
 
 @app.get("/setup", response_class=HTMLResponse, name="setup_get")
 async def setup_get(request: Request):
+    log.info("GET /setup")  # DEBUG
     return templates.TemplateResponse("setup.html", {
         "request": request,
         "theme": request.session.get("theme", "dark"),
@@ -112,6 +119,10 @@ async def setup_post(
     }
     request.session.setdefault("tool", "M")
     request.session.setdefault("theme", "dark")
+
+    log.info(f"SETUP sid={sid} rows={rows} cols={cols} bombs={bombs} ent={ent_level} "
+             f"win={win.name} moves={mv.name}")  # DEBUG
+
     return RedirectResponse("/game", status_code=303)
 
 @app.get("/game", response_class=HTMLResponse, name="game_get")
@@ -159,6 +170,9 @@ async def game_get(request: Request):
             row.append(cell)
         grid.append(row)
 
+    log.info(f"GET /game sid={sid} status={game.status.name} "
+             f"tool={request.session.get('tool','M')}")  # DEBUG
+
     return templates.TemplateResponse(
         "game.html",
         {
@@ -177,7 +191,7 @@ async def game_get(request: Request):
 async def game_post(
     request: Request,
     action: str = Form(...),
-    # IMPORTANT: r,c arrive as QUERY params via formaction, not form fields
+    # r,c arrive as QUERY params via formaction
     r: Optional[int] = Query(None),
     c: Optional[int] = Query(None),
     r2: Optional[int] = Query(None),
@@ -186,14 +200,22 @@ async def game_post(
 ):
     sid = get_sid(request)
     if sid not in GAMES:
-        return RedirectResponse("/setup")
+        return RedirectResponse("/setup", status_code=303)
 
     board: QMineSweeperBoard = GAMES[sid]["board"]
     game: QMineSweeperGame = GAMES[sid]["game"]
     cfg = GAMES[sid]["config"]
 
+    # DEBUG: log incoming action & params
+    log.info(f"POST /game sid={sid} action={action} "
+             f"r={r} c={c} r2={r2} c2={c2} "
+             f"tool_q={tool} tool_session={request.session.get('tool','M')} "
+             f"status_before={game.status.name}")
+
     if action == "cell":
+        # Prefer tool from the query (button) else fall back to session
         t = (tool or request.session.get("tool", "M") or "M").upper()
+        log.info(f"MOVE sid={sid} kind=CELL tool={t} r={r} c={c} r2={r2} c2={c2}")  # DEBUG
 
         if t in ("CX", "CY", "CZ", "SWAP"):
             if r is not None and c is not None and r2 is not None and c2 is not None:
@@ -214,22 +236,27 @@ async def game_post(
     elif action == "reset":
         board.reset()
         game.status = GameStatus.ONGOING  # ensure play resumes
+        log.info(f"ACTION sid={sid} reset -> status={game.status.name}")  # DEBUG
 
     elif action == "new_same":
         board, game = build_board_and_game(cfg["rows"], cfg["cols"], cfg["bombs"], cfg["ent_level"],
                                            cfg["win"], cfg["moves"])
         GAMES[sid]["board"] = board
         GAMES[sid]["game"] = game
+        log.info(f"ACTION sid={sid} new_same created")  # DEBUG
 
     elif action == "new_rules":
+        log.info(f"ACTION sid={sid} new_rules -> redirect /setup")  # DEBUG
         return RedirectResponse("/setup", status_code=303)
 
     elif action == "set_tool" and tool:
         request.session["tool"] = tool.upper()
+        log.info(f"ACTION sid={sid} set_tool={request.session['tool']}")  # DEBUG
         return RedirectResponse("/game", status_code=303)
-
 
     elif action == "toggle_theme":
         request.session["theme"] = "light" if request.session.get("theme", "dark") == "dark" else "dark"
+        log.info(f"ACTION sid={sid} toggle_theme -> {request.session['theme']}")  # DEBUG
 
+    log.info(f"POST /game sid={sid} status_after={game.status.name}")  # DEBUG
     return RedirectResponse("/game", status_code=303)
