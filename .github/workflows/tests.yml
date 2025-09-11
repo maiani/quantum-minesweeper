@@ -22,6 +22,10 @@ jobs:
         with:
           environment-file: environment.yml
           environment-name: qminesweeper
+          
+      - name: Install package
+        shell: bash -l {0}
+        run: pip install -e .
 
       - name: Run pytest with coverage
         shell: bash -l {0}
