@@ -5,56 +5,48 @@
 <h1>Quantum Minesweeper</h1>
 <h2>Status: {{ status }}</h2>
 
-<!-- Board -->
-<form action="/game" method="post">
-  <table class="board">
-    {% for r in range(rows) %}
-    <tr>
-      {% for c in range(cols) %}
-      <td>
-        {% if status == "ONGOING" %}
-        <button type="submit"
-                name="action" value="cell"
-                formaction="/game?r={{r}}&c={{c}}"
-                style="{{ grid[r][c]['style'] }}">
-          {{ grid[r][c]['text']|safe }}
-        </button>
-        {% else %}
-        <button disabled
-                style="{{ grid[r][c]['style'] }}">
-          {{ grid[r][c]['text']|safe }}
-        </button>
-        {% endif %}
-      </td>
-      {% endfor %}
-    </tr>
+<!-- Board (buttons become JS-driven to compose cmd) -->
+<table class="board">
+  {% for r in range(rows) %}
+  <tr>
+    {% for c in range(cols) %}
+    <td>
+      {% if status == "ONGOING" %}
+      <button type="button"
+              onclick="onCell({{r}},{{c}})"
+              style="{{ grid[r][c]['style'] }}">
+        {{ grid[r][c]['text']|safe }}
+      </button>
+      {% else %}
+      <button type="button" disabled style="{{ grid[r][c]['style'] }}">
+        {{ grid[r][c]['text']|safe }}
+      </button>
+      {% endif %}
+    </td>
     {% endfor %}
-  </table>
-</form>
+  </tr>
+  {% endfor %}
+</table>
 
-<!-- Tools (only if game ongoing) -->
+<!-- Tools (client-only) -->
 {% if status == "ONGOING" %}
 <h3>Tools</h3>
-<form action="/game" method="post" class="tools">
+<div class="tools" id="tools">
   {% for t in tools %}
-    <button type="submit"
-            name="action" value="set_tool"
-            formaction="/game?tool={{t}}"
-            {% if current_tool == t %}class="active"{% endif %}>
-      {{ t }}
-    </button>
+    <button type="button" class="tool-btn" data-tool="{{t}}" onclick="setTool('{{t}}')">{{ t }}</button>
   {% endfor %}
-</form>
+</div>
+<div id="hint" class="grid-meta"></div>
 {% endif %}
 
-<!-- Actions -->
+<!-- Actions (server posts) -->
 {% if status == "ONGOING" %}
 <h3>Actions</h3>
 <form action="/game" method="post">
-  <button type="submit" name="action" value="reset" formaction="/game">Reset Board</button>
-  <button type="submit" name="action" value="new_same" formaction="/game">New Board (same rules)</button>
-  <button type="submit" name="action" value="new_rules" formaction="/game">New Setup</button>
-  <button type="submit" name="action" value="toggle_theme" formaction="/game">Toggle Theme</button>
+  <button type="submit" name="action" value="reset">Reset Board</button>
+  <button type="submit" name="action" value="new_same">New Board (same rules)</button>
+  <button type="submit" name="action" value="new_rules">New Setup</button>
+  <button type="submit" name="action" value="toggle_theme">Toggle Theme</button>
 </form>
 {% else %}
 <div class="gameover-overlay">
@@ -62,14 +54,75 @@
     <h2>Game Over!</h2>
     <div class="actions">
       <form action="/game" method="post">
-        <button type="submit" name="action" value="reset" formaction="/game">Reset Board</button>
-        <button type="submit" name="action" value="new_same" formaction="/game">New Board</button>
-        <button type="submit" name="action" value="new_rules" formaction="/game">New Setup</button>
+        <button type="submit" name="action" value="reset">Reset Board</button>
+        <button type="submit" name="action" value="new_same">New Board</button>
+        <button type="submit" name="action" value="new_rules">New Setup</button>
       </form>
     </div>
   </div>
 </div>
 {% endif %}
 
+<!-- Hidden form to send cmd + suid to /move -->
+<form id="cmdform" action="/move" method="post" style="display:none;">
+  <input type="hidden" name="cmd" id="cmd-input">
+  <input type="hidden" name="suid" id="suid-input" value="{{ suid }}">
 </form>
+
+<script>
+(function(){
+  const TWO_Q = new Set(["CX","CY","CZ","SWAP"]);
+  const suid = "{{ suid }}";
+  const statusNow = "{{ status }}";
+  const hint = document.getElementById('hint');
+  const toolButtons = document.querySelectorAll('.tool-btn');
+  let currentTool = localStorage.getItem('qm_tool') || "M";
+  let firstTarget = null; // for two-qubit gates
+
+  function refreshActive() {
+    toolButtons.forEach(b => {
+      if (b.dataset.tool === currentTool) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+  }
+
+  window.setTool = function(t) {
+    currentTool = t;
+    localStorage.setItem('qm_tool', t);
+    firstTarget = null;
+    hint && (hint.textContent = TWO_Q.has(t) ? `Select first target for ${t}…` : `Tool: ${t}`);
+    refreshActive();
+  };
+
+  function submitCmd(cmd) {
+    const inp = document.getElementById('cmd-input');
+    const su = document.getElementById('suid-input');
+    inp.value = cmd;
+    su.value = suid;
+    document.getElementById('cmdform').submit();
+  }
+
+  window.onCell = function(r, c) {
+    if (statusNow !== "ONGOING") return;
+    if (TWO_Q.has(currentTool)) {
+      if (!firstTarget) {
+        firstTarget = [r, c];
+        hint && (hint.textContent = `Select second target for ${currentTool}…`);
+        return;
+      } else {
+        const cmd = `${currentTool} ${firstTarget[0]+1},${firstTarget[1]+1} ${r+1},${c+1}`;
+        firstTarget = null;
+        submitCmd(cmd);
+      }
+    } else {
+      const op = currentTool || "M";
+      const cmd = `${op} ${r+1},${c+1}`;
+      submitCmd(cmd);
+    }
+  };
+
+  // init on load
+  setTool(currentTool);
+})();
+</script>
 {% endblock %}
