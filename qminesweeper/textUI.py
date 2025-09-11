@@ -67,7 +67,7 @@ def ask_int(prompt: str, cond=lambda x: True) -> int:
         console.print("[red]Invalid input.[/]")
 
 
-def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int, str, bool]:
+def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
     console.print("[bold]Win condition:[/]\n"
                   "  [cyan]1.[/] Identify (classic: lose on measuring a bomb, win when all safe cells are explored)\n"
                   "  [cyan]2.[/] Clear (all bomb probabilities ~ 0)")
@@ -92,19 +92,11 @@ def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int, str, bo
     bombs = ask_int("Bombs: ", lambda x: 0 < x < rows * cols)
     ent_level = ask_int("Entanglement level (0=classical, >=1 stabilizers): ", lambda x: x >= 0)
 
-    console.print("Clue basis: [cyan]Z[/], X, Y")
-    basis = console.input("Basis [Z/X/Y] (default Z): ").strip().upper() or "Z"
-    if basis not in ("X", "Y", "Z"):
-        basis = "Z"
-
-    flood_ans = console.input("Flood-fill zeros? [Y/n]: ").strip().lower()
-    flood = (flood_ans != "n")
-
-    return win, move, rows, cols, bombs, ent_level, basis, flood
+    return win, move, rows, cols, bombs, ent_level
 
 
 def make_board(backend: QuantumBackend, rows: int, cols: int, bombs: int,
-               ent_level: int, basis: str, flood: bool) -> QMineSweeperBoard:
+               ent_level: int, basis: str = "Z", flood: bool = True) -> QMineSweeperBoard:
     board = QMineSweeperBoard(rows, cols, backend=backend, flood_fill=flood)
     if ent_level == 0:
         board.span_classical_bombs(bombs)
@@ -289,13 +281,10 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
 def run_tui(backend: QuantumBackend):
     welcome_screen()
     while True:
-        # Ask rules once per "Advanced Setup"
-        win, move, rows, cols, bombs, ent_level, basis, flood = advanced_setup()
+        win, move, rows, cols, bombs, ent_level = advanced_setup()
 
-        # Keep playing NEW boards with SAME rules until user asks for NEW_RULES or quits
         while True:
-            # Create a fresh board each iteration (initial start and any 'S' choice)
-            board = make_board(backend, rows, cols, bombs, ent_level, basis, flood)
+            board = make_board(backend, rows, cols, bombs, ent_level, basis="Z", flood=True)
             game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=move))
 
             outcome = game_loop(board, game)
@@ -305,3 +294,4 @@ def run_tui(backend: QuantumBackend):
                 break
             if outcome == "SAME_RULES":
                 continue
+

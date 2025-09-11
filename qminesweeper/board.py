@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import List, Tuple, Dict, Optional
 import numpy as np
+from math import isclose
 
 from qiskit.quantum_info import random_clifford, Clifford
 
@@ -163,6 +164,29 @@ class QMineSweeperBoard:
         self.set_preparation(circuit)
         self.reset()
 
+    def _is_deterministic_zero(self, idx: int, tol: float = 1e-9) -> bool:
+            # Deterministic Z=0 measurement if <Z> == +1
+            return isclose(self.expectation(idx, "Z"), 1.0, rel_tol=0.0, abs_tol=tol)
+
+    def _auto_reveal_zero_regions(self) -> None:
+        """After a state change (gate/basis switch), reveal any leftover
+        zero-clue pockets that are deterministically safe in Z.
+        Uses measure_cell so flood-fill behaves consistently."""
+        if not self._flood_fill:
+            return
+        changed = True
+        while changed:
+            changed = False
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self._exploration[r, c] != CellState.UNEXPLORED:
+                        continue
+                    idx = self.index(r, c)
+                    if self._is_deterministic_zero(idx) and self.clue_value(r, c, self._clue_basis) == 0.0:
+                        res = self.measure_cell(r, c)  # safe: deterministic 0
+                        if not res.skipped:
+                            changed = True
+
     # ---------- mechanics: expectations/clues ----------
     def _invalidate_all_caches(self):
         self._exp_cache = {"X": {}, "Y": {}, "Z": {}}
@@ -209,8 +233,15 @@ class QMineSweeperBoard:
     def apply_gate(self, gate: str, targets: List[Tuple[int, int]]) -> None:
         idxs = [self.index(r, c) for (r, c) in targets]
         self.state.apply_gate(gate, idxs)
+        
+        # un-explore any explored cells among targets (gates invalidate exploration)
+        for (r, c) in targets:
+            if self._exploration[r, c] == CellState.EXPLORED:
+                self._exploration[r, c] = CellState.UNEXPLORED
+
         # Conservative invalidation (simple & safe)
         self._invalidate_all_caches()
+        self._auto_reveal_zero_regions()
 
     def measure_cell(self, r: int, c: int) -> MeasureResult:
         """Measure (r,c) in Z and, if flood_fill=True and clue==0, expand."""
