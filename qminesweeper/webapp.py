@@ -56,11 +56,11 @@ async def home(request: Request):
         return RedirectResponse("/setup")
     return RedirectResponse("/game")
 
-@app.get("/setup", response_class=HTMLResponse)
+@app.get("/setup", response_class=HTMLResponse, name="setup_get")
 async def setup_get(request: Request):
     return templates.TemplateResponse("setup.html", {"request": request})
 
-@app.post("/setup")
+@app.post("/setup", name="setup_post")
 async def setup_post(
     request: Request,
     mode: int = Form(...),
@@ -82,7 +82,7 @@ async def setup_post(
     request.session.setdefault("theme", "dark")
     return RedirectResponse("/game", status_code=303)
 
-@app.get("/game", response_class=HTMLResponse)
+@app.get("/game", response_class=HTMLResponse, name="game_get")
 async def game_get(request: Request):
     sid = get_sid(request)
     if sid not in GAMES:
@@ -137,7 +137,7 @@ async def game_get(request: Request):
         },
     )
 
-@app.post("/game")
+@app.post("/game", name="game_post")
 async def game_post(request: Request, action: str = Form(...), r: int = Form(None), c: int = Form(None),
                     r2: int = Form(None), c2: int = Form(None), tool: str = Form(None), basis: str = Form(None)):
     sid = get_sid(request)

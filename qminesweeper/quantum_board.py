@@ -54,6 +54,15 @@ class GameMode(IntEnum):
     QUANTUM_CLEAR = 2
 
 
+class WinCondition(IntEnum):
+    IDENTIFY = 0
+    CLEAR = 1
+
+class MoveSet(IntEnum):
+    CLASSIC = 0
+    ONEQBITGATES = 1
+    TWOQBITGATES = 2
+
 nbr_offsets = [(-1, -1), (-1, 0), (-1, 1),
                ( 0, -1),          ( 0, 1),
                ( 1, -1), ( 1, 0), ( 1, 1)]
