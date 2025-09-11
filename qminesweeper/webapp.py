@@ -1,6 +1,7 @@
 # qminesweeper/webapp.py
 from __future__ import annotations
 from pathlib import Path
+from typing import Optional
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -8,18 +9,16 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from uuid import uuid4
 
-from qminesweeper.quantum_board import QMineSweeperGame, GameMode, MoveType, CellState
+from qminesweeper.board import QMineSweeperBoard, CellState
+from qminesweeper.game import QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus, MoveType
 from qminesweeper.stim_backend import StimBackend  # default backend
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="change-me-in-prod")
 
-# --------------------------------------------------------------------
-# Use paths relative to this file (qminesweeper/webapp.py)
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-# --------------------------------------------------------------------
 
 # per-session games
 GAMES: dict[str, dict] = {}
@@ -31,19 +30,23 @@ def get_sid(request: Request) -> str:
         request.session["sid"] = sid
     return sid
 
-def make_board(mode: GameMode, rows: int, cols: int, n_bombs: int, ent_level: int) -> QMineSweeperGame:
-    qb = QMineSweeperGame(rows, cols, mode, backend=StimBackend())
-    if ent_level == 0:
-        qb.span_classical_bombs(n_bombs)
-    else:
-        qb.span_random_stabilizer_bombs(n_bombs, level=ent_level)
-    return qb
-
 def clue_color(val: float) -> str:
     v = max(0.0, min(val / 8.0, 1.0))
     r = int(255 * v)
     g = int(255 * (1.0 - v))
     return f"rgb({r},{g},0)"
+
+def build_board_and_game(rows:int, cols:int, bombs:int, ent_level:int,
+                         basis:str, flood:bool,
+                         win:WinCondition, moves:MoveSet):
+    board = QMineSweeperBoard(rows, cols, backend=StimBackend(), flood_fill=flood)
+    if ent_level == 0:
+        board.span_classical_bombs(bombs)
+    else:
+        board.span_random_stabilizer_bombs(bombs, level=ent_level)
+    board.set_clue_basis(basis)
+    game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
+    return board, game
 
 @app.get("/health")
 def health():
@@ -63,22 +66,49 @@ async def setup_get(request: Request):
 @app.post("/setup", name="setup_post")
 async def setup_post(
     request: Request,
-    mode: int = Form(...),
+    # Legacy fields (from existing template)
+    mode: Optional[int] = Form(None),
     rows: int = Form(...),
     cols: int = Form(...),
     bombs: int = Form(...),
-    ent_level: int = Form(...)
+    ent_level: int = Form(...),
+    # Advanced fields (future template)
+    win_condition: Optional[str] = Form(None),   # "identify" | "clear"
+    move_set: Optional[str] = Form(None),        # "classic" | "one" | "clifford"
+    basis: Optional[str] = Form("Z"),
+    flood: Optional[str] = Form("on"),
 ):
     sid = get_sid(request)
-    mode_map = {1: GameMode.CLASSIC, 2: GameMode.QUANTUM_IDENTIFY, 3: GameMode.QUANTUM_CLEAR}
-    qb = make_board(mode_map[mode], rows, cols, bombs, ent_level)
+
+    # Map legacy mode to rules
+    if win_condition:
+        win = WinCondition.CLEAR if win_condition.lower() == "clear" else WinCondition.IDENTIFY
+    else:
+        if mode == 3:
+            win = WinCondition.CLEAR
+        else:
+            win = WinCondition.IDENTIFY
+
+    if move_set:
+        mv = {"classic": MoveSet.CLASSIC, "one": MoveSet.ONE_QUBIT, "clifford": MoveSet.TWO_QUBIT}.get(move_set.lower(), MoveSet.TWO_QUBIT)
+    else:
+        mv = MoveSet.CLASSIC if mode == 1 else MoveSet.TWO_QUBIT
+
+    basis = (basis or "Z").upper()
+    if basis not in ("X","Y","Z"):
+        basis = "Z"
+    flood_on = (flood != "off")
+
+    board, game = build_board_and_game(rows, cols, bombs, ent_level, basis, flood_on, win, mv)
+
     GAMES[sid] = {
-        "board": qb,
-        "config": {"mode": mode_map[mode], "rows": rows, "cols": cols,
-                   "bombs": bombs, "ent_level": ent_level},
+        "board": board,
+        "game": game,
+        "config": {"rows": rows, "cols": cols, "bombs": bombs, "ent_level": ent_level,
+                   "win": win, "moves": mv, "basis": basis, "flood": flood_on},
     }
     request.session.setdefault("tool", "M")
-    request.session.setdefault("basis", "Z")
+    request.session.setdefault("basis", basis)
     request.session.setdefault("theme", "dark")
     return RedirectResponse("/game", status_code=303)
 
@@ -88,37 +118,35 @@ async def game_get(request: Request):
     if sid not in GAMES:
         return RedirectResponse("/setup")
 
-    qb: QMineSweeperGame = GAMES[sid]["board"]
-    cfg = GAMES[sid]["config"]
-    mode = cfg["mode"]
+    board: QMineSweeperBoard = GAMES[sid]["board"]
+    game: QMineSweeperGame = GAMES[sid]["game"]
 
     # tools available
     tools = ["M", "P", "X", "Y", "Z", "H", "S", "SDG", "SX", "SXDG", "SY", "SYDG", "CX", "CY", "CZ", "SWAP"]
 
     # build grid
     grid = []
-    for r in range(qb.rows):
+    numeric = board.export_numeric_grid()
+    for r in range(board.rows):
         row = []
-        for c in range(qb.cols):
-            state = qb.exploration_state[r, c]
+        for c in range(board.cols):
+            val = numeric[r, c]
             cell = {"r": r, "c": c, "text": "", "style": ""}
-            if state == CellState.UNEXPLORED:
+            if val == -1:
                 cell["text"] = "■"
                 cell["style"] = "color:var(--tile-muted);"
-            elif state == CellState.PINNED:
+            elif val == -2:
                 cell["text"] = "⚑"
                 cell["style"] = "color:var(--pin);"
+            elif val == 9.0:
+                cell["text"] = "💥"
+                cell["style"] = "font-weight:700;color:var(--boom);"
+            elif val == 0.0:
+                cell["text"] = "&nbsp;"
+                cell["style"] = "background:var(--zero-bg);"
             else:
-                val = qb.get_clue(r, c)
-                if val == 9.0:
-                    cell["text"] = "💥"
-                    cell["style"] = "font-weight:700;color:var(--boom);"
-                elif val == 0.0:
-                    cell["text"] = "&nbsp;"
-                    cell["style"] = "background:var(--zero-bg);"
-                else:
-                    cell["text"] = f"{val:.1f}"
-                    cell["style"] = f"color:{clue_color(val)};"
+                cell["text"] = f"{val:.1f}"
+                cell["style"] = f"color:{clue_color(val)};"
             row.append(cell)
         grid.append(row)
 
@@ -127,12 +155,12 @@ async def game_get(request: Request):
         {
             "request": request,
             "grid": grid,
-            "rows": qb.rows,
-            "cols": qb.cols,
-            "status": qb.game_status.name,
+            "rows": board.rows,
+            "cols": board.cols,
+            "status": game.status.name,
             "tools": tools,
             "current_tool": request.session.get("tool", "M"),
-            "current_basis": request.session.get("basis", "Z"),
+            "current_basis": board.clue_basis,
             "theme": request.session.get("theme", "dark"),
         },
     )
@@ -144,7 +172,8 @@ async def game_post(request: Request, action: str = Form(...), r: int = Form(Non
     if sid not in GAMES:
         return RedirectResponse("/setup")
 
-    qb: QMineSweeperGame = GAMES[sid]["board"]
+    board: QMineSweeperBoard = GAMES[sid]["board"]
+    game: QMineSweeperGame = GAMES[sid]["game"]
     cfg = GAMES[sid]["config"]
 
     cmd_map = {
@@ -158,18 +187,22 @@ async def game_post(request: Request, action: str = Form(...), r: int = Form(Non
     }
 
     if action == "cell":
-        t = request.session.get("tool", "M")
-        move_type = cmd_map.get(t, MoveType.MEASURE)
-        if move_type in (MoveType.CX_GATE, MoveType.CY_GATE, MoveType.CZ_GATE, MoveType.SWAP_GATE):
-            qb.move(move_type, (r, c), (r2, c2))
+        t = request.session.get("tool", "M").upper()
+        if t in ("CX","CY","CZ","SWAP"):
+            game.cmd_gate(t, [(r, c), (r2, c2)])
+        elif t == "P":
+            game.cmd_toggle_pin(r, c)
         else:
-            qb.move(move_type, (r, c))
+            game.cmd_measure(r, c)
 
     elif action == "reset":
-        qb.reset_board()
+        board.reset()
 
     elif action == "new_same":
-        GAMES[sid]["board"] = make_board(cfg["mode"], cfg["rows"], cfg["cols"], cfg["bombs"], cfg["ent_level"])
+        board, game = build_board_and_game(cfg["rows"], cfg["cols"], cfg["bombs"], cfg["ent_level"],
+                                           cfg["basis"], cfg["flood"], cfg["win"], cfg["moves"])
+        GAMES[sid]["board"] = board
+        GAMES[sid]["game"] = game
 
     elif action == "new_rules":
         return RedirectResponse("/setup")
@@ -178,8 +211,10 @@ async def game_post(request: Request, action: str = Form(...), r: int = Form(Non
         request.session["tool"] = tool
 
     elif action == "set_basis" and basis:
-        qb.set_clue_basis(basis)
-        request.session["basis"] = basis
+        basis = basis.upper()
+        if basis in ("X","Y","Z"):
+            board.set_clue_basis(basis)
+            request.session["basis"] = basis
 
     elif action == "toggle_theme":
         request.session["theme"] = "light" if request.session.get("theme", "dark") == "dark" else "dark"

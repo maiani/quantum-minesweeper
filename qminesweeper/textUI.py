@@ -1,9 +1,15 @@
-# ./src/textUI.py
+# qminesweeper/textUI.py
+from __future__ import annotations
+from typing import Tuple, List, Dict
+import numpy as np
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from qminesweeper.quantum_board import QMineSweeperGame, GameStatus, MoveType, GameMode
+from qminesweeper.board import QMineSweeperBoard, CellState
+from qminesweeper.game import (
+    QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus, MoveType
+)
 from qminesweeper.quantum_backend import QuantumBackend  # interface
 
 console = Console()
@@ -16,16 +22,16 @@ def clue_style(val: float) -> str:
     return f"rgb({r},{g},0)"
 
 
-def render_rich(qb: QMineSweeperGame, prec: int = 1):
+def render_rich(board: QMineSweeperBoard, prec: int = 1):
     table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
-    table.add_column(" ", justify="right")  # row index label
-    for col in range(1, qb.cols + 1):
+    table.add_column(" ", justify="right")
+    for col in range(1, board.cols + 1):
         table.add_column(Text(str(col)), justify="center")
 
-    grid = qb.export_grid()
-    for r in range(qb.rows):
-        row = [Text(str(r + 1))]  # add row label first
-        for c in range(qb.cols):
+    grid = board.export_numeric_grid()
+    for r in range(board.rows):
+        row = [Text(str(r + 1))]
+        for c in range(board.cols):
             val = grid[r, c]
             if val == -1:
                 cell = Text("■", style="dim")
@@ -47,195 +53,255 @@ def render_rich(qb: QMineSweeperGame, prec: int = 1):
 # ---------- Setup flow ----------
 def welcome_screen():
     console.clear()
-    console.print("[bold magenta]Quantum Minesweeper![/bold magenta]")
+    console.print("[bold magenta]Quantum Minesweeper — Advanced Setup[/bold magenta]")
 
 
-def game_setup():
-    console.print("[bold]Select game type:[/]")
-    console.print("  [cyan]1.[/] Classical")
-    console.print("  [cyan]2.[/] Quantum Identify")
-    console.print("  [cyan]3.[/] Quantum Clear")
+def ask_int(prompt: str, cond=lambda x: True) -> int:
     while True:
         try:
-            choice = int(console.input("Enter choice [1-3]: ").strip())
-            if choice in (1, 2, 3):
-                break
+            v = int(console.input(prompt).strip())
+            if cond(v):
+                return v
         except ValueError:
             pass
-        console.print("[red]Invalid input. Please enter 1, 2, or 3.[/]")
-
-    mode = {1: GameMode.CLASSIC, 2: GameMode.QUANTUM_IDENTIFY, 3: GameMode.QUANTUM_CLEAR}[choice]
-
-    while True:
-        try:
-            console.print("Enter board dimensions. Example: [bold]5,5[/]")
-            dim = console.input("Rows,Cols: ").strip().split(",")
-            rows, cols = map(int, dim)
-            if rows > 0 and cols > 0:
-                break
-        except ValueError:
-            pass
-        console.print("[red]Please enter valid dimensions.[/]")
-
-    while True:
-        try:
-            n_bombs = int(console.input("Bombs: "))
-            if 0 < n_bombs < rows * cols:
-                break
-        except ValueError:
-            pass
-        console.print("[red]Enter a valid number of bombs.[/]")
-
-    console.print("Entanglement level:\n"
-                  "  [cyan]0.[/] Classical bombs (|1⟩)\n"
-                  "  [cyan]1.[/] Product stabilizers\n"
-                  "  [cyan]2.[/] Entangled pairs\n"
-                  "  [cyan]3.[/] 3-body stabilizers (etc.)")
-    while True:
-        try:
-            ent_level = int(console.input("Enter level [0-3]: ").strip())
-            if ent_level >= 0:
-                break
-        except ValueError:
-            pass
-        console.print("[red]Invalid input. Please enter a non-negative integer.[/]")
-
-    return mode, rows, cols, n_bombs, ent_level
+        console.print("[red]Invalid input.[/]")
 
 
-def make_board(backend : QuantumBackend, mode: GameMode, rows: int, cols: int, n_bombs: int, ent_level: int) -> QMineSweeperGame:
-    qb = QMineSweeperGame(rows, cols, mode, backend=backend)
+def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int, str, bool]:
+    console.print("[bold]Win condition:[/]\n"
+                  "  [cyan]1.[/] Identify (classic: lose on measuring a bomb, win when all safe cells are explored)\n"
+                  "  [cyan]2.[/] Clear (all bomb probabilities ~ 0)")
+    w_choice = ask_int("Choice [1-2]: ", lambda x: x in (1, 2))
+    win = WinCondition.IDENTIFY if w_choice == 1 else WinCondition.CLEAR
+
+    console.print("[bold]Move set:[/]\n"
+                  "  [cyan]1.[/] Classic (Measure, Pin)\n"
+                  "  [cyan]2.[/] One-qubit (X,Y,Z,H,S)\n"
+                  "  [cyan]3.[/] One-qubit (complete: +Sdg,SX,SXdg,SY,SYdg)\n"
+                  "  [cyan]4.[/] Two-qubit (adds CX,CY,CZ,SWAP)")
+    m_choice = ask_int("Choice [1-4]: ", lambda x: x in (1, 2, 3, 4))
+    move = {
+        1: MoveSet.CLASSIC,
+        2: MoveSet.ONE_QUBIT,
+        3: MoveSet.ONE_QUBIT_COMPLETE,
+        4: MoveSet.TWO_QUBIT,
+    }[m_choice]
+
+    rows = ask_int("Rows: ", lambda x: x > 0)
+    cols = ask_int("Cols: ", lambda x: x > 0)
+    bombs = ask_int("Bombs: ", lambda x: 0 < x < rows * cols)
+    ent_level = ask_int("Entanglement level (0=classical, >=1 stabilizers): ", lambda x: x >= 0)
+
+    console.print("Clue basis: [cyan]Z[/], X, Y")
+    basis = console.input("Basis [Z/X/Y] (default Z): ").strip().upper() or "Z"
+    if basis not in ("X", "Y", "Z"):
+        basis = "Z"
+
+    flood_ans = console.input("Flood-fill zeros? [Y/n]: ").strip().lower()
+    flood = (flood_ans != "n")
+
+    return win, move, rows, cols, bombs, ent_level, basis, flood
+
+
+def make_board(backend: QuantumBackend, rows: int, cols: int, bombs: int,
+               ent_level: int, basis: str, flood: bool) -> QMineSweeperBoard:
+    board = QMineSweeperBoard(rows, cols, backend=backend, flood_fill=flood)
     if ent_level == 0:
-        qb.span_classical_bombs(n_bombs)
+        board.span_classical_bombs(bombs)
     else:
-        qb.span_random_stabilizer_bombs(nbombs=n_bombs, level=ent_level)
-    return qb
+        board.span_random_stabilizer_bombs(nbombs=bombs, level=ent_level)
+    board.set_clue_basis(basis)
+    return board
 
 
-# ---------- Single loop that also supports Reset/New ----------
-def game_loop(backend: QuantumBackend, mode: GameMode, rows: int, cols: int, n_bombs: int, ent_level: int):
+# ---------- Allowed tools computation & prompt ----------
+TOKEN_TO_MOVE: Dict[str, MoveType] = {
+    "M": MoveType.MEASURE, "P": MoveType.PIN_TOGGLE,
+    "X": MoveType.X_GATE, "Y": MoveType.Y_GATE, "Z": MoveType.Z_GATE,
+    "H": MoveType.H_GATE, "S": MoveType.S_GATE, "SDG": MoveType.SDG_GATE,
+    "SX": MoveType.SX_GATE, "SXDG": MoveType.SXDG_GATE,
+    "SY": MoveType.SY_GATE, "SYDG": MoveType.SYDG_GATE,
+    "CX": MoveType.CX_GATE, "CY": MoveType.CY_GATE,
+    "CZ": MoveType.CZ_GATE, "SWAP": MoveType.SWAP_GATE,
+}
+ONE_QUBIT_BASIC: List[str] = ["X", "Y", "Z", "H", "S"]
+ONE_QUBIT_EXTRA: List[str] = ["SDG", "SX", "SXDG", "SY", "SYDG"]
+TWO_QUBIT_TOKENS: List[str] = ["CX", "CY", "CZ", "SWAP"]
 
-    qb = make_board(backend=backend, mode=mode, rows=rows, cols=cols, n_bombs=n_bombs, ent_level=ent_level)
+def allowed_tokens_for_moveset(ms: MoveSet) -> Dict[str, List[str]]:
+    """
+    Returns dict with keys: 'mp' (measure/pin), 'single', 'two'
+    listing the tokens allowed for the given MoveSet.
+    """
+    tokens = {"mp": ["M", "P"], "single": [], "two": []}
+    if ms == MoveSet.CLASSIC:
+        return tokens
+    if ms == MoveSet.ONE_QUBIT:
+        tokens["single"] = ONE_QUBIT_BASIC[:]
+    elif ms == MoveSet.ONE_QUBIT_COMPLETE:
+        tokens["single"] = ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA
+    elif ms == MoveSet.TWO_QUBIT:
+        tokens["single"] = ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA
+        tokens["two"] = TWO_QUBIT_TOKENS[:]
+    return tokens
 
-    render_rich(qb)
-    console.print(
-        "Move examples: [bold]3,4[/] (measure), [bold]P 3,4[/] (pin), "
-        "[bold]X 2,2[/] (gate), [bold]R[/] (reset board), [bold]N[/] (new game), [bold]Q[/] (quit)"
-    )
+def build_prompt(tokens: Dict[str, List[str]]) -> str:
+    parts = []
+    if tokens["mp"]:
+        parts.append(f"[{ '/'.join(tokens['mp'])}] r,c")
+    if tokens["single"]:
+        parts.append(f"[{ '/'.join(tokens['single'])}] r,c")
+    if tokens["two"]:
+        parts.append(f"[{ '/'.join(tokens['two'])}] r1,c1 r2,c2")
+    parts.append("R")
+    parts.append("N")
+    parts.append("Q")
+    return "([ " + " | ".join(parts) + " ]): "
 
-    # enable gates only for quantum modes
-    cmd_map = {"M": MoveType.MEASURE, "P": MoveType.PIN_TOGGLE}
-    if mode in (GameMode.QUANTUM_IDENTIFY, GameMode.QUANTUM_CLEAR):
-        cmd_map.update({
-            "X": MoveType.X_GATE, "Y": MoveType.Y_GATE, "Z": MoveType.Z_GATE,
-            "H": MoveType.H_GATE, "S": MoveType.S_GATE,
-            "CX": MoveType.CX_GATE,
-            "CY": MoveType.CY_GATE,
-            "CZ": MoveType.CZ_GATE,
-            "SWAP": MoveType.SWAP_GATE,
-        })
 
-        while True:  # outer loop lets us reset/regenerate without leaving the function
-            while qb.game_status == GameStatus.ONGOING:
-                try:
-                    raw = console.input(
-                        "[yellow]Your move[/] "
-                        "([M/P/X/Y/Z/H/S] row,col | CX/CY/CZ/SWAP r1,c1 r2,c2 | R | N | Q): "
-                    ).strip()
-                    if not raw:
+def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
+    """
+    Main gameplay loop with a post-game menu that honors:
+      - R: reset SAME board (same preparation, same rules) — no questions
+      - S: start NEW board with SAME rules (re-sample preparation) — no questions
+      - N: go to Advanced Setup (ask questions)
+      - Q: quit
+    """
+    tokens = allowed_tokens_for_moveset(game.cfg.move_set)
+
+    while True:
+        # ---- live gameplay until win/lose ----
+        render_rich(board)
+        console.print(
+            "[dim]Tip: entering 'r,c' without a command performs a Measure (M).[/dim]"
+        )
+
+        while game.status == GameStatus.ONGOING:
+            try:
+                raw = console.input(
+                    "[yellow]Your move[/] " + build_prompt(tokens)
+                ).strip()
+                if not raw:
+                    continue
+
+                u = raw.upper()
+                if u in ("Q", "QUIT", "EXIT"):
+                    console.print("[italic]Game exited.[/]")
+                    return "QUIT"
+                if u == "R":
+                    # live reset: same board & rules, no questions
+                    board.reset()
+                    game.status = GameStatus.ONGOING
+                    render_rich(board)
+                    console.print("[green]Board reset.[/]")
+                    continue
+                if u == "N":
+                    return "NEW_RULES"
+
+                parts = u.split()
+                cmd = parts[0]
+
+                # Two-qubit gate
+                if cmd in tokens["two"]:
+                    if len(parts) != 3:
+                        console.print(f"[red]Format: {cmd} r1,c1 r2,c2[/]")
                         continue
-
-                    # global commands
-                    if raw.upper() in ("Q", "QUIT", "EXIT"):
-                        console.print("[italic]Game exited.[/]")
-                        return "QUIT"
-
-                    if raw.upper() == "R":
-                        qb.reset_board()
-                        render_rich(qb)
-                        console.print("[green]Board reset.[/]")
+                    try:
+                        r1, c1 = map(int, parts[1].split(","))
+                        r2, c2 = map(int, parts[2].split(","))
+                    except ValueError:
+                        console.print("[red]Invalid coordinates. Use row,col.[/]")
                         continue
+                    game.cmd_gate(cmd, [(r1 - 1, c1 - 1), (r2 - 1, c2 - 1)])
 
-                    if raw.upper() == "N":
-                        return "NEW_RULES"
-
-                    # parse command and args
-                    parts = raw.split()
-                    cmd = parts[0].upper()
-
-                    print(cmd)
-
-                    # two-qubit gates
-                    if cmd in ("CX", "CY", "CZ", "SWAP"):
-                        if len(parts) != 3:
-                            console.print(f"[red]Format: {cmd} r1,c1 r2,c2[/]")
+                else:
+                    # Single-qubit or measure/pin
+                    if cmd in tokens["mp"] or cmd in tokens["single"]:
+                        if len(parts) < 2:
+                            console.print(f"[red]Format: {cmd} row,col[/]")
                             continue
-                        try:
-                            r1, c1 = map(int, parts[1].split(","))
-                            r2, c2 = map(int, parts[2].split(","))
-                        except ValueError:
-                            console.print("[red]Invalid coordinates. Use row,col format.[/]")
-                            continue
-                        qb.move(cmd_map[cmd], (r1 - 1, c1 - 1), (r2 - 1, c2 - 1))
-
-                    # one-qubit gates or measure/pin
-                    else:
-                        if cmd in cmd_map:
-                            if len(parts) < 2:
-                                console.print(f"[red]Format: {cmd} row,col[/]")
-                                continue
-                            pos = parts[1]
-                        else:
-                            cmd, pos = "M", raw  # default to measure
+                        pos = parts[1]
                         try:
                             r, c = map(int, pos.split(","))
                         except ValueError:
-                            console.print("[red]Invalid coordinates. Use row,col format.[/]")
+                            console.print("[red]Invalid coordinates. Use row,col.[/]")
                             continue
-                        qb.move(cmd_map[cmd], (r - 1, c - 1))
 
-                    render_rich(qb)
-                    console.print(f"[cyan]Game status:[/] [bold]{qb.game_status.name}[/]")
+                        if cmd == "P":
+                            game.cmd_toggle_pin(r - 1, c - 1)
+                        elif cmd == "M" or cmd in ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA:
+                            if cmd == "M":
+                                game.cmd_measure(r - 1, c - 1)
+                            else:
+                                # Single-qubit gate must be explicitly allowed
+                                if cmd not in tokens["single"]:
+                                    console.print(f"[red]{cmd} not allowed in this MoveSet.[/]")
+                                    continue
+                                game.cmd_gate(cmd, [(r - 1, c - 1)])
+                        else:
+                            console.print(f"[red]Unknown command: {cmd}[/]")
+                            continue
 
-                except Exception as e:
-                    console.print(f"[red]Invalid input:[/] {e}")
+                    else:
+                        # If it's not a known token, try default "measure" syntax r,c — only if Measure is allowed
+                        if "M" in tokens["mp"]:
+                            try:
+                                r, c = map(int, cmd.split(","))
+                            except ValueError:
+                                console.print("[red]Unknown or disallowed command.[/]")
+                                continue
+                            game.cmd_measure(r - 1, c - 1)
+                        else:
+                            console.print("[red]Unknown or disallowed command.[/]")
+                            continue
 
-            # game over: offer post-game options
-            console.print("[bold]Game over![/bold]")
-            console.print(
-                "Choose: [bold]N[/] new game (new rules) · [bold]S[/] new game (same rules) · "
-                "[bold]R[/] reset board · [bold]Q[/] quit"
-            )
-            while True:
-                choice = console.input("[yellow]Post-game[/] (N/S/R/Q): ").strip().upper()
-                if choice == "Q":
-                    return "QUIT"
-                elif choice == "N":
-                    return "NEW_RULES"
-                elif choice == "S":
-                    # regenerate with the same rules & fresh bombs
-                    qb = make_board(
-                        backend=backend, mode=mode, rows=rows,
-                        cols=cols, n_bombs=n_bombs, ent_level=ent_level
-                    )
-                    render_rich(qb)
-                    break  # back to inner gameplay loop
-                elif choice == "R":
-                    # reset to the same preparation circuit and let user explore again
-                    qb.reset_board()
-                    render_rich(qb)
-                    break  # back to inner gameplay loop
-                else:
-                    console.print("[red]Please choose N, S, R, or Q.[/]")
+                render_rich(board)
+                console.print(f"[cyan]Game status:[/] [bold]{game.status.name}[/]")
+
+            except Exception as e:
+                console.print(f"[red]Invalid input:[/] {e}")
+
+        # ---- end-game menu ----
+        console.print("[bold]Game over![/bold]")
+        console.print(
+            "Choose: [bold]N[/] new setup · [bold]S[/] same setup (new bombs) · "
+            "[bold]R[/] reset board · [bold]Q[/] quit"
+        )
+        while True:
+            choice = console.input("[yellow]Post-game[/] (N/S/R/Q): ").strip().upper()
+            if choice == "Q":
+                return "QUIT"
+            elif choice == "N":
+                return "NEW_RULES"
+            elif choice == "S":
+                # handled by run_tui (new board, same rules)
+                return "SAME_RULES"
+            elif choice == "R":
+                board.reset()
+                game.status = GameStatus.ONGOING
+                render_rich(board)
+                break
+            else:
+                console.print("[red]Invalid choice.[/]")
+        # loop continues: gameplay resumes
 
 
 def run_tui(backend: QuantumBackend):
     welcome_screen()
     while True:
-        mode, rows, cols, n_bombs, ent_level = game_setup()
-        outcome = game_loop(backend, mode, rows, cols, n_bombs, ent_level)
-        if outcome == "QUIT":
-            break
-        if outcome == "NEW_RULES":
-            # loop back to setup for new rules
-            continue
+        # Ask rules once per "Advanced Setup"
+        win, move, rows, cols, bombs, ent_level, basis, flood = advanced_setup()
+
+        # Keep playing NEW boards with SAME rules until user asks for NEW_RULES or quits
+        while True:
+            # Create a fresh board each iteration (initial start and any 'S' choice)
+            board = make_board(backend, rows, cols, bombs, ent_level, basis, flood)
+            game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=move))
+
+            outcome = game_loop(board, game)
+            if outcome == "QUIT":
+                return
+            if outcome == "NEW_RULES":
+                break
+            if outcome == "SAME_RULES":
+                continue
