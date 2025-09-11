@@ -1,6 +1,6 @@
-import numpy as np
-from quantum_board import QMineSweeperGame, GameMode
-from stim_backend import StimBackend
+# tests/test_status.py
+from qminesweeper.quantum_board import QMineSweeperGame, GameMode
+from qminesweeper.stim_backend import StimBackend
 
 def test_loss_on_bomb():
     game = QMineSweeperGame(3, 3, GameMode.CLASSIC, StimBackend())

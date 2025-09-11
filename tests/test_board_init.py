@@ -1,9 +1,8 @@
 # tests/test_span_random_stabilizer_bombs.py
 import numpy as np
-import pytest
 
-from quantum_board import QMineSweeperGame, GameMode
-from stim_backend import StimBackend
+from qminesweeper.quantum_board import QMineSweeperGame, GameMode
+from qminesweeper.stim_backend import StimBackend
 
 
 def touched_indices(game: QMineSweeperGame):

@@ -1,5 +1,6 @@
-from quantum_board import QMineSweeperGame, GameMode, MoveType, CellState
-from stim_backend import StimBackend
+# tests/test_moves.py
+from qminesweeper.quantum_board import QMineSweeperGame, GameMode, MoveType, CellState
+from qminesweeper.stim_backend import StimBackend
 
 def test_measure_and_explore():
     game = QMineSweeperGame(3, 3, GameMode.CLASSIC, StimBackend())

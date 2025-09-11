@@ -1,6 +1,6 @@
-import numpy as np
-from quantum_board import QMineSweeperGame, GameMode, CellState
-from stim_backend import StimBackend
+# tests/test_exports.py 
+from qminesweeper.quantum_board import QMineSweeperGame, GameMode, CellState
+from qminesweeper.stim_backend import StimBackend
 
 def test_export_grid_values():
     game = QMineSweeperGame(2, 2, GameMode.CLASSIC, StimBackend())
