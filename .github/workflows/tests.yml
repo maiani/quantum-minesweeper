@@ -32,8 +32,8 @@ jobs:
         run: |
           pytest --maxfail=1 --disable-warnings -q --cov=qminesweeper --cov-report=xml
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
+    #   - name: Upload coverage to Codecov
+    #     uses: codecov/codecov-action@v4
+    #     with:
+    #       files: ./coverage.xml
+    #       fail_ci_if_error: false
