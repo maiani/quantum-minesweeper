@@ -1,23 +1,28 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Tuple
+import os
 import logging
 import re
-import os
+from uuid import uuid4
 
-from fastapi import FastAPI, Request, Form, Query
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-from uuid import uuid4
 
-from qminesweeper.auth import enable_basic_auth
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import (
     QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus
 )
 from qminesweeper.stim_backend import StimBackend
+from qminesweeper.auth import enable_basic_auth
+
+# --------- App & assets ---------
+app = FastAPI()
+
+# Basic auth over everything except health, static, favicon
+enable_basic_auth(app, exclude_paths=["/health", "/favicon.ico", "/static/*"])
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
 log = logging.getLogger("qminesweeper.web")
@@ -25,13 +30,6 @@ log = logging.getLogger("qminesweeper.web")
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
-
-# --------- App & assets ---------
-app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "dev-secret"))
-
-# Protect everything except health, favicon and static
-enable_basic_auth(app, exclude_paths=["/health", "/static/*"])
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -44,16 +42,46 @@ def _favicon():
         return Response((ico).read_bytes(), media_type="image/x-icon")
     return PlainTextResponse("", status_code=204)
 
-# --------- Session helpers ---------
+# --------- Stable game identity via first-party cookie ---------
+COOKIE_NAME = "qmsid"
 GAMES: dict[str, dict] = {}
 
-def get_sid(request: Request) -> str:
-    sid = request.session.get("sid")
-    if not sid:
+def ensure_sid(request: Request) -> str:
+    sid = request.cookies.get(COOKIE_NAME)
+    if not sid or sid not in GAMES:
         sid = str(uuid4())
-        request.session["sid"] = sid
-        log.info(f"SID created: {sid}")
+        log.info(f"SUID created: {sid}")
     return sid
+
+def attach_sid_cookie(response: Response, sid: str, request: Request) -> Response:
+    secure = (request.url.scheme == "https")
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=sid,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+    )
+    return response
+
+# --------- Theme handling via cookie ---------
+THEME_COOKIE = "theme"
+
+def get_theme(request: Request) -> str:
+    return request.cookies.get(THEME_COOKIE, "dark")
+
+def attach_theme_cookie(response: Response, theme: str, request: Request) -> Response:
+    secure = (request.url.scheme == "https")
+    response.set_cookie(
+        key=THEME_COOKIE,
+        value=theme,
+        path="/",
+        httponly=False,  # JS may read it
+        secure=secure,
+        samesite="lax",
+    )
+    return response
 
 # --------- Game building ---------
 def clue_color(val: float) -> str:
@@ -73,12 +101,11 @@ def build_board_and_game(rows:int, cols:int, bombs:int, ent_level:int,
     game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
     return board, game
 
-# --------- Command parsing ---------
+# --------- Command parsing (for /move) ---------
 _SINGLE_Q = {"X","Y","Z","H","S","SDG","SX","SXDG","SY","SYDG"}
 _TWO_Q = {"CX","CY","CZ","SWAP"}
 
 def _parse_rc(token: str) -> Tuple[int,int]:
-    # UI uses 1-based; convert to 0-based
     m = re.match(r"^\s*(\d+)\s*,\s*(\d+)\s*$", token)
     if not m:
         raise ValueError(f"Bad coord '{token}' (expected 'r,c')")
@@ -87,25 +114,14 @@ def _parse_rc(token: str) -> Tuple[int,int]:
     return r, c
 
 def parse_cmd(cmd: str):
-    """
-    Returns a tuple describing the command:
-        ("M", (r,c))
-        ("P", (r,c))
-        ("G1", (gate, (r,c)))
-        ("G2", (gate, (r1,c1), (r2,c2)))
-    Raises ValueError on invalid syntax.
-    """
     if not cmd or not cmd.strip():
         raise ValueError("Empty command")
     s = cmd.strip()
-    # allow bare "r,c" as shorthand for measure
     if re.match(r"^\s*\d+\s*,\s*\d+\s*$", s):
         r, c = _parse_rc(s)
         return ("M", (r, c))
-
     parts = s.split()
     op = parts[0].upper()
-
     if op == "M" and len(parts) == 2:
         return ("M", _parse_rc(parts[1]))
     if op == "P" and len(parts) == 2:
@@ -113,10 +129,8 @@ def parse_cmd(cmd: str):
     if op in _SINGLE_Q and len(parts) == 2:
         return ("G1", (op, _parse_rc(parts[1])))
     if op in _TWO_Q and len(parts) == 3:
-        rc1 = _parse_rc(parts[1])
-        rc2 = _parse_rc(parts[2])
+        rc1 = _parse_rc(parts[1]); rc2 = _parse_rc(parts[2])
         return ("G2", (op, rc1, rc2))
-
     raise ValueError(f"Unrecognized command: '{cmd}'")
 
 # --------- Routes ---------
@@ -126,18 +140,26 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    sid = get_sid(request)
+    sid = ensure_sid(request)
     if sid not in GAMES:
-        return RedirectResponse("/setup")
-    return RedirectResponse("/game")
+        resp = RedirectResponse("/setup")
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, get_theme(request), request)
+    resp = RedirectResponse("/game")
+    resp = attach_sid_cookie(resp, sid, request)
+    return attach_theme_cookie(resp, get_theme(request), request)
 
 @app.get("/setup", response_class=HTMLResponse, name="setup_get")
 async def setup_get(request: Request):
+    sid = ensure_sid(request)
     log.info("GET /setup")
-    return templates.TemplateResponse("setup.html", {
+    resp = templates.TemplateResponse("setup.html", {
         "request": request,
-        "theme": request.session.get("theme", "dark"),
+        "theme": get_theme(request),
+        "suid": sid,
     })
+    resp = attach_sid_cookie(resp, sid, request)
+    return attach_theme_cookie(resp, get_theme(request), request)
 
 @app.post("/setup", name="setup_post")
 async def setup_post(
@@ -146,10 +168,10 @@ async def setup_post(
     cols: int = Form(...),
     bombs: int = Form(...),
     ent_level: int = Form(...),
-    win_condition: str = Form(...),   # "identify" | "clear"
-    move_set: str = Form(...),        # "classic" | "one" | "one_complete" | "two"
+    win_condition: str = Form(...),
+    move_set: str = Form(...),
 ):
-    sid = get_sid(request)
+    sid = ensure_sid(request)
 
     win = WinCondition.CLEAR if win_condition.lower() == "clear" else WinCondition.IDENTIFY
     mv = {
@@ -166,23 +188,26 @@ async def setup_post(
         "config": {"rows": rows, "cols": cols, "bombs": bombs, "ent_level": ent_level,
                    "win": win, "moves": mv},
     }
-    request.session.setdefault("theme", "dark")
 
     log.info(f"SETUP sid={sid} rows={rows} cols={cols} bombs={bombs} ent={ent_level} "
              f"win={win.name} moves={mv.name}")
 
-    return RedirectResponse("/game", status_code=303)
+    resp = RedirectResponse("/game", status_code=303)
+    resp = attach_sid_cookie(resp, sid, request)
+    return attach_theme_cookie(resp, get_theme(request), request)
 
 @app.get("/game", response_class=HTMLResponse, name="game_get")
 async def game_get(request: Request):
-    sid = get_sid(request)
+    sid = ensure_sid(request)
     if sid not in GAMES:
-        return RedirectResponse("/setup")
+        resp = RedirectResponse("/setup")
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, get_theme(request), request)
 
     board: QMineSweeperBoard = GAMES[sid]["board"]
     game: QMineSweeperGame = GAMES[sid]["game"]
 
-    # Build dynamic tools from MoveSet (for frontend toolbar only)
+    # Build dynamic tools
     ms = game.cfg.move_set
     tools = ["M", "P"]
     if ms in (MoveSet.ONE_QUBIT, MoveSet.ONE_QUBIT_COMPLETE, MoveSet.TWO_QUBIT):
@@ -192,7 +217,6 @@ async def game_get(request: Request):
     if ms == MoveSet.TWO_QUBIT:
         tools += ["CX", "CY", "CZ", "SWAP"]
 
-    # Build grid
     grid = []
     numeric = board.export_numeric_grid()
     for r in range(board.rows):
@@ -220,7 +244,7 @@ async def game_get(request: Request):
 
     log.info(f"GET /game sid={sid} status={game.status.name}")
 
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         "game.html",
         {
             "request": request,
@@ -228,25 +252,29 @@ async def game_get(request: Request):
             "rows": board.rows,
             "cols": board.cols,
             "status": game.status.name,
-            "tools": tools,       # purely for client toolbar
-            "suid": sid,          # front-end will include this with moves
-            "theme": request.session.get("theme", "dark"),
+            "tools": tools,
+            "suid": sid,
+            "theme": get_theme(request),
         },
     )
+    resp = attach_sid_cookie(resp, sid, request)
+    return attach_theme_cookie(resp, get_theme(request), request)
 
+# ---------- /move ----------
 @app.post("/move", name="move_post")
 async def move_post(
     request: Request,
     cmd: str = Form(...),
     suid: Optional[str] = Form(None),
 ):
-    sid = get_sid(request)
-    if sid not in GAMES:
-        return RedirectResponse("/setup", status_code=303)
-
-    # suid is informational; we rely on session cookie for actual identity
+    sid = ensure_sid(request)
     if suid and suid != sid:
-        log.warning(f"Move suid mismatch: form_suid={suid} cookie_sid={sid}")
+        log.warning(f"SUID mismatch: form={suid} cookie={sid}")
+
+    if sid not in GAMES:
+        resp = RedirectResponse("/setup", status_code=303)
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, get_theme(request), request)
 
     board: QMineSweeperBoard = GAMES[sid]["board"]
     game: QMineSweeperGame = GAMES[sid]["game"]
@@ -255,7 +283,9 @@ async def move_post(
         kind, payload = parse_cmd(cmd)
     except ValueError as e:
         log.error(f"MOVE PARSE ERROR sid={sid} cmd='{cmd}' err={e}")
-        return RedirectResponse("/game", status_code=303)
+        resp = RedirectResponse("/game", status_code=303)
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, get_theme(request), request)
 
     log.info(f"MOVE sid={sid} cmd='{cmd}' parsed={kind} payload={payload}")
 
@@ -275,17 +305,21 @@ async def move_post(
     except Exception as e:
         log.exception(f"MOVE EXEC ERROR sid={sid} cmd='{cmd}' err={e}")
 
-    return RedirectResponse("/game", status_code=303)
+    resp = RedirectResponse("/game", status_code=303)
+    resp = attach_sid_cookie(resp, sid, request)
+    return attach_theme_cookie(resp, get_theme(request), request)
 
-# ---------- Legacy /game POST for non-move actions ----------
+# ---------- Non-move actions ----------
 @app.post("/game", name="game_post")
 async def game_post(
     request: Request,
     action: str = Form(...),
 ):
-    sid = get_sid(request)
+    sid = ensure_sid(request)
     if sid not in GAMES:
-        return RedirectResponse("/setup", status_code=303)
+        resp = RedirectResponse("/setup", status_code=303)
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, get_theme(request), request)
 
     board: QMineSweeperBoard = GAMES[sid]["board"]
     game: QMineSweeperGame = GAMES[sid]["game"]
@@ -301,15 +335,22 @@ async def game_post(
                                            cfg["win"], cfg["moves"])
         GAMES[sid]["board"] = board
         GAMES[sid]["game"] = game
-        log.info(f"ACTION sid={sid} new_same created")
+        log.info(f"ACTION sid={sid} new_same")
 
     elif action == "new_rules":
-        log.info(f"ACTION sid={sid} new_rules -> redirect /setup")
-        return RedirectResponse("/setup", status_code=303)
+        log.info(f"ACTION sid={sid} new_rules -> /setup")
+        resp = RedirectResponse("/setup", status_code=303)
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, get_theme(request), request)
 
     elif action == "toggle_theme":
-        theme = request.session.get("theme", "dark")
-        request.session["theme"] = "light" if theme == "dark" else "dark"
-        log.info(f"ACTION sid={sid} toggle_theme -> {request.session['theme']}")
+        theme = get_theme(request)
+        new_theme = "light" if theme == "dark" else "dark"
+        log.info(f"ACTION sid={sid} toggle_theme -> {new_theme}")
+        resp = RedirectResponse("/game", status_code=303)
+        resp = attach_sid_cookie(resp, sid, request)
+        return attach_theme_cookie(resp, new_theme, request)
 
-    return RedirectResponse("/game", status_code=303)
+    resp = RedirectResponse("/game", status_code=303)
+    resp = attach_sid_cookie(resp, sid, request)
+    return attach_theme_cookie(resp, get_theme(request), request)
