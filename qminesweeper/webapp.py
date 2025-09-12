@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 import logging
 import re
+import os
 
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
@@ -11,15 +12,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from uuid import uuid4
 
+from qminesweeper.auth import enable_basic_auth
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import (
     QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus
 )
 from qminesweeper.stim_backend import StimBackend
-
-# --------- App & assets ---------
-app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="change-me-in-prod")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
 log = logging.getLogger("qminesweeper.web")
@@ -27,6 +25,13 @@ log = logging.getLogger("qminesweeper.web")
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+
+# --------- App & assets ---------
+app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "dev-secret"))
+
+# Protect everything except health, favicon and static
+enable_basic_auth(app, exclude_paths=["/health", "/static/*"])
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

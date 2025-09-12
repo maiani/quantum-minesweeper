@@ -4,24 +4,24 @@
 {% block content %}
 <h1>Quantum Minesweeper — Setup</h1>
 <form action="/setup" method="post">
-  <label>Rows: <input type="number" name="rows" value="5" min="2" required></label><br>
-  <label>Cols: <input type="number" name="cols" value="5" min="2" required></label><br>
+  <label>Rows: <input type="number" name="rows" value="10" min="2" required></label><br>
+  <label>Cols: <input type="number" name="cols" value="10" min="2" required></label><br>
   <label>Bombs: <input type="number" name="bombs" value="5" min="1" required></label><br>
-  <label>Entanglement level: <input type="number" name="ent_level" value="0" min="0" required></label><br>
+  <label>Entanglement level: <input type="number" name="ent_level" value="1" min="0" required></label><br>
 
   <label>Win Condition:
     <select name="win_condition">
-      <option value="identify">Identify (classic)</option>
-      <option value="clear">Clear (all bomb prob ~ 0)</option>
+      <option value="identify">Identify bombs</option>
+      <option value="clear">Clear bombs</option>
     </select>
   </label><br>
 
   <label>Move Set:
     <select name="move_set">
       <option value="classic">Classic (M,P)</option>
-      <option value="one">One-qubit</option>
-      <option value="one_complete">One-qubit complete</option>
-      <option value="two">Two-qubit</option>
+      <option value="one">One-qubit gate</option>
+      <option value="one_complete">One-qubit gates (dag)</option>
+      <option value="two">Two-qubit gates</option>
     </select>
   </label><br>
 

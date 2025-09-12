@@ -7,7 +7,7 @@ name = "qminesweeper"
 version = "0.1.0"
 description = "Quantum Minesweeper with TUI and FastAPI web UI"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{name="Your Name"}]
 
 # Core runtime deps (keep minimal; choose Stim or Qiskit at runtime)
@@ -18,12 +18,15 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "jinja2",
+  "qiskit",
+  "stim",
+  "starlette",
+  "itsdangerous",
+  "python-multipart",
 ]
 
-# Optional backends
 [project.optional-dependencies]
-qiskit = ["qiskit"]
-stim = ["stim"]
+dev = ["pytest", "pytest-cov"]
 
 [project.scripts]
 qminesweeper = "qminesweeper.cli:main"

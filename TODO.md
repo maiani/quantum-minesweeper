@@ -7,6 +7,5 @@
 - Implement the RL agent
 
 ## App related
-- Fix the Flask GUI
-- Implement the multiuser GUI
+- Fix favicon.ico
 - Remove dependence on qiskit for the bomb spanning

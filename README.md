@@ -32,17 +32,13 @@ The player interacts with the board by measuring qubits or applying quantum gate
    cd QuantumMinesweeper
    ```
 
-2. Create a conda environment:
-   ```bash
-   conda env create
-   ```
-
-   The default environment name is `qminesweeper`.
-
-3. Activate the environment:
-   ```bash
-   conda activate qminesweeper
-   ```
+2. Install the package
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate        # Windows: .venv\Scripts\activate
+  python -m pip install -U pip
+  pip install -e ".[dev]"          # installs both qiskit + stim via core deps, plus dev tools
+  ```
 
 ---
 
@@ -97,6 +93,7 @@ pytest tests/
 Project structure:
 ```
 src/
+  auth.py             # Web authentication
   quantum_board.py    # Core game logic
   quantum_backend.py  # Backend abstraction
   stim_backend.py     # Stim backend
