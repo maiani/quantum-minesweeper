@@ -244,6 +244,12 @@ async def game_get(request: Request):
 
     log.info(f"GET /game sid={sid} status={game.status.name}")
 
+    result_msg = None
+    if game.status == GameStatus.WIN:
+        result_msg = "You win! 🎉"
+    elif game.status == GameStatus.LOST:
+        result_msg = "You lost! 💥"
+
     resp = templates.TemplateResponse(
         "game.html",
         {
@@ -255,8 +261,10 @@ async def game_get(request: Request):
             "tools": tools,
             "suid": sid,
             "theme": get_theme(request),
+            "result_msg": result_msg,
         },
     )
+
     resp = attach_sid_cookie(resp, sid, request)
     return attach_theme_cookie(resp, get_theme(request), request)
 

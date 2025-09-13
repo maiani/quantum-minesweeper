@@ -11,7 +11,7 @@ from qminesweeper.board import QMineSweeperBoard, CellState, MeasureResult
 class GameStatus(IntEnum):
     ONGOING = 0
     WIN = 1
-    LOSE = 2
+    LOST = 2
 
 
 class WinCondition(Enum):
@@ -113,7 +113,7 @@ class QMineSweeperGame:
         # Loss rule (IDENTIFY/CLASSIC): lose if you measured a '1' anywhere in this action
         if self.cfg.win_condition == WinCondition.IDENTIFY and not res.skipped:
             if (res.outcome == 1) or any((o == 1) for (_, _, o) in res.flood_measures):
-                self.status = GameStatus.LOSE
+                self.status = GameStatus.LOST
                 return
         self._check_win()
 
