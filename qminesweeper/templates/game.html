@@ -2,9 +2,8 @@
 
 {% block content %}
 <h1>Quantum Minesweeper</h1>
-<h2>Status: {{ status }}</h2>
 
-<!-- Board (buttons become JS-driven to compose cmd) -->
+<!-- Board -->
 <table class="board">
   {% for r in range(rows) %}
   <tr>
@@ -12,12 +11,12 @@
     <td>
       {% if status == "ONGOING" %}
       <button type="button"
-              onclick="onCell({{r}},{{c}})"
+              onclick="clickCell({{r}},{{c}})"
               style="{{ grid[r][c]['style'] }}">
         {{ grid[r][c]['text']|safe }}
       </button>
       {% else %}
-      <button type="button" disabled style="{{ grid[r][c]['style'] }}">
+      <button disabled style="{{ grid[r][c]['style'] }}">
         {{ grid[r][c]['text']|safe }}
       </button>
       {% endif %}
@@ -27,16 +26,47 @@
   {% endfor %}
 </table>
 
-<!-- Tools (client-only) -->
+<!-- Status  -->
+<h2>Status: {{ status }}</h2>
+
+<!-- Tools -->
 {% if status == "ONGOING" %}
-<h3>Tools</h3>
-<div class="tools" id="tools">
-  {% for t in tools %}
-    <button type="button" class="tool-btn" data-tool="{{t}}" onclick="setTool('{{t}}')">{{ t }}</button>
-  {% endfor %}
+<h3>Select Move</h3>
+<div class="tools">
+  <div class="tool-row">
+    <button type="button" class="tool-btn" onclick="setTool('M')">M</button>
+    <button type="button" class="tool-btn" onclick="setTool('P')">P</button>
+  </div>
+  {% if moveset in ["ONE_QUBIT", "ONE_QUBIT_COMPLETE", "TWO_QUBIT"] %}
+  <div class="tool-row">
+    {% for t in ["X","Y","Z","H","S"] %}
+      <button type="button" class="tool-btn" onclick="setTool('{{t}}')">{{t}}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if moveset in ["ONE_QUBIT_COMPLETE", "TWO_QUBIT"] %}
+  <div class="tool-row">
+    {% for t in ["SDG","SX","SXDG","SY","SYDG"] %}
+      <button type="button" class="tool-btn" onclick="setTool('{{t}}')">{{t}}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if moveset == "TWO_QUBIT" %}
+  <div class="tool-row">
+    {% for t in ["CX","CY","CZ","SWAP"] %}
+      <button type="button" class="tool-btn" onclick="setTool('{{t}}')">{{t}}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
-<div id="hint" class="grid-meta"></div>
 {% endif %}
+
+<!-- Hidden form used for all moves -->
+<form id="move-form" action="/move" method="post" style="display:none">
+  <input type="hidden" name="suid" value="{{ suid }}">
+  <input type="hidden" id="cmd-input" name="cmd" value="">
+</form>
+
 
 <!-- Actions -->
 {% if status == "ONGOING" %}
@@ -74,59 +104,54 @@
 </form>
 
 <script>
-(function(){
-  const TWO_Q = new Set(["CX","CY","CZ","SWAP"]);
-  const suid = "{{ suid }}";
-  const statusNow = "{{ status }}";
-  const hint = document.getElementById('hint');
-  const toolButtons = document.querySelectorAll('.tool-btn');
-  let currentTool = localStorage.getItem('qm_tool') || "M";
-  let firstTarget = null; // for two-qubit gates
+  const singleQ = new Set(['X','Y','Z','H','S','SDG','SX','SXDG','SY','SYDG']);
+  const twoQ    = new Set(['CX','CY','CZ','SWAP']);
+  let currentTool = localStorage.getItem("qms_tool") || "M";
+  let firstPick = null;
 
-  function refreshActive() {
-    toolButtons.forEach(b => {
-      if (b.dataset.tool === currentTool) b.classList.add('active');
-      else b.classList.remove('active');
-    });
-  }
-
-  window.setTool = function(t) {
+  function setTool(t) {
     currentTool = t;
-    localStorage.setItem('qm_tool', t);
-    firstTarget = null;
-    hint && (hint.textContent = TWO_Q.has(t) ? `Select first target for ${t}…` : `Tool: ${t}`);
-    refreshActive();
-  };
-
-  function submitCmd(cmd) {
-    const inp = document.getElementById('cmd-input');
-    const su = document.getElementById('suid-input');
-    inp.value = cmd;
-    su.value = suid;
-    document.getElementById('cmdform').submit();
+    localStorage.setItem("qms_tool", t);
+    firstPick = null; // reset any 2-qubit selection
+    // highlight
+    document.querySelectorAll('.tool-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent === t);
+    });
+    document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
   }
 
-  window.onCell = function(r, c) {
-    if (statusNow !== "ONGOING") return;
-    if (TWO_Q.has(currentTool)) {
-      if (!firstTarget) {
-        firstTarget = [r, c];
-        hint && (hint.textContent = `Select second target for ${currentTool}…`);
+  function sendCmd(cmd) {
+    document.getElementById("cmd-input").value = cmd;
+    document.getElementById("move-form").submit();
+  }
+
+  function clickCell(r, c) {
+    const rc = `${r+1},${c+1}`;
+    if (currentTool === 'M') { sendCmd(rc); return; }
+    if (currentTool === 'P') { sendCmd(`P ${rc}`); return; }
+    if (singleQ.has(currentTool)) { sendCmd(`${currentTool} ${rc}`); return; }
+    if (twoQ.has(currentTool)) {
+      if (!firstPick) {
+        firstPick = [r,c];
+        // highlight the first pick
+        const row = document.querySelectorAll('.board tr')[r];
+        const btn = row.querySelectorAll('button')[c];
+        btn.classList.add('pick');
         return;
       } else {
-        const cmd = `${currentTool} ${firstTarget[0]+1},${firstTarget[1]+1} ${r+1},${c+1}`;
-        firstTarget = null;
-        submitCmd(cmd);
+        const [r1,c1] = firstPick;
+        firstPick = null;
+        // clear highlight from all buttons
+        document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
+        const rc1 = `${r1+1},${c1+1}`;
+        sendCmd(`${currentTool} ${rc1} ${rc}`);
       }
-    } else {
-      const op = currentTool || "M";
-      const cmd = `${op} ${r+1},${c+1}`;
-      submitCmd(cmd);
     }
-  };
-
-  // init on load
-  setTool(currentTool);
-})();
+  }
+  
+  // restore last selected tool on load
+  document.addEventListener("DOMContentLoaded", () => {
+    setTool(currentTool);
+  });
 </script>
 {% endblock %}

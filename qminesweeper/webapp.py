@@ -5,12 +5,14 @@ import os
 import logging
 import re
 from uuid import uuid4
+from datetime import datetime
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from qminesweeper import __version__
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import (
     QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus
@@ -30,6 +32,9 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates.env.globals["now"] = datetime.now
+templates.env.globals["version"] = __version__
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # --------- Cookies ---------
@@ -197,15 +202,6 @@ async def game_get(request: Request):
     board: QMineSweeperBoard = GAMES[sid]["board"]
     game: QMineSweeperGame = GAMES[sid]["game"]
 
-    ms = game.cfg.move_set
-    tools = ["M", "P"]
-    if ms in (MoveSet.ONE_QUBIT, MoveSet.ONE_QUBIT_COMPLETE, MoveSet.TWO_QUBIT):
-        tools += ["X", "Y", "Z", "H", "S"]
-    if ms in (MoveSet.ONE_QUBIT_COMPLETE, MoveSet.TWO_QUBIT):
-        tools += ["SDG", "SX", "SXDG", "SY", "SYDG"]
-    if ms == MoveSet.TWO_QUBIT:
-        tools += ["CX", "CY", "CZ", "SWAP"]
-
     numeric = board.export_numeric_grid()
     grid = []
     for r in range(board.rows):
@@ -245,7 +241,7 @@ async def game_get(request: Request):
             "rows": board.rows,
             "cols": board.cols,
             "status": game.status.name,
-            "tools": tools,
+            "moveset": game.cfg.move_set.name,
             "suid": sid,
             "theme": get_theme(request),
             "result_msg": result_msg,

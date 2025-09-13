@@ -20,17 +20,6 @@ html, body {
 }
 
 /* ---------- Layout ---------- */
-/* body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  margin: 0;
-} */
-
 body {
   background: var(--bg);
   color: var(--fg);
@@ -49,10 +38,11 @@ main {
   margin: 0 auto;            /* keep centered */
 }
 
-
 h1 {
+  color: var(--accent);
   font-size: 1.8em;
   margin-bottom: 4px;
+  text-align: center;
 }
 
 h2 {
@@ -91,6 +81,20 @@ h2 {
   opacity: 0.6;
   cursor: not-allowed;
 }
+.board button.pick {
+  outline: 2px solid var(--accent);
+}
+.board-wrapper {
+  display: flex;
+  justify-content: center;  /* horizontal center */
+}
+
+/* ---------- Tool buttons ---------- */
+.tool-btn.active {
+  outline: 2px solid var(--accent);
+  background: var(--accent);
+  color: #000;
+}
 
 /* ---------- Forms & Buttons ---------- */
 form button {
@@ -116,12 +120,20 @@ button.active {
   color: #000;
 }
 
-/* ---------- Tools ---------- */
+/* ---------- Tools layout ---------- */
 .tools {
   margin: 12px 0;
 }
 .tools button {
   min-width: 44px;
+}
+.tool-row {
+  margin: 6px 0;
+}
+.tool-row form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 /* ---------- Game Over overlay ---------- */
@@ -137,7 +149,6 @@ button.active {
   text-align: center;
   transition: background 0.3s ease-in-out;
 }
-
 .gameover-box {
   background: var(--btn);
   border-radius: var(--radius);
@@ -146,20 +157,17 @@ button.active {
   max-width: 320px;
   animation: pop 0.25s ease;
 }
-
 .gameover-box h2 {
   color: var(--accent);
   font-size: 2em;
   margin-bottom: 12px;
 }
-
 .gameover-box::before {
   content: "💣";
   display: block;
   font-size: 48px;
   margin-bottom: 8px;
 }
-
 .gameover-box .actions {
   display: flex;
   gap: 12px;
@@ -167,13 +175,11 @@ button.active {
   justify-content: center;
   margin-top: 12px;
 }
-
 .gameover-box button {
   padding: 10px 18px;
   font-size: 15px;
   border-radius: var(--radius);
 }
-
 .gameover-box p {
   margin-top: -4px;
   margin-bottom: 12px;
@@ -182,16 +188,23 @@ button.active {
   color: var(--fg);
 }
 
-/* Footer */
+/* ---------- Footer ---------- */
 .footer {
-  margin-top: 0;             /* was 2em */
+  margin-top: 0;
   padding: 12px 0;
   font-size: 0.8em;
   color: var(--muted);
   text-align: center;
   opacity: 0.7;
 }
-
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.footer a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
 
 /* ---------- Light theme ---------- */
 body.light {

@@ -5,12 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "qminesweeper"
 version = "0.1.0"
-description = "Quantum Minesweeper with TUI and FastAPI web UI"
+description = "Quantum Minesweeper Game"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{name="Your Name"}]
+authors = [
+  {name="Andrea Maiani", email="andrea.maiani@su.se"}
+  ]
+maintainers = [
+  {name="Andrea Maiani", email="andrea.maiani@su.se"}
+  ]
+license = "MIT"
+license-files = ["LICENSE"]
 
-# Core runtime deps (keep minimal; choose Stim or Qiskit at runtime)
 dependencies = [
   "numpy",
   "rich",
@@ -27,6 +33,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
+
+[project.urls]
+# Homepage = "https://example.com"
+# Documentation = "https://readthedocs.org"
+Repository = "https://github.com/maiani/quantum-minesweeper.git"
+Changelog = "https://github.com/maiani/quantum-minesweeper/blob/master/CHANGELOG.md"
 
 [project.scripts]
 qminesweeper = "qminesweeper.cli:main"
