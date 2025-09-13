@@ -11,7 +11,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
                  realm: str="Restricted", exclude_paths: Optional[Iterable[str]]=None):
         super().__init__(app)
         self.username = username or os.getenv("DEMO_USER", "demo")
-        self.password = password or os.getenv("DEMO_PASS", "demo123")
+        self.password = password or os.getenv("DEMO_PASS", "nordita")
         self.realm = realm
         raw = list(exclude_paths or ["/health"])
         self._exact: Set[str] = {p for p in raw if not p.endswith("*")}

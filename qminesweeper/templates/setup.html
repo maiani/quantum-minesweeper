@@ -2,7 +2,7 @@
 
 {% block content %}
 <h1>Quantum Minesweeper — Setup</h1>
-<form action="/setup" method="post">
+<form action="/setup?suid={{ suid }}" method="post">
   <input type="hidden" name="suid" value="{{ suid }}">
   <label>Rows: <input type="number" name="rows" value="10" min="2" required></label><br>
   <label>Cols: <input type="number" name="cols" value="10" min="2" required></label><br>
