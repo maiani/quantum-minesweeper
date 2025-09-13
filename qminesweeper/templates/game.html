@@ -38,10 +38,11 @@
 <div id="hint" class="grid-meta"></div>
 {% endif %}
 
-<!-- Actions (server posts) -->
+<!-- Actions -->
 {% if status == "ONGOING" %}
 <h3>Actions</h3>
 <form action="/game" method="post">
+  <input type="hidden" name="suid" value="{{ suid }}">
   <button type="submit" name="action" value="reset">Reset Board</button>
   <button type="submit" name="action" value="new_same">New Board (same rules)</button>
   <button type="submit" name="action" value="new_rules">New Setup</button>
@@ -50,12 +51,13 @@
 {% else %}
 <div class="gameover-overlay">
   <div class="gameover-box">
-      <h2>Game Over!</h2>
-      {% if result_msg %}
-        <p>{{ result_msg }}</p>
-      {% endif %}
+    <h2>Game Over!</h2>
+    {% if result_msg %}
+      <p>{{ result_msg }}</p>
+    {% endif %}
     <div class="actions">
       <form action="/game" method="post">
+        <input type="hidden" name="suid" value="{{ suid }}">
         <button type="submit" name="action" value="reset">Reset Board</button>
         <button type="submit" name="action" value="new_same">New Board</button>
         <button type="submit" name="action" value="new_rules">New Setup</button>
