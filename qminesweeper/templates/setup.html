@@ -1,29 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-<form action="/setup?suid={{ suid }}" method="post">
-  <input type="hidden" name="suid" value="{{ suid }}">
-  <label>Rows: <input type="number" name="rows" value="10" min="2" required></label><br>
-  <label>Cols: <input type="number" name="cols" value="10" min="2" required></label><br>
-  <label>Bombs: <input type="number" name="bombs" value="10" min="1" required></label><br>
-  <label>Entanglement level: <input type="number" name="ent_level" value="1" min="0" required></label><br>
 
-  <label>Win Condition:
-    <select name="win_condition">
-      <option value="identify">Identify bombs</option>
-      <option value="clear">Clear bombs</option>
-    </select>
-  </label><br>
+<form action="/setup?suid={{ suid }}" method="post" class="setup-form">
+  <label for="rows">Rows:</label>
+  <input id="rows" name="rows" type="number" min="2" value="10" required>
 
-  <label>Move Set:
-    <select name="move_set">
-      <option value="classic">Classic (M,P)</option>
-      <option value="one" selected>One-qubit gates (core set)</option>
-      <option value="one_complete">One-qubit gates (full set)</option>
-      <option value="two">Two-qubit gates</option>
-    </select>
-  </label><br>
+  <label for="cols">Cols:</label>
+  <input id="cols" name="cols" type="number" min="2" value="10" required>
 
-  <button type="submit">Start Game</button>
+  <label for="bombs">Bombs:</label>
+  <input id="bombs" name="bombs" type="number" min="0" value="10" required>
+
+  <label for="ent">Entanglement level:</label>
+  <input id="ent" name="ent_level" type="number" min="0" max="10" value="1" required>
+
+  <label for="win">Win Condition:</label>
+  <select id="win" name="win_condition">
+    <option value="identify" selected>Identify bombs</option>
+    <option value="clear">Clear bombs</option>
+  </select>
+
+  <label for="moves">Move Set:</label>
+  <select id="moves" name="move_set">
+    <option value="classic">Classic (M, P)</option>
+    <option value="one" selected>One-qubit gates (core set)</option>
+    <option value="one_complete">One-qubit gates (full set)</option>
+    <option value="two">Two-qubit gates</option>
+  </select>
+
+  <div class="setup-actions">
+    <button type="submit">Start Game</button>
+  </div>
 </form>
 {% endblock %}
