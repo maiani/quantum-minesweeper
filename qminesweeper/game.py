@@ -15,8 +15,9 @@ class GameStatus(IntEnum):
 
 
 class WinCondition(Enum):
-    IDENTIFY = auto()  
-    CLEAR = auto()
+    IDENTIFY = auto()  # identify all bombs (all safe cells explored)
+    CLEAR = auto()     # clear all bombs (prob=0 evrywhere)
+    SANDBOX = auto()   # no win condition    
 
 class MoveType(IntEnum):
     # Non-quantum
@@ -30,10 +31,10 @@ class MoveType(IntEnum):
 
 
 class MoveSet(Enum):
-    CLASSIC = auto()     # measure + pin
-    ONE_QUBIT = auto()   # + single-qubit gates
+    CLASSIC = auto()             #   measure + pin
+    ONE_QUBIT = auto()           # + single-qubit gates
     ONE_QUBIT_COMPLETE = auto()  # + single-qubit gates (all)
-    TWO_QUBIT = auto()    
+    TWO_QUBIT = auto()           # + two-qubit gates
 
 
 _GATE_FROM_MOVE = {
@@ -74,6 +75,17 @@ class QMineSweeperGame:
       - exposes controller-friendly commands
     """
     def __init__(self, board: QMineSweeperBoard, config: GameConfig):
+        """
+        Initialize a new game with the given board and configuration.
+
+        Parameters
+        ----------
+        board : QMineSweeperBoard
+            The game board.
+        config : GameConfig
+            The game configuration (win condition, move set).        
+        """
+
         self.board = board
         self.cfg = config
         self.status = GameStatus.ONGOING
@@ -84,17 +96,47 @@ class QMineSweeperGame:
 
     # ---------- commands ----------
     def cmd_toggle_pin(self, r: int, c: int):
+        """
+        Toggle a pin on cell (r,c).
+        """
+
         if not self._allowed(MoveType.PIN_TOGGLE): raise ValueError("Pin not allowed in this MoveSet")
         self.board.toggle_pin(r, c)
         self._check_win()
 
     def cmd_measure(self, r: int, c: int) -> MeasureResult:
+        """
+        Measure cell (r,c) and return the result.
+        
+        Parameters
+        ----------
+        r : int
+            Row index of the cell to measure.
+        c : int
+            Column index of the cell to measure. 
+
+        Returns
+        -------
+        MeasureResult
+            The result of the measurement.
+        """
         if not self._allowed(MoveType.MEASURE): raise ValueError("Measure not allowed in this MoveSet")
         res = self.board.measure_cell(r, c)
         self._update_status_after_measure(res)
         return res
 
     def cmd_gate(self, gate: str, targets: List[Tuple[int, int]]):
+        """
+        Apply a quantum gate to the specified targets.
+
+        Parameters
+        ----------
+        gate : str
+            The gate to apply (e.g., "X", "H", "CX").
+        targets : List[Tuple[int, int]]
+            List of (row, col) tuples specifying the target cells.
+        """
+
         # infer MoveType from gate name
         mt = None
         for k, v in _GATE_FROM_MOVE.items():
@@ -110,10 +152,12 @@ class QMineSweeperGame:
 
     # ---------- rules ----------
     def _update_status_after_measure(self, res: MeasureResult):
-        if (res.outcome == 1): # or any((o == 1) for (_, _, o) in res.flood_measures):
+        if self.cfg.win_condition == WinCondition.SANDBOX:
+            pass
+        elif (res.outcome == 1): 
             self.status = GameStatus.LOST
-            return
-        self._check_win()
+        else:
+            self._check_win()
 
     def _check_win(self):
         if self.cfg.win_condition == WinCondition.CLEAR:

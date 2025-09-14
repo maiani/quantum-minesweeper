@@ -141,7 +141,13 @@ async def setup_post(
     user_id = ensure_user_id(request)
     suid = suid or str(uuid4())
 
-    win = WinCondition.CLEAR if win_condition.lower() == "clear" else WinCondition.IDENTIFY
+    wc = {
+    "clear": WinCondition.CLEAR,
+    "identify": WinCondition.IDENTIFY,
+    "sandbox": WinCondition.SANDBOX,
+    }
+    win = wc.get(win_condition.lower(), WinCondition.IDENTIFY)
+
     mv = {
         "classic": MoveSet.CLASSIC,
         "one": MoveSet.ONE_QUBIT,

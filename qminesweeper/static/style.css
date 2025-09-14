@@ -134,6 +134,14 @@ button.active {
 .tools button {
   min-width: 44px;
   font-size: clamp(12px, 2.5vw, 14px);
+  margin: 4px 4px 0 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--btn);
+  color: var(--fg);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.05s;
 }
 .tool-row {
   margin: 6px 0;
@@ -221,7 +229,7 @@ button.active {
 }
 
 /* ---------- Header & Theme Toggle ---------- */
-.theme-btn {
+.theme-button {
   position: absolute;
   right: 12px;
   top: 12px;
@@ -233,22 +241,7 @@ button.active {
   transition: transform 0.2s, color 0.2s;
 }
 
-.theme-btn:hover {
-  transform: rotate(15deg);
-  color: var(--accent);
-}
-
-.theme-toggle button {
-  background: none;
-  border: none;
-  font-size: 1.4em;
-  cursor: pointer;
-  color: var(--fg);
-  transition: transform 0.2s, color 0.2s;
-}
-
-.theme-toggle button:hover {
-  transform: rotate(15deg);
+.theme-buttonbtn:hover {
   color: var(--accent);
 }
 
