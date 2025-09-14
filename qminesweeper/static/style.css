@@ -12,6 +12,10 @@
   --accent: #6aa0ff;
   --accent-h: #82b4ff;
   --radius: 8px;
+
+  /* Responsive variables */
+  --tile: clamp(28px, 6vw, 44px);
+  --tile-gap: clamp(1px, 0.5vw, 4px);
 }
 
 html, body {
@@ -40,13 +44,13 @@ main {
 
 h1 {
   color: var(--accent);
-  font-size: 1.8em;
+  font-size: clamp(1.4rem, 5vw, 1.8rem);
   margin-bottom: 4px;
   text-align: center;
 }
 
 h2 {
-  font-size: 1.2em;
+  font-size: clamp(1rem, 3.5vw, 1.2rem);
   font-weight: normal;
   opacity: 0.85;
   margin-top: 0;
@@ -58,16 +62,16 @@ h2 {
   margin: 16px 0;
 }
 .board td {
-  padding: 2px;
+  padding: var(--tile-gap);
 }
 .board button {
-  width: 34px;
-  height: 34px;
+  width: var(--tile);
+  height: var(--tile);
   border: none;
   border-radius: var(--radius);
   background: var(--btn);
   color: var(--fg);
-  font-size: 13px;
+  font-size: clamp(11px, 1.8vw, 13px);
   cursor: pointer;
   transition: background 0.2s, transform 0.05s;
 }
@@ -87,6 +91,9 @@ h2 {
 .board-wrapper {
   display: flex;
   justify-content: center;  /* horizontal center */
+  overflow-x: auto;         /* safe on narrow screens */
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
 }
 
 /* ---------- Tool buttons ---------- */
@@ -126,6 +133,7 @@ button.active {
 }
 .tools button {
   min-width: 44px;
+  font-size: clamp(12px, 2.5vw, 14px);
 }
 .tool-row {
   margin: 6px 0;
@@ -134,6 +142,22 @@ button.active {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* ---------- Actions (responsive) ---------- */
+.actions form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.actions form button {
+  flex: 1 1 calc(50% - 10px);
+  min-width: 120px;
+}
+@media (min-width: 720px) {
+  .actions form button {
+    flex: 0 0 auto;
+  }
 }
 
 /* ---------- Game Over overlay ---------- */
@@ -152,20 +176,21 @@ button.active {
 .gameover-box {
   background: var(--btn);
   border-radius: var(--radius);
-  padding: 24px 32px;
+  padding: clamp(18px, 4vw, 24px) clamp(20px, 5vw, 32px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-  max-width: 320px;
+  max-width: 360px;
+  width: min(92vw, 360px);
   animation: pop 0.25s ease;
 }
 .gameover-box h2 {
   color: var(--accent);
-  font-size: 2em;
+  font-size: clamp(1.4rem, 4.8vw, 2rem);
   margin-bottom: 12px;
 }
 .gameover-box::before {
   content: "💣";
   display: block;
-  font-size: 48px;
+  font-size: clamp(36px, 10vw, 48px);
   margin-bottom: 8px;
 }
 .gameover-box .actions {
@@ -183,7 +208,7 @@ button.active {
 .gameover-box p {
   margin-top: -4px;
   margin-bottom: 12px;
-  font-size: 1.1em;
+  font-size: clamp(1rem, 2.8vw, 1.1rem);
   font-weight: 500;
   color: var(--fg);
 }
@@ -193,29 +218,25 @@ button.active {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;              /* space between items */
-  flex-wrap: wrap;        /* wrap nicely on small screens */
+  gap: 10px;
+  flex-wrap: wrap;
   row-gap: 6px;
   padding: 12px 0;
   font-size: 0.85rem;
   color: var(--muted);
   opacity: 0.8;
 }
-
-
 .footer-logo {
-  height: clamp(16px, 1.2vh + 1.2vw, 28px);
+  height: clamp(20px, 1.25vh + 1.25vw, 28px);
   width: auto;
   vertical-align: middle;
   object-fit: contain;
   display: inline-block;
 }
-
 .footer a {
   color: var(--muted);
   text-decoration: none;
 }
-
 .footer a:hover {
   color: var(--accent);
   text-decoration: underline;
@@ -224,7 +245,7 @@ button.active {
 /* Slightly smaller text on very small screens */
 @media (max-width: 420px) {
   .footer { font-size: 0.8rem; }
-  .footer-logo { height: 16px; }
+  .footer-logo { height: 20px; }
 }
 
 /* ---------- Light theme ---------- */
