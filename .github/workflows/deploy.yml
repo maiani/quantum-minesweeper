@@ -1,0 +1,43 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev -q
+
+      - name: Build and Push Image
+        run: |
+          TAG="${GITHUB_REF_NAME}" 
+          IMAGE="europe-west1-docker.pkg.dev/qminesweeper/qms/qminesweeper:${TAG}"
+          echo "Using image: $IMAGE"
+
+          docker buildx build \
+            --platform linux/amd64 \
+            -t "$IMAGE" \
+            --push .
+
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy quantum-minesweeper \
+            --image "$IMAGE" \
+            --region europe-west1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars DEMO_USER=${{ secrets.DEMO_USER }},DEMO_PASS=${{ secrets.DEMO_PASS }}
