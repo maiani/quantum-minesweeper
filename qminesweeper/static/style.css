@@ -288,7 +288,8 @@ button.active {
 }
 
 /* ---------- Light theme ---------- */
-body.light {
+body.light,
+html.light body {
   --bg: #fafafa;
   --fg: #222;
   --muted: #555;

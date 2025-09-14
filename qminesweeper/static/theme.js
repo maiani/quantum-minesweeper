@@ -1,57 +1,36 @@
+// static/theme.js
 (function () {
   const KEY = 'qms_theme';
 
-  function applyTheme(value) {
-    // value: 'light' | 'dark'
-    if (value === 'light') {
-      document.body.classList.add('light');
-    } else {
-      document.body.classList.remove('light');
-    }
+  function applyTheme(mode) {
+    const isLight = mode === 'light';
+    // support both <html> and <body> for no-flash + runtime
+    document.documentElement.classList.toggle('light', isLight);
+    document.body.classList.toggle('light', isLight);
+    const btn = document.getElementById('toggle-theme');
+    if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+  }
+
+  function initialTheme() {
+    const saved = localStorage.getItem(KEY);
+    if (saved === 'light' || saved === 'dark') return saved;
+    // fallback to system preference
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+      ? 'light' : 'dark';
   }
 
   function toggleTheme() {
-    const cur = localStorage.getItem(KEY) || 'dark';
-    const next = (cur === 'dark') ? 'light' : 'dark';
+    const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
     localStorage.setItem(KEY, next);
     applyTheme(next);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    // initialize from storage (default: dark)
-    applyTheme(localStorage.getItem(KEY) || 'dark');
+    // If an inline no-flash script set <html class="light">, honor it; else compute.
+    const hasClass = document.documentElement.classList.contains('light');
+    applyTheme(hasClass ? 'light' : initialTheme());
 
-    // wire the toggle button if present
     const btn = document.getElementById('toggle-theme');
-    if (btn) {
-      btn.addEventListener('click', toggleTheme);
-    }
+    if (btn) btn.addEventListener('click', toggleTheme);
   });
 })();
-
-document.addEventListener("DOMContentLoaded", () => {
-  const body = document.body;
-  const btn = document.getElementById("toggle-theme");
-
-  function updateIcon() {
-    if (body.classList.contains("light")) {
-      btn.textContent = "☀️";
-    } else {
-      btn.textContent = "🌙";
-    }
-  }
-
-  btn.addEventListener("click", () => {
-    body.classList.toggle("light");
-    updateIcon();
-    // Persist in localStorage so it survives reloads
-    localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
-  });
-
-  // Load from localStorage if available
-  const saved = localStorage.getItem("theme");
-  if (saved) {
-    body.classList.toggle("light", saved === "light");
-  }
-  updateIcon();
-});

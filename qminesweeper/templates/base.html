@@ -1,13 +1,28 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}Quantum Minesweeper{% endblock %}</title>
 
-  <!-- Shared head -->
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+  <script>
+    (function () {
+      try {
+        var KEY = 'qms_theme';
+        var t = localStorage.getItem(KEY);
+        if (!t) {
+          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+              ? 'light' : 'dark';
+        }
+        if (t === 'light') document.documentElement.classList.add('light');
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/static/style.css">
+
   
   <script src="/static/theme.js"></script>
 
@@ -15,12 +30,11 @@
 </head>
 
 <header class="header">
-
-<h1>Quantum Minesweeper</h1>
-
-<form action="/game?suid={{ suid }}" method="post">
-  <button type="button" id="toggle-theme" class="theme-btn" title="Toggle theme">🌙</button>
+  <h1>Quantum Minesweeper</h1>
+  <form action="/game?suid={{ suid }}" method="post">
+    <button type="button" id="toggle-theme" class="theme-btn" title="Toggle theme">🌙</button>
 </form>
+</header>
 
 <body>
   <main>
