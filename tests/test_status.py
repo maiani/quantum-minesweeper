@@ -11,7 +11,7 @@ def test_loss_on_bomb():
     bomb = next(((r, c) for r in range(3) for c in range(3) if expZ[r, c] == -1))
     game.cmd_measure(*bomb)
 
-    assert game.status == GameStatus.LOSE
+    assert game.status == GameStatus.LOST
 
 def test_win_classic_by_exploring_all_safe():
     board = QMineSweeperBoard(2, 2, StimBackend())
