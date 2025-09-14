@@ -1,0 +1,44 @@
+import pytest
+import numpy as np
+from qminesweeper.board import QMineSweeperBoard, CellState
+from qminesweeper.game import (
+    QMineSweeperGame, GameConfig,
+    WinCondition, MoveSet, GameStatus
+)
+from qminesweeper.stim_backend import StimBackend
+
+def test_pin_toggle_allowed():
+    board = QMineSweeperBoard(2, 2, StimBackend())
+    board.span_classical_bombs(1)
+
+    for win_cond in [WinCondition.IDENTIFY, WinCondition.CLEAR]:
+        for move_set in [MoveSet.CLASSIC, MoveSet.ONE_QUBIT, MoveSet.TWO_QUBIT]:
+            game = QMineSweeperGame(board, GameConfig(win_cond, move_set))
+            game.cmd_toggle_pin(0, 0)
+            assert board.exploration_state()[0, 0] == CellState.PINNED
+            game.cmd_toggle_pin(0, 0)
+            assert board.exploration_state()[0, 0] == CellState.UNEXPLORED
+
+def test_one_qubit_gate_allowed():
+    board = QMineSweeperBoard(2, 2, StimBackend())
+    board.span_classical_bombs(1)
+    game = QMineSweeperGame(board, GameConfig(WinCondition.CLEAR, MoveSet.ONE_QUBIT))
+
+    # Apply a Hadamard gate on (0,0). Should not raise.
+    game.cmd_gate("H", [(0, 0)])
+    assert game.status in (GameStatus.ONGOING, GameStatus.WIN)
+
+
+def test_two_qubit_gate_allowed_only_in_two_qubit():
+    board = QMineSweeperBoard(2, 2, StimBackend())
+    board.span_classical_bombs(2)
+
+    # Two-qubit gate should raise in ONE_QUBIT
+    game1 = QMineSweeperGame(board, GameConfig(WinCondition.CLEAR, MoveSet.ONE_QUBIT))
+    with pytest.raises(ValueError):
+        game1.cmd_gate("CX", [(0, 0), (1, 1)])
+
+    # Should succeed in TWO_QUBIT
+    game2 = QMineSweeperGame(board, GameConfig(WinCondition.CLEAR, MoveSet.TWO_QUBIT))
+    game2.cmd_gate("CX", [(0, 0), (1, 1)])
+    assert game2.status in (GameStatus.ONGOING, GameStatus.WIN)
