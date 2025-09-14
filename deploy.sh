@@ -7,6 +7,9 @@ REGION="europe-west1"
 REPO="qms"
 SERVICE="quantum-minesweeper"
 
+DEMO_USER="demo"
+DEMO_PASS="nordita"
+
 TAG="$(date +%Y%m%d-%H%M%S)"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/qminesweeper:${TAG}"
 
@@ -23,6 +26,11 @@ docker buildx build \
   --cache-to=type=registry,ref="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/qminesweeper:cache",mode=max \
   -t "$IMAGE" \
   --push .
+
+gcloud run services update quantum-minesweeper \
+  --region "$REGION" \
+  --set-env-vars "DEMO_USER=$DEMO_USER, DEMO_PASS=$DEMO_PASS" \
+  --allow-unauthenticated
 
 echo ">>> Deploying to Cloud Run service: $SERVICE"
 gcloud run deploy "$SERVICE" \
