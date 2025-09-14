@@ -21,7 +21,7 @@ from qminesweeper.auth import enable_basic_auth
 
 # --------- App & assets ---------
 app = FastAPI()
-enable_basic_auth(app, exclude_paths=["/health", "/favicon.ico", "/static/*"])
+enable_basic_auth(app, exclude_paths=["/health", "/static/*"])
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
@@ -107,13 +107,6 @@ def parse_cmd(cmd: str):
 @app.get("/health")
 def health():
     return PlainTextResponse("ok")
-
-@app.get("/favicon.ico", include_in_schema=False)
-def _favicon():
-    ico = STATIC_DIR / "favicon.ico"
-    if ico.exists():
-        return Response(ico.read_bytes(), media_type="image/x-icon")
-    return PlainTextResponse("", status_code=204)
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
