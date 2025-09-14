@@ -110,24 +110,21 @@ class QMineSweeperGame:
 
     # ---------- rules ----------
     def _update_status_after_measure(self, res: MeasureResult):
-        # Loss rule (IDENTIFY/CLASSIC): lose if you measured a '1' anywhere in this action
-        if self.cfg.win_condition == WinCondition.IDENTIFY and not res.skipped:
-            if (res.outcome == 1) or any((o == 1) for (_, _, o) in res.flood_measures):
-                self.status = GameStatus.LOST
-                return
+        if (res.outcome == 1): # or any((o == 1) for (_, _, o) in res.flood_measures):
+            self.status = GameStatus.LOST
+            return
         self._check_win()
 
     def _check_win(self):
         if self.cfg.win_condition == WinCondition.CLEAR:
             probs = np.array([self.board.bomb_probability_z(i) for i in range(self.board.n)])
             self.status = GameStatus.WIN if np.all(probs <= 1e-6) else GameStatus.ONGOING
-            return
+        
+        elif self.cfg.win_condition == WinCondition.IDENTIFY:
 
-        # IDENTIFY / CLASSIC: win when all safe cells are explored (pins optional)
-        state = self.board.exploration_state()
-        explored = (state == CellState.EXPLORED)
+            state = self.board.exploration_state()
+            explored = (state == CellState.EXPLORED)
+            probs = np.fromiter((self.board.bomb_probability_z(i) for i in range(self.board.n)), float)
+            safe  = (probs <= 1e-6).reshape(self.board.rows, self.board.cols)
 
-        probs = np.fromiter((self.board.bomb_probability_z(i) for i in range(self.board.n)), float)
-        safe  = (probs <= 1e-6).reshape(self.board.rows, self.board.cols)
-
-        self.status = GameStatus.WIN if np.all(explored[safe]) else GameStatus.ONGOING
+            self.status = GameStatus.WIN if np.all(explored[safe]) else GameStatus.ONGOING
