@@ -110,15 +110,18 @@ class QMineSweeperBoard:
     def reset(self):
         # reset physics
         self.state.reset()
+        
         # (re)apply preparation circuit
         for gate, targets in self._prep:
             self.state.apply_gate(gate, targets)
+        
         # reset caches & exploration
         self._exp_cache = {"X": {}, "Y": {}, "Z": {}}
+        self._exp_cache["Z"] = {i: self.state.expectation_pauli(i, "Z") for i in range(self.n)}
+
         self._measured.clear()
         self._exploration.fill(CellState.UNEXPLORED)
 
-    # Ready-made preparations (optional helpers)
     def span_classical_bombs(self, nbombs: int):
         if nbombs > self.n:
             raise ValueError("Too many bombs for board size")
@@ -213,8 +216,10 @@ class QMineSweeperBoard:
             s += (1.0 - self.expectation(idx, b)) / 2.0
         return s
 
-    # Backward-compat clue accessor with sentinel 9.0 (💥) when self cell is definite bomb in basis
     def get_clue(self, r: int, c: int) -> float:
+        """
+        Return the clue value at (r,c) in current basis, or 9.0 if definite bomb there.
+        """
         idx = self.index(r, c)
         if self.expectation(idx, self._clue_basis) == -1.0:
             return 9.0
@@ -225,6 +230,17 @@ class QMineSweeperBoard:
         for i in range(self.n):
             vals[i] = self.expectation(i, basis)
         return vals.reshape(self.rows, self.cols)
+    
+    def expected_bombs(self) -> float:
+        """
+        Return the expected total number of bombs in Z basis,
+        i.e. sum of bomb probabilities across all cells.
+        """
+        total = 0.0
+        # if exp_cache['Z'] is empty, this will populate it
+        for i in range(self.n):
+            total += self.bomb_probability_z(i)
+        return total
 
     # ---------- mechanics: pins & measurement & gates ----------
     def toggle_pin(self, r: int, c: int) -> None:
@@ -300,7 +316,9 @@ class QMineSweeperBoard:
 
     # ---------- numeric grid for UIs ----------
     def export_numeric_grid(self) -> np.ndarray:
-        """-1 = unexplored, -2 = pinned, 9 = definite bomb at cell (basis),
+        """-1 = unexplored, 
+           -2 = pinned, 
+           9 = definite bomb at cell (basis),
            else fractional clue in current basis."""
         grid = np.full((self.rows, self.cols), -1.0, dtype=float)
         for r in range(self.rows):

@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
+
 {% block content %}
-<h1>Quantum Minesweeper</h1>
+<!-- Status  -->
+<p class="bomb-counter">Expected Bombs: {{ "%.1f"|format(bombs_exp) }}</p>
 
 <!-- Board -->
 <table class="board">
@@ -26,8 +28,6 @@
   {% endfor %}
 </table>
 
-<!-- Status  -->
-<h2>Status: {{ status }}</h2>
 
 <!-- Tools -->
 {% if status == "ONGOING" %}
@@ -73,10 +73,10 @@
 <form action="/game?suid={{ suid }}" method="post">
   <input type="hidden" name="suid" value="{{ suid }}">
   <button type="submit" name="action" value="reset">Reset Board</button>
-  <button type="submit" name="action" value="new_same">New Board (same rules)</button>
+  <button type="submit" name="action" value="new_same">New Game</button>
   <button type="submit" name="action" value="new_rules">New Setup</button>
-  <button type="button" id="toggle-theme">Switch Theme</button>
 </form>
+
 {% else %}
 <div class="gameover-overlay">
   <div class="gameover-box">
@@ -88,7 +88,7 @@
       <form action="/game?suid={{ suid }}" method="post">
         <input type="hidden" name="suid" value="{{ suid }}">
         <button type="submit" name="action" value="reset">Reset Board</button>
-        <button type="submit" name="action" value="new_same">New Board</button>
+        <button type="submit" name="action" value="new_same">New Game</button>
         <button type="submit" name="action" value="new_rules">New Setup</button>
       </form>
     </div>

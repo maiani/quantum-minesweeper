@@ -28,3 +28,30 @@
     }
   });
 })();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const body = document.body;
+  const btn = document.getElementById("toggle-theme");
+
+  function updateIcon() {
+    if (body.classList.contains("light")) {
+      btn.textContent = "☀️";
+    } else {
+      btn.textContent = "🌙";
+    }
+  }
+
+  btn.addEventListener("click", () => {
+    body.classList.toggle("light");
+    updateIcon();
+    // Persist in localStorage so it survives reloads
+    localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+  });
+
+  // Load from localStorage if available
+  const saved = localStorage.getItem("theme");
+  if (saved) {
+    body.classList.toggle("light", saved === "light");
+  }
+  updateIcon();
+});

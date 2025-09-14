@@ -1,3 +1,4 @@
+# qminesweeper/webapp.py
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Tuple
@@ -199,6 +200,8 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
             row.append(cell)
         grid.append(row)
 
+    bombs_exp = board.expected_bombs()
+
     result_msg = None
     if game.status == GameStatus.WIN:
         result_msg = "You win! 🎉"
@@ -212,6 +215,7 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
         "moveset": game.cfg.move_set.name,
         "suid": suid,
         "result_msg": result_msg,
+        "bombs_exp": bombs_exp,
     }), user_id, request)
 
 @app.post("/move")

@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Quantum Minesweeper — Setup</h1>
 <form action="/setup?suid={{ suid }}" method="post">
   <input type="hidden" name="suid" value="{{ suid }}">
   <label>Rows: <input type="number" name="rows" value="10" min="2" required></label><br>
@@ -26,6 +25,5 @@
   </label><br>
 
   <button type="submit">Start Game</button>
-  <button type="button" id="toggle-theme">Switch Theme</button>
 </form>
 {% endblock %}

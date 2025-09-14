@@ -193,11 +193,11 @@ button.active {
   font-size: clamp(36px, 10vw, 48px);
   margin-bottom: 8px;
 }
-.gameover-box .actions {
+.gameover-box .actions form {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
+  gap: 10px;                  /* consistent spacing */
+  justify-content: center;    /* center horizontally */
+  flex-wrap: nowrap;          /* force one row */
   margin-top: 12px;
 }
 .gameover-box button {
@@ -211,6 +211,45 @@ button.active {
   font-size: clamp(1rem, 2.8vw, 1.1rem);
   font-weight: 500;
   color: var(--fg);
+}
+
+/* ----------- Header ---------- */
+.header {
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+}
+
+/* ---------- Header & Theme Toggle ---------- */
+.theme-btn {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  background: none;
+  border: none;
+  font-size: 1.4em;
+  cursor: pointer;
+  color: var(--fg);
+  transition: transform 0.2s, color 0.2s;
+}
+
+.theme-btn:hover {
+  transform: rotate(15deg);
+  color: var(--accent);
+}
+
+.theme-toggle button {
+  background: none;
+  border: none;
+  font-size: 1.4em;
+  cursor: pointer;
+  color: var(--fg);
+  transition: transform 0.2s, color 0.2s;
+}
+
+.theme-toggle button:hover {
+  transform: rotate(15deg);
+  color: var(--accent);
 }
 
 /* ---------- Footer ---------- */
@@ -267,4 +306,11 @@ body.light {
 @keyframes pop {
   0% { transform: scale(0.8); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 420px) {
+  .gameover-box .actions form {
+    flex-wrap: wrap;   /* allow wrapping on narrow screens */
+    gap: 10px;
+  }
 }
