@@ -19,6 +19,9 @@ from qminesweeper.game import (
 from qminesweeper.stim_backend import StimBackend
 from qminesweeper.auth import enable_basic_auth
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # --------- App & assets ---------
 app = FastAPI()
 enable_basic_auth(app, exclude_paths=["/health", "/static/*"])

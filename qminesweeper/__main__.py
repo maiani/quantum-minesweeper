@@ -6,6 +6,8 @@ from qminesweeper.textUI import run_tui
 from qminesweeper.stim_backend import StimBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 
+from dotenv import load_dotenv
+load_dotenv()
 
 app = typer.Typer(help="Quantum Minesweeper CLI")
 

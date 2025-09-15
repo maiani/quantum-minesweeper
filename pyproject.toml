@@ -29,6 +29,7 @@ dependencies = [
   "starlette",
   "itsdangerous",
   "python-multipart",
+  "python-dotenv",
 ]
 
 [project.optional-dependencies]

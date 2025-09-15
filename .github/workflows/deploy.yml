@@ -40,4 +40,4 @@ jobs:
             --region europe-west1 \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars DEMO_USER=${{ secrets.DEMO_USER }},DEMO_PASS=${{ secrets.DEMO_PASS }}
+            --set-env-vars QMS_USER=${{ secrets.QMS_USER }},QMS_PASS=${{ secrets.QMS_PASS }},QMS_ENABLE_AUTH=1

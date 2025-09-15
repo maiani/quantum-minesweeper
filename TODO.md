@@ -7,5 +7,4 @@
 - Implement the RL agent
 
 ## App related
-- Fix favicon.ico
 - Remove dependence on qiskit for the bomb spanning
