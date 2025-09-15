@@ -203,7 +203,8 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
         grid.append(row)
 
     bombs_exp = board.expected_bombs()
-
+    ent_score = board.entanglement_score("mean") * board.n
+    
     result_msg = None
     if game.status == GameStatus.WIN:
         result_msg = "You win! 🎉"
@@ -218,6 +219,7 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
         "suid": suid,
         "result_msg": result_msg,
         "bombs_exp": bombs_exp,
+        "ent_measure": ent_score,
     }), user_id, request)
 
 @app.post("/move")

@@ -56,7 +56,33 @@ h2 {
   margin-top: 0;
 }
 
+/* ---------- Status ---------- */
+
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.status-table td {
+  border: none;
+  background: transparent;
+  padding: 0.3em 0.5em;
+  vertical-align: middle;
+  text-align: center;  /* ensures numbers don't wrap oddly */
+  white-space: nowrap; /* keep label and number on same line */
+}
+
+.status-spacer {
+  width: 100%;
+}
+
 /* ---------- Board ---------- */
+.board-container {
+  display: flex;
+  justify-content: center; /* horizontal center */
+  margin: 1em 0;
+}
+
 .board {
   border-collapse: collapse;
   margin: 16px 0;
@@ -152,7 +178,7 @@ button.active {
   gap: 6px;
 }
 
-/* ---------- Actions (responsive) ---------- */
+/* ---------- Actions ---------- */
 .actions form {
   display: flex;
   flex-wrap: wrap;

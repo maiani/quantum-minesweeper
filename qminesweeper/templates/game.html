@@ -3,31 +3,47 @@
 
 {% block content %}
 <!-- Status  -->
-<p class="bomb-counter">Expected Bombs: {{ "%.1f"|format(bombs_exp) }}</p>
-
-<!-- Board -->
-<table class="board">
-  {% for r in range(rows) %}
+<table class="status-table">
   <tr>
-    {% for c in range(cols) %}
-    <td>
-      {% if status == "ONGOING" %}
-      <button type="button"
-              onclick="clickCell({{r}},{{c}})"
-              style="{{ grid[r][c]['style'] }}">
-        {{ grid[r][c]['text']|safe }}
-      </button>
-      {% else %}
-      <button disabled style="{{ grid[r][c]['style'] }}">
-        {{ grid[r][c]['text']|safe }}
-      </button>
-      {% endif %}
+    <!-- Left: expected bombs -->
+    <td class="bomb-counter">
+      ⟨Bombs⟩ = {{ "%.1f"|format(bombs_exp) }}
     </td>
-    {% endfor %}
+
+    <!-- Middle: empty for now -->
+    <td class="status-spacer"></td>
+
+    <!-- Right: entanglement -->
+    <td class="entanglement" style="text-align: right;">
+      Entanglement = {{ "%d"|format(ent_measure) }} bits
+    </td>
   </tr>
-  {% endfor %}
 </table>
 
+<!-- Board -->
+<div class="board-container">
+  <table class="board">
+    {% for r in range(rows) %}
+    <tr>
+      {% for c in range(cols) %}
+      <td>
+        {% if status == "ONGOING" %}
+        <button type="button"
+                onclick="clickCell({{r}},{{c}})"
+                style="{{ grid[r][c]['style'] }}">
+          {{ grid[r][c]['text']|safe }}
+        </button>
+        {% else %}
+        <button disabled style="{{ grid[r][c]['style'] }}">
+          {{ grid[r][c]['text']|safe }}
+        </button>
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+</div>
 
 <!-- Tools -->
 {% if status == "ONGOING" %}

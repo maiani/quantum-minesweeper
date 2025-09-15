@@ -5,7 +5,7 @@ from enum import Enum, IntEnum, auto
 from typing import List, Tuple
 import numpy as np
 
-from qminesweeper.board import QMineSweeperBoard, CellState, MeasureResult
+from qminesweeper.board import QMineSweeperBoard, CellState, MeasureMoveResult
 
 
 class GameStatus(IntEnum):
@@ -104,7 +104,7 @@ class QMineSweeperGame:
         self.board.toggle_pin(r, c)
         self._check_win()
 
-    def cmd_measure(self, r: int, c: int) -> MeasureResult:
+    def cmd_measure(self, r: int, c: int) -> MeasureMoveResult:
         """
         Measure cell (r,c) and return the result.
         
@@ -151,7 +151,7 @@ class QMineSweeperGame:
         self._check_win()
 
     # ---------- rules ----------
-    def _update_status_after_measure(self, res: MeasureResult):
+    def _update_status_after_measure(self, res: MeasureMoveResult):
         if self.cfg.win_condition == WinCondition.SANDBOX:
             pass
         elif (res.outcome == 1): 

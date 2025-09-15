@@ -4,42 +4,63 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import List, Tuple, Dict, Optional
 import numpy as np
-from math import isclose
+import math
 
 from qiskit.quantum_info import random_clifford, Clifford
-
 from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
+
 class CellState(IntEnum):
+    """Exploration state of a cell."""
     UNEXPLORED = 0
     PINNED = 1
     EXPLORED = 2
 
 
-NBR_OFFSETS = [(-1, -1), (-1, 0), (-1, 1),
-               ( 0, -1),          ( 0, 1),
-               ( 1, -1), ( 1, 0), ( 1, 1)]
+# Offsets for 8-neighborhood (row, col)
+NBR_OFFSETS = [
+    (-1, -1), (-1, 0), (-1, 1),
+    ( 0, -1),          ( 0, 1),
+    ( 1, -1), ( 1, 0), ( 1, 1),
+]
 
 
 @dataclass
-class MeasureResult:
+class MeasureMoveResult:
+    """
+    Result of measure move.
+    
+    Attributes
+    ----------
+    idx : int
+        Flat index of the measured cell.
+    outcome : Optional[int]
+        Measurement outcome (0/1). None if skipped.
+    explored : List[Tuple[int,int]]
+        Cells newly marked as EXPLORED (includes the seed).
+    flood_measures : List[Tuple[int,int,int]]
+        Flood-expanded measurements as (r, c, outcome).
+    skipped : bool
+        True if measurement was skipped due to PINNED/EXPLORED.
+    """
     idx: int
-    outcome: Optional[int]          # None if skipped
-    explored: List[Tuple[int, int]] # cells newly marked EXPLORED (includes the seed)
-    flood_measures: List[Tuple[int, int, int]]  # (r,c,outcome) for flood-expanded cells
+    outcome: Optional[int]
+    explored: List[Tuple[int, int]]
+    flood_measures: List[Tuple[int, int, int]]
     skipped: bool = False
 
 
 class QMineSweeperBoard:
     """
-    Generic game mechanics & physics. No win/lose or policy.
-    Owns:
-      - geometry, neighbors
-      - quantum state & caches
-      - preparation circuit
-      - exploration / pins
-      - clue basis + clue math
-      - flood-fill behavior
+    Core quantum Minesweeper board mechanics.
+
+    Responsibilities:
+    - Grid geometry and neighbors.
+    - Quantum state preparation & reset.
+    - Exploration, pinning, and flood-fill behavior.
+    - Clue calculation based on local expectations.
+    - Measurement and gate application.
+    - Entanglement/entropy diagnostics.
     """
 
     def __init__(self, rows: int, cols: int, backend: QuantumBackend, *, flood_fill: bool = True):
@@ -47,33 +68,34 @@ class QMineSweeperBoard:
         self.cols = cols
         self.n = rows * cols
 
+        # Backend state object (e.g. stabilizer simulator)
         self.backend: QuantumBackend = backend
         self.state: StabilizerQuantumState = self.backend.generate_stabilizer_state(self.n)
 
-        # exploration/pins
+        # Cell exploration / pin state
         self._exploration = np.full((rows, cols), CellState.UNEXPLORED, dtype=np.int8)
 
-        # basis & flood-fill
+        # Gameplay parameters
         self._clue_basis: str = "Z"
         self._flood_fill: bool = flood_fill
 
-        # caches (per basis index->value)
-        self._exp_cache: Dict[str, Dict[int, float]] = {"X": {}, "Y": {}, "Z": {}}
-
-        # record of measured outcomes (Z-basis measurements)
+        # Record of measured outcomes (Z-basis)
         self._measured: Dict[int, int] = {}
 
-        # preparation recipe
+        # Preparation recipe (list of gates)
         self._prep: List[Tuple[str, List[int]]] = []
 
     # ---------- geometry ----------
     def index(self, r: int, c: int) -> int:
+        """Convert (row, col) -> flat index."""
         return r * self.cols + c
 
     def coords(self, idx: int) -> Tuple[int, int]:
+        """Convert flat index -> (row, col)."""
         return divmod(idx, self.cols)
 
     def neighbors(self, r: int, c: int) -> List[Tuple[int, int]]:
+        """Return 8-neighborhood of (r, c), clipped to board bounds."""
         out = []
         for dr, dc in NBR_OFFSETS:
             nr, nc = r + dr, c + dc
@@ -83,9 +105,11 @@ class QMineSweeperBoard:
 
     # ---------- config ----------
     def set_flood_fill(self, on: bool):
+        """Enable/disable flood-fill expansion."""
         self._flood_fill = bool(on)
 
     def set_clue_basis(self, basis: str):
+        """Set basis used for clues (must be X, Y, or Z)."""
         if basis not in ("X", "Y", "Z"):
             raise ValueError("basis must be one of 'X','Y','Z'")
         self._clue_basis = basis
@@ -95,42 +119,39 @@ class QMineSweeperBoard:
         return self._clue_basis
 
     def exploration_state(self) -> np.ndarray:
-        # return a copy to protect internal state
+        """Return a copy of the current exploration grid."""
         return self._exploration.copy()
-    
+
+    # ---------- preparation ----------    
     @property
     def preparation_circuit(self):
-        # return a shallow copy to keep it read-only from the outside
+        """Return the preparation circuit (read-only shallow copy)."""
         return list(self._prep)
 
-    # ---------- preparation ----------
     def set_preparation(self, circuit: List[Tuple[str, List[int]]]) -> None:
+        """Define preparation circuit to be re-applied on reset()."""
         self._prep = circuit
 
     def reset(self):
-        # reset physics
+        """Reset state and reapply preparation circuit."""
         self.state.reset()
-        
-        # (re)apply preparation circuit
         for gate, targets in self._prep:
             self.state.apply_gate(gate, targets)
-        
-        # reset caches & exploration
-        self._exp_cache = {"X": {}, "Y": {}, "Z": {}}
-        self._exp_cache["Z"] = {i: self.state.expectation_pauli(i, "Z") for i in range(self.n)}
 
         self._measured.clear()
         self._exploration.fill(CellState.UNEXPLORED)
 
     def span_classical_bombs(self, nbombs: int):
+        """Prepare board with nbombs placed as classical |1> states."""
         if nbombs > self.n:
             raise ValueError("Too many bombs for board size")
         chosen = np.random.choice(np.arange(self.n), size=nbombs, replace=False)
-        circuit: List[Tuple[str, List[int]]] = [("X", [int(i)]) for i in chosen]
+        circuit = [("X", [int(i)]) for i in chosen]
         self.set_preparation(circuit)
         self.reset()
 
     def span_random_stabilizer_bombs(self, nbombs: int, level: int):
+        """Prepare board with random stabilizer sub-blocks as bombs."""
         if nbombs > self.n:
             raise ValueError("Too many bombs for board size")
         if random_clifford is None or Clifford is None:
@@ -146,79 +167,45 @@ class QMineSweeperBoard:
             # sample until not identity (|0...0>)
             while True:
                 cl = random_clifford(group_size)
-                if hasattr(Clifford, "__eq__"):
-                    if cl == Clifford(np.eye(2 * group_size, dtype=int)):
-                        continue
+                if hasattr(Clifford, "__eq__") and cl == Clifford(np.eye(2 * group_size, dtype=int)):
+                    continue
                 break
 
             qc = cl.to_circuit()
             q_to_idx = {q: group[i] for i, q in enumerate(qc.qubits)}
 
             for instr in qc.data:
-                op = instr.operation
-                qargs = instr.qubits
-
-                name = op.name.upper()
+                name = instr.operation.name.upper()
                 if name == "SDG":
                     name = "Sdg"
-                targets = [q_to_idx[q] for q in qargs]
+                targets = [q_to_idx[q] for q in instr.qubits]
                 circuit.append((name, targets))
 
         self.set_preparation(circuit)
         self.reset()
 
-    def _is_deterministic_zero(self, idx: int, tol: float = 1e-9) -> bool:
-            # Deterministic Z=0 measurement if <Z> == +1
-            return isclose(self.expectation(idx, "Z"), 1.0, rel_tol=0.0, abs_tol=tol)
-
-    def _auto_reveal_zero_regions(self, exclude: set[int] | None = None) -> None:
-        """After a state change (gate/basis), reveal leftover zero-clue pockets
-        that are deterministically safe in Z. Exclude 'freshly gated' indices
-        so a gate doesn't look like an immediate measurement of the same cell.
-        """
-        return 
-        # if not self._flood_fill:
-        #     return
-        # exclude = exclude or set()
-        # changed = True
-        # while changed:
-        #     changed = False
-        #     for r in range(self.rows):
-        #         for c in range(self.cols):
-        #             if self._exploration[r, c] != CellState.UNEXPLORED:
-        #                 continue
-        #             idx = self.index(r, c)
-        #             if idx in exclude:
-        #                 continue
-        #             if self._is_deterministic_zero(idx) and self.clue_value(r, c, self._clue_basis) == 0.0:
-        #                 res = self.measure_cell(r, c)  # safe: deterministic 0
-        #                 if not res.skipped:
-        #                     changed = True
-    
     # ---------- mechanics: expectations/clues ----------
-    def _invalidate_all_caches(self):
-        self._exp_cache = {"X": {}, "Y": {}, "Z": {}}
-
     def expectation(self, idx: int, basis: str) -> float:
-        cache = self._exp_cache[basis]
-        if idx not in cache:
-            cache[idx] = self.state.expectation_pauli(idx, basis)
-        return cache[idx]
+        """Return <basis> expectation value for qubit idx."""
+        return self.state.expectation_pauli(idx, basis)
 
     def bomb_probability_z(self, idx: int) -> float:
-        return (1.0 - self.expectation(idx, "Z")) / 2.0
+        """Return probability that qubit idx is a bomb (Z=1)."""
+        return 0.5 * (1.0 - self.expectation(idx, "Z"))
 
     def clue_value(self, r: int, c: int, basis: Optional[str] = None) -> float:
+        """
+        Return clue for cell (r, c): sum of neighbor bomb probabilities
+        in the chosen basis.
+        """
         b = basis or self._clue_basis
-        s = 0.0
-        for (nr, nc) in self.neighbors(r, c):
-            idx = self.index(nr, nc)
-            s += (1.0 - self.expectation(idx, b)) / 2.0
-        return s
+        return sum(0.5 * (1.0 - self.expectation(self.index(nr, nc), b))
+                   for nr, nc in self.neighbors(r, c))
 
     def get_clue(self, r: int, c: int) -> float:
         """
-        Return the clue value at (r,c) in current basis, or 9.0 if definite bomb there.
+        Return clue at (r, c) in current basis, or 9.0 if cell is a
+        definite bomb.
         """
         idx = self.index(r, c)
         if self.expectation(idx, self._clue_basis) == -1.0:
@@ -226,100 +213,132 @@ class QMineSweeperBoard:
         return self.clue_value(r, c, self._clue_basis)
 
     def board_expectations(self, basis: str) -> np.ndarray:
-        vals = np.empty(self.n, dtype=float)
-        for i in range(self.n):
-            vals[i] = self.expectation(i, basis)
+        """Return full board expectations in the given basis."""
+        vals = np.array([self.expectation(i, basis) for i in range(self.n)], dtype=float)
         return vals.reshape(self.rows, self.cols)
-    
+
     def expected_bombs(self) -> float:
-        """
-        Return the expected total number of bombs in Z basis,
-        i.e. sum of bomb probabilities across all cells.
-        """
-        total = 0.0
-        # if exp_cache['Z'] is empty, this will populate it
-        for i in range(self.n):
-            total += self.bomb_probability_z(i)
-        return total
+        """Return expected total number of bombs (sum of Z-probs)."""
+        return sum(self.bomb_probability_z(i) for i in range(self.n))
 
     # ---------- mechanics: pins & measurement & gates ----------
     def toggle_pin(self, r: int, c: int) -> None:
+        """Toggle pin on cell (r, c)."""
         st = self._exploration[r, c]
         if st == CellState.PINNED:
             self._exploration[r, c] = CellState.UNEXPLORED
         elif st == CellState.UNEXPLORED:
             self._exploration[r, c] = CellState.PINNED
-        # EXPLORED -> PIN not allowed (keep as-is)
 
     def apply_gate(self, gate: str, targets: List[Tuple[int, int]]) -> None:
+        """Apply quantum gate to given cells (row,col)."""
         idxs = [self.index(r, c) for (r, c) in targets]
         self.state.apply_gate(gate, idxs)
-        
-        # un-explore any explored cells among targets (gates invalidate exploration)
-        for (r, c) in targets:
+
+        # Gates invalidate exploration
+        for r, c in targets:
             if self._exploration[r, c] == CellState.EXPLORED:
                 self._exploration[r, c] = CellState.UNEXPLORED
 
-        # Conservative invalidation (simple & safe)
-        self._invalidate_all_caches()
-        self._auto_reveal_zero_regions(exclude=set(idxs))
-
-    def measure_cell(self, r: int, c: int) -> MeasureResult:
-        """Measure (r,c) in Z and, if flood_fill=True and clue==0, expand."""
+    def measure_cell(self, r: int, c: int) -> MeasureMoveResult:
+        """
+        Measure cell (r, c) in Z basis. If flood_fill=True and clue=0,
+        expand to neighbors.
+        """
         idx = self.index(r, c)
 
-        # skip if pinned or already explored
-        if self._exploration[r, c] == CellState.PINNED or self._exploration[r, c] == CellState.EXPLORED:
-            return MeasureResult(idx=idx, outcome=None, explored=[], flood_measures=[], skipped=True)
+        # Skip if already explored/pinned
+        if self._exploration[r, c] in (CellState.PINNED, CellState.EXPLORED):
+            return MeasureMoveResult(idx=idx, outcome=None, explored=[], flood_measures=[], skipped=True)
 
-        # measure seed
+        # Measure seed cell
         outcome = int(self.state.measure(idx))
         self._measured[idx] = outcome
-        self._invalidate_all_caches()
-
-        explored_cells = [(r, c)]
         self._exploration[r, c] = CellState.EXPLORED
 
+        explored_cells = [(r, c)]
         flood_measures: List[Tuple[int, int, int]] = []
 
-        # flood-fill zero-clue regions
-        if self._flood_fill:
-            # Only expand from seed if its clue is zero (common Minesweeper behavior)
-            if self.clue_value(r, c, self._clue_basis) == 0.0 and outcome == 0:
-                stack = [(r, c)]
-                visited = set([(r, c)])
-                while stack:
-                    rr, cc = stack.pop()
-                    for nr, nc in self.neighbors(rr, cc):
-                        if (nr, nc) in visited:
-                            continue
-                        visited.add((nr, nc))
-                        if self._exploration[nr, nc] != CellState.UNEXPLORED:
-                            continue
-                        if self._exploration[nr, nc] == CellState.PINNED:
-                            continue
-                        # measure neighbor
-                        nidx = self.index(nr, nc)
-                        nout = int(self.state.measure(nidx))
-                        self._measured[nidx] = nout
-                        self._invalidate_all_caches()
+        # Flood-fill expansion
+        if self._flood_fill and outcome == 0 and self.clue_value(r, c, self._clue_basis) == 0.0:
+            stack = [(r, c)]
+            visited = {(r, c)}
+            while stack:
+                rr, cc = stack.pop()
+                for nr, nc in self.neighbors(rr, cc):
+                    if (nr, nc) in visited:
+                        continue
+                    visited.add((nr, nc))
+                    if self._exploration[nr, nc] != CellState.UNEXPLORED:
+                        continue
+                    if self._exploration[nr, nc] == CellState.PINNED:
+                        continue
 
-                        self._exploration[nr, nc] = CellState.EXPLORED
-                        explored_cells.append((nr, nc))
-                        flood_measures.append((nr, nc, nout))
+                    nidx = self.index(nr, nc)
+                    nout = int(self.state.measure(nidx))
+                    self._measured[nidx] = nout
+                    self._exploration[nr, nc] = CellState.EXPLORED
 
-                        # keep expanding if neighbor clue is zero and outcome is 0
-                        if nout == 0 and self.clue_value(nr, nc, self._clue_basis) == 0.0:
-                            stack.append((nr, nc))
+                    explored_cells.append((nr, nc))
+                    flood_measures.append((nr, nc, nout))
 
-        return MeasureResult(idx=idx, outcome=outcome, explored=explored_cells, flood_measures=flood_measures, skipped=False)
+                    if nout == 0 and self.clue_value(nr, nc, self._clue_basis) == 0.0:
+                        stack.append((nr, nc))
 
-    # ---------- numeric grid for UIs ----------
+        return MeasureMoveResult(idx=idx, outcome=outcome, explored=explored_cells, flood_measures=flood_measures)
+
+    # ---------- entanglement & entropy ----------
+    def _bloch_vector(self, idx: int) -> tuple[float, float, float]:
+        """Return Bloch vector components (<X>,<Y>,<Z>) for qubit idx."""
+        return (self.expectation(idx, "X"),
+                self.expectation(idx, "Y"),
+                self.expectation(idx, "Z"))
+
+    def _bloch_length(self, idx: int) -> float:
+        """Return Bloch vector length |r| for qubit idx."""
+        Ex, Ey, Ez = self._bloch_vector(idx)
+        return math.sqrt(Ex*Ex + Ey*Ey + Ez*Ez)
+
+    @staticmethod
+    def _H2(p: float) -> float:
+        """Binary entropy H2(p) in bits, with 0 log 0 = 0 convention."""
+        if p <= 0.0 or p >= 1.0:
+            return 0.0
+        return -(p*math.log2(p) + (1.0-p)*math.log2(1.0-p))
+
+    def single_qubit_entropy(self, idx: int) -> float:
+        """Single-qubit entanglement entropy (vs. rest of system)."""
+        s = self._bloch_length(idx)
+        p = 0.5 * (1.0 + s)
+        return self._H2(p)
+
+    def entropy_map(self) -> np.ndarray:
+        """Return board of single-qubit entropies (bits)."""
+        vals = np.array([self.single_qubit_entropy(i) for i in range(self.n)], dtype=float)
+        return vals.reshape(self.rows, self.cols)
+
+    def entanglement_score(self, agg: str = "mean") -> float:
+        """Aggregate single-qubit entropy across board (mean/median/max)."""
+        emap = self.entropy_map()
+        if agg == "mean":
+            return float(np.mean(emap))
+        if agg == "median":
+            return float(np.median(emap))
+        if agg == "max":
+            return float(np.max(emap))
+        raise ValueError("agg must be one of: mean, median, max")
+
+    # ---------- export for UI ----------
     def export_numeric_grid(self) -> np.ndarray:
-        """-1 = unexplored, 
-           -2 = pinned, 
-           9 = definite bomb at cell (basis),
-           else fractional clue in current basis."""
+        """
+        Export board for UI rendering.
+        
+        Encoding:
+        -1 = unexplored
+        -2 = pinned
+         9 = definite bomb
+         else = fractional clue value
+        """
         grid = np.full((self.rows, self.cols), -1.0, dtype=float)
         for r in range(self.rows):
             for c in range(self.cols):
@@ -329,6 +348,5 @@ class QMineSweeperBoard:
                 elif st == CellState.PINNED:
                     grid[r, c] = -2.0
                 else:
-                    val = self.get_clue(r, c)
-                    grid[r, c] = val
+                    grid[r, c] = self.get_clue(r, c)
         return grid
