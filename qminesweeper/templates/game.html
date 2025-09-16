@@ -164,4 +164,31 @@
     setTool(currentTool);
   });
 </script>
+
+<script>
+document.addEventListener("keydown", (event) => {
+  let key = event.key.toUpperCase();
+
+  // Map from key to tool name
+  const allTools = new Set(['M','P','X','Y','Z','H','S','SDG','SX','SXDG','SY','SYDG','CX','CY','CZ','SWAP']);
+
+  // Handle 2-letter gates (like CX, CZ)
+  if (key === "C") {
+    document.addEventListener("keydown", function secondKey(ev) {
+      const combo = "C" + ev.key.toUpperCase();
+      if (allTools.has(combo)) {
+        setTool(combo);
+      }
+    }, { once: true });
+    return;
+  }
+
+  // Single-letter tool
+  if (allTools.has(key)) {
+    setTool(key);
+  }
+});
+</script>
+
+
 {% endblock %}

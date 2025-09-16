@@ -35,11 +35,13 @@ body {
 }
 
 main {
-  flex: 1;                   /* fill remaining height */
+  flex: 1;
   max-width: 800px;
-  width: 100%;
+  width: min(100%, 100vw); 
   padding: 24px;
-  margin: 0 auto;            /* keep centered */
+  margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: hidden;       
 }
 
 h1 {
@@ -63,6 +65,7 @@ h2 {
   border-collapse: collapse;
   margin: 0.5em 0;
 }
+
 .status-table td {
   border: none;
   background: transparent;
@@ -257,11 +260,11 @@ button.active {
 /* ---------- Header & Theme Toggle ---------- */
 .theme-button {
   position: absolute;
-  right: 12px;
-  top: 12px;
+  right: 5px;
+  top: 5px;
   background: none;
   border: none;
-  font-size: 1.4em;
+  font-size: 1.3em;
   cursor: pointer;
   color: var(--fg);
   transition: transform 0.2s, color 0.2s;

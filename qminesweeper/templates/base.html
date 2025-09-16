@@ -3,28 +3,36 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Quantum Minesweeper{% endblock %}</title>
 
+  <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 
+  <!-- Preload theme before paint -->
   <script>
     (function () {
       try {
-        var KEY = 'qms_theme';
-        var t = localStorage.getItem(KEY);
-        if (!t) {
-          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+        const KEY = 'qms_theme';
+        let t = localStorage.getItem(KEY);
+        if (!t && window.matchMedia) {
+          t = window.matchMedia('(prefers-color-scheme: light)').matches
               ? 'light' : 'dark';
         }
-        if (t === 'light') document.documentElement.classList.add('light');
-      } catch (e) {}
+        if (t === 'light') {
+          document.documentElement.classList.add('light');
+        }
+      } catch (e) {
+        /* fail silently */
+      }
     })();
   </script>
+
+  <!-- Styles -->
   <link rel="stylesheet" href="/static/style.css">
 
-  
-  <script src="/static/theme.js"></script>
+  <!-- Theme toggle script (non-critical, can be loaded after CSS) -->
+  <script src="/static/theme.js" defer></script>
 
   {% block extra_head %}{% endblock %}
 </head>
