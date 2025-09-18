@@ -426,7 +426,7 @@ button.active {
 
 /* ---------- Setup form layout ---------- */
 .setup {
-  max-width: 520px;
+  max-width: 900px;
   margin: 28px auto;
   padding: 16px 18px;
   border-radius: var(--radius);

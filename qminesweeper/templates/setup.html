@@ -28,7 +28,7 @@
     <!-- Difficulty (now includes Sandbox as Lv S) -->
     <label for="difficulty">Difficulty:</label>
     <select id="difficulty" name="difficulty">
-      <option value="S">Sandbox — Clear, 2-qb gates, ent=0</option>
+      <option value="S">Sandbox mode</option>
       <option value="0">Lv 0 — Clasical Minesweeper </option>
       <option value="1" selected>Lv 1 — Defuse Quantum Mines</option>
       <option value="2">Lv 2 — Defuse Entangled Quantum Mines (pairs)</option>
@@ -68,7 +68,7 @@
     <label for="cols">Cols:</label>
     <input id="cols" name="cols" type="number" min="2" value="10" required>
 
-    <label for="bombs">Bombs:</label>
+    <label for="bombs">Mines:</label>
     <input id="bombs" name="bombs" type="number" min="0" value="10" required>
 
     <label for="ent">Entanglement level:</label>
@@ -76,8 +76,8 @@
 
     <label for="win">Win Condition:</label>
     <select id="win" name="win_condition">
-      <option value="identify">Identify bombs</option>
-      <option value="clear" selected>Clear bombs</option>
+      <option value="identify">Identify mines</option>
+      <option value="clear" selected>Clear mines</option>
       <option value="sandbox">Sandbox</option>
     </select>
 
