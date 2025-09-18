@@ -11,7 +11,7 @@
   --btn-h: #2a2f3f;
   --accent: #6aa0ff;
   --accent-h: #82b4ff;
-  --radius: 8px;
+  --radius: 6px;
 
   /* Responsive variables */
   --tile: clamp(20px, 5vw, 40px);
@@ -83,7 +83,7 @@ h2 {
 /* ---------- Board ---------- */
 .board-container {
   display: flex;
-  justify-content: center; /* horizontal center */
+  justify-content: center;
   margin: 1em 0;
 }
 
@@ -101,9 +101,10 @@ h2 {
   border-radius: var(--radius);
   background: var(--btn);
   color: var(--fg);
-  font-size: clamp(11px, 1.8vw, 13px);
+  font-size: clamp(10px, 1.8vw, 15px);
   cursor: pointer;
   transition: background 0.2s, transform 0.05s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 .board button:hover:not(:disabled) {
   background: var(--btn-h);
@@ -112,7 +113,8 @@ h2 {
   transform: scale(0.95);
 }
 .board button:disabled {
-  opacity: 0.6;
+  color: var(--muted);
+  opacity: 0.9; 
   cursor: not-allowed;
 }
 .board button.pick {
@@ -150,18 +152,48 @@ form button {
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s, transform 0.05s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
+
 form button:hover {
   background: var(--btn-h);
 }
+
 form button:active {
   transform: scale(0.96);
 }
+
+
+form button:disabled {
+  background: var(--btn);
+  color: var(--muted);
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.tool-btn {
+  background: #fff;
+  border: 1px solid #d1d9e6;
+  border-radius: 6px;
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+form button:hover,
+.tool-btn:hover {
+  background: var(--accent-h);
+  color: #fff;
+  border-color: var(--accent-h);
+}
+
 button.active {
   outline: 2px solid var(--accent);
   background: var(--accent);
   color: #000;
 }
+
 
 /* --- Responsive tweaks for small screens --- */
 @media (max-width: 480px) {
@@ -284,7 +316,6 @@ button.active {
 }
 
 /* ----------- Header ---------- */
-/* ---------- Header ---------- */
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -308,7 +339,18 @@ button.active {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.header-btn, .header-link {
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
 }
 
 /* Buttons and links inside header */
@@ -440,20 +482,84 @@ button.active {
 }
 
 /* ---------- Light theme ---------- */
-body.light,
-html.light body {
-  --bg: #fafafa;
-  --fg: #222;
-  --muted: #555;
-  --tile-muted: #bbb;
-  --pin: #d5a800;
-  --boom: #c80000;
-  --zero-bg: #eee;
-  --btn: #ddd;
-  --btn-h: #ccc;
-  --accent: #006dff;
-  --accent-h: #3388ff;
+body.light {
+  --bg: #f7f9fc;   /* softer off-white instead of pure white */
+  --fg: #1e1e1e;
+  --muted: #666;
+  --tile-muted: #bfc7d1;
+  --pin: #d99000;
+  --boom: #e64545;
+  --zero-bg: #eaeef5;
+  --btn: #e1e7f0;
+  --btn-h: #d4deec;
+  --accent: #3f7ad6;     /* pastel blue */
+  --accent-h: #5f95ea;   /* brighter on hover */
 }
+
+/* Light theme header */
+body.light .app-header {
+  background: rgba(255, 255, 255, 0.75);  /* frosted glass white */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(180, 200, 220, 0.4);
+}
+
+body.light .app-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--accent);  
+}
+
+body.light .header-btn:hover,
+body.light .header-link:hover {
+  background: rgba(106, 158, 218, 0.15); 
+  color: var(--accent-h);
+}
+
+/* Board buttons */
+body.light .board button {
+  background: var(--btn);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: background 0.2s, transform 0.05s;
+}
+
+body.light .board button:hover:not(:disabled) {
+  background: var(--btn-h);
+}
+
+body.light .board button:disabled {
+  background: var(--zero-bg);
+  color: var(--muted);
+  opacity: 0.95;
+}
+
+/* Tool & action buttons */
+body.light .tool-btn,
+body.light form button {
+  background: #ffffff;
+  border: 1px solid #dce3ec;
+  border-radius: 6px;
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+body.light .tool-btn:hover,
+body.light form button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+body.light .tool-btn.active,
+body.light form button.active {
+  background: var(--accent-h);
+  border-color: var(--accent-h);
+  color: #fff;
+}
+
 
 /* ---------- Animations ---------- */
 @keyframes pop {
