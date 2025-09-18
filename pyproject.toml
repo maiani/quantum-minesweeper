@@ -53,6 +53,7 @@ package-dir = {"" = "."}
 where = ["."]
 include = ["qminesweeper*"]
 
-# Include templates/static in the installed package
 [tool.setuptools.package-data]
-qminesweeper = ["templates/*.html", "static/*", "static/**/*"]
+qminesweeper = ["templates/*", 
+                "static/*", 
+                "docs/*"]

@@ -14,7 +14,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import markdown
 from markdown.extensions.toc import TocExtension
-from mdx_math import MathExtension
 
 from dotenv import load_dotenv
 load_dotenv()

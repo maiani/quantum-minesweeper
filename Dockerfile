@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ############################
-# Builder: produce wheels
+# Builder: build only our wheel
 ############################
 FROM python:3.12-slim AS builder
 
@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-# Copy only what's needed to resolve & build
-COPY pyproject.toml README.md /src/
-COPY qminesweeper /src/qminesweeper
 
-# Build wheels for app + ALL deps (qiskit, stim, etc.)
-RUN python -m pip install --upgrade pip setuptools wheel \
- && python -m pip wheel --wheel-dir /wheels /src
+# Install build tools once (cached unless pyproject changes)
+COPY pyproject.toml README.md /src/
+RUN python -m pip install --upgrade pip setuptools wheel build
+
+COPY qminesweeper /src/qminesweeper
+RUN python -m build --wheel --outdir /wheels
 
 ############################
 # Final: slim runtime image
@@ -31,10 +31,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install from prebuilt wheels (no compilers needed here)
+# Install app + deps directly from PyPI wheels
 COPY --from=builder /wheels /wheels
 RUN python -m pip install --upgrade pip \
- && pip install --no-cache-dir /wheels/* \
+ && pip install --no-cache-dir /wheels/*.whl \
  && rm -rf /wheels
 
 # Runtime user (non-root)
@@ -46,5 +46,4 @@ ENV DEMO_USER=demo \
     DEMO_PASS=nordita
 
 EXPOSE 8080
-# Respect Cloud Run's $PORT; 1 worker fits 1 vCPU
 CMD ["sh","-c","uvicorn qminesweeper.webapp:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --proxy-headers"]
