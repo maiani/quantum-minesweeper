@@ -185,45 +185,22 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
     board: QMineSweeperBoard = GAMES[suid]["board"]
     game: QMineSweeperGame = GAMES[suid]["game"]
 
-    # Build grid
-    numeric = board.export_numeric_grid()
-    grid = []
-    for r in range(board.rows):
-        row = []
-        for c in range(board.cols):
-            val = numeric[r, c]
-            cell = {"r": r, "c": c, "text": "", "style": ""}
-            if val == -1:
-                cell["text"] = "■"; cell["style"] = "color:var(--tile-muted);"
-            elif val == -2:
-                cell["text"] = "⚑"; cell["style"] = "color:var(--pin);"
-            elif val == 9.0:
-                cell["text"] = "💥"; cell["style"] = "font-weight:700;color:var(--boom);"
-            elif val == 0.0:
-                cell["text"] = "&nbsp;"; cell["style"] = "background:var(--zero-bg);"
-            else:
-                cell["text"] = f"{val:.1f}"; cell["style"] = f"color:{clue_color(val)};"
-            row.append(cell)
-        grid.append(row)
-
+    grid = board.export_numeric_grid().tolist()
     bombs_exp = board.expected_bombs()
     ent_score = board.entanglement_score("mean") * board.n
 
-    result_msg = None
     if game.status == GameStatus.WIN:
-        result_msg = "You win! 🎉"
         log.info(f"WIN user={user_id} sid={suid}")
     elif game.status == GameStatus.LOST:
-        result_msg = "You lost! 💥"
         log.info(f"LOST user={user_id} sid={suid}")
 
     return attach_user_cookie(templates.TemplateResponse("game.html", {
         "request": request,
-        "grid": grid, "rows": board.rows, "cols": board.cols,
+        "grid": grid, 
+        "rows": board.rows, "cols": board.cols,
         "status": game.status.name,
         "moveset": game.cfg.move_set.name,
         "suid": suid,
-        "result_msg": result_msg,
         "bombs_exp": bombs_exp,
         "ent_measure": ent_score,
     }), user_id, request)

@@ -125,6 +125,12 @@ h2 {
   padding-bottom: 4px;
 }
 
+.tile.unexplored { color: var(--tile-muted); }
+.tile.pinned     { color: var(--pin); }
+.tile.bomb       { font-weight: 700; color: var(--boom); }
+.tile.empty      { background: var(--zero-bg); }
+.tile.clue       { color: var(--fg); } /* will be recolored dynamically */
+
 /* ---------- Tool buttons ---------- */
 .tool-btn.active {
   outline: 2px solid var(--accent);
