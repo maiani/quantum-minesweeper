@@ -31,6 +31,20 @@
   <!-- Styles -->
   <link rel="stylesheet" href="/static/style.css">
 
+  <!-- MathJax for rendering LaTeX -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$','$$'], ['\\[','\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async 
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+
   <!-- Theme toggle script (non-critical, can be loaded after CSS) -->
   <script src="/static/theme.js" defer></script>
 

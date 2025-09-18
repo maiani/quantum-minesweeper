@@ -2,36 +2,161 @@
 
 {% block content %}
 
-<form action="/setup?suid={{ suid }}" method="post" class="setup-form">
-  <label for="rows">Rows:</label>
-  <input id="rows" name="rows" type="number" min="2" value="10" required>
+<!-- Simplified setup (shown by default) -->
+<div id="simple-setup" class="setup">
+  <h2>Game Setup</h2>
+  <form action="/setup?suid={{ suid }}" method="post" class="setup-form">
+    <!-- Board size -->
+    <label for="board-size">Board size:</label>
+    <select id="board-size" name="board-size">
+      <option value="8x8">8 × 8</option>
+      <option value="10x10" selected>10 × 10</option>
+      <option value="15x15">15 × 15</option>
+      <option value="15x30">15 × 30</option>
+    </select>
 
-  <label for="cols">Cols:</label>
-  <input id="cols" name="cols" type="number" min="2" value="10" required>
+    <!-- Bombs -->
+    <label for="bombs-choice">Bombs:</label>
+    <select id="bombs-choice" name="bombs-choice">
+      <option value="5">5</option>
+      <option value="10" selected>10</option>
+      <option value="15">15</option>
+      <option value="30">30</option>
+      <option value="60">60</option>
+    </select>
 
-  <label for="bombs">Bombs:</label>
-  <input id="bombs" name="bombs" type="number" min="0" value="10" required>
+    <!-- Difficulty (now includes Sandbox as Lv S) -->
+    <label for="difficulty">Difficulty:</label>
+    <select id="difficulty" name="difficulty">
+      <option value="S">Sandbox — Clear, 2-qb gates, ent=0</option>
+      <option value="0">Lv 0 — Identify, M/P, ent=0</option>
+      <option value="1" selected>Lv 1 — Clear, 1-qb gates, ent=1</option>
+      <option value="2">Lv 2 — Clear, 2-qb gates, ent=2</option>
+      <option value="3">Lv 3 — Clear, 2-qb gates, ent=3</option>
+      <option value="4">Lv 4 — Clear, 2-qb gates, ent=4</option>
+    </select>
 
-  <label for="ent">Entanglement:</label>
-  <input id="ent" name="ent_level" type="number" min="0" max="10" value="1" required>
+    <!-- Hidden real inputs -->
+    <input type="hidden" id="rows" name="rows" value="10">
+    <input type="hidden" id="cols" name="cols" value="10">
+    <input type="hidden" id="bombs" name="bombs" value="10">
+    <input type="hidden" id="ent" name="ent_level" value="1">
+    <input type="hidden" id="win" name="win_condition" value="clear">
+    <input type="hidden" id="moves" name="move_set" value="one">
 
-  <label for="win">Win Condition:</label>
-  <select id="win" name="win_condition">
-    <option value="identify">Identify bombs</option>
-    <option value="clear" selected>Clear bombs</option>
-    <option value="sandbox">Sandbox</option>
-  </select>
+    <div class="setup-actions">
+      <button type="submit">Start Game</button>
+      <button id="show-advanced" type="button">Go to Advanced Setup</button>
+    </div>
+  </form>
 
-  <label for="moves">Move Set:</label>
-  <select id="moves" name="move_set">
-    <option value="classic">Classic (M, P)</option>
-    <option value="one" selected>One-qubit gates</option>
-    <option value="one_complete">One-qubit gates (full set)</option>
-    <option value="two">Two-qubit gates</option>
-  </select>
-
-  <div class="setup-actions">
-    <button type="submit">Start Game</button>
+  <div class="setup">
+    {{ docs.simple_setup | safe }}
   </div>
-</form>
+
+</div>
+
+
+
+<!-- Advanced setup (hidden initially) -->
+<div id="advanced-setup" class="setup" style="display: none;">
+  <h2>Game Setup - Advanced </h2>
+  <form action="/setup?suid={{ suid }}" method="post" class="setup-form">
+    <label for="rows">Rows:</label>
+    <input id="rows" name="rows" type="number" min="2" value="10" required>
+
+    <label for="cols">Cols:</label>
+    <input id="cols" name="cols" type="number" min="2" value="10" required>
+
+    <label for="bombs">Bombs:</label>
+    <input id="bombs" name="bombs" type="number" min="0" value="10" required>
+
+    <label for="ent">Entanglement level:</label>
+    <input id="ent" name="ent_level" type="number" min="0" max="10" value="1" required>
+
+    <label for="win">Win Condition:</label>
+    <select id="win" name="win_condition">
+      <option value="identify">Identify bombs</option>
+      <option value="clear" selected>Clear bombs</option>
+      <option value="sandbox">Sandbox</option>
+    </select>
+
+    <label for="moves">Move Set:</label>
+    <select id="moves" name="move_set">
+      <option value="classic">Classic (M, P)</option>
+      <option value="one" selected>One-qubit gates (core set)</option>
+      <option value="one_complete">One-qubit gates (full set)</option>
+      <option value="two">Two-qubit gates</option>
+    </select>
+
+    <div class="setup-actions">
+      <button type="submit">Start Game</button>
+      <button id="back-to-simple" type="button">Go to Simple Setup</button>
+    </div>
+  </form>
+
+  
+  <div class="setup">
+    {{ docs.advanced_setup | safe }}
+  </div>
+
+</div>
+
+<script>
+  function applySelections() {
+    const size = document.getElementById("board-size").value.split("x");
+    const bombs = document.getElementById("bombs-choice").value;
+    const diff = document.getElementById("difficulty").value;
+
+    let rows = parseInt(size[0]);
+    let cols = parseInt(size[1]);
+    let ent = 0;
+    let win = "identify";
+    let moves = "classic";
+    let bombsFinal = bombs;
+
+    // Difficulty mapping
+    switch (diff) {
+      case "S": // Sandbox
+        ent = 0; win = "sandbox"; moves = "two";
+        break;
+      case "0":
+        ent = 0; win = "identify"; moves = "classic"; break;
+      case "1":
+        ent = 1; win = "clear"; moves = "one"; break;
+      case "2":
+        ent = 2; win = "clear"; moves = "two"; break;
+      case "3":
+        ent = 3; win = "clear"; moves = "two"; break;
+      case "4":
+        ent = 4; win = "clear"; moves = "two"; break;
+    }
+
+    // Push values into hidden inputs
+    document.getElementById("rows").value = rows;
+    document.getElementById("cols").value = cols;
+    document.getElementById("bombs").value = bombsFinal;
+    document.getElementById("ent").value = ent;
+    document.getElementById("win").value = win;
+    document.getElementById("moves").value = moves;
+  }
+
+  // Ensure hidden inputs are updated before submission
+  document.querySelector("#simple-setup form").addEventListener("submit", applySelections);
+</script>
+
+<script>
+  // Toggle advanced setup visibility
+  document.getElementById("show-advanced").addEventListener("click", () => {
+    document.getElementById("simple-setup").style.display = "none";
+    document.getElementById("advanced-setup").style.display = "block";
+  });
+
+  // Back to simple setup
+  document.getElementById("back-to-simple").addEventListener("click", () => {
+    document.getElementById("advanced-setup").style.display = "none";
+    document.getElementById("simple-setup").style.display = "block";
+  });
+</script>
+
 {% endblock %}

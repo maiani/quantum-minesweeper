@@ -30,6 +30,8 @@ dependencies = [
   "itsdangerous",
   "python-multipart",
   "python-dotenv",
+  "markdown",
+  "pymdown-extensions",
 ]
 
 [project.optional-dependencies]

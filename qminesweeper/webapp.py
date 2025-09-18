@@ -1,8 +1,10 @@
 # qminesweeper/webapp.py
 from __future__ import annotations
+
+import logging
+import re
 from pathlib import Path
 from typing import Optional, Tuple
-import logging, re
 from uuid import uuid4
 from datetime import datetime
 
@@ -10,6 +12,12 @@ from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+import markdown
+from markdown.extensions.toc import TocExtension
+from mdx_math import MathExtension
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from qminesweeper import __version__
 from qminesweeper.board import QMineSweeperBoard
@@ -20,10 +28,7 @@ from qminesweeper.stim_backend import StimBackend
 from qminesweeper.auth import enable_basic_auth
 from qminesweeper.logging_config import setup_logging
 
-from dotenv import load_dotenv
-load_dotenv()
-
-
+# --------- Logging ---------
 logger = setup_logging()
 
 # --------- App & assets ---------
@@ -37,12 +42,38 @@ log = logging.getLogger("qminesweeper.web")
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+DOCS_DIR = BASE_DIR / "docs"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
 templates.env.globals["version"] = __version__
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# --------- Markdown rendering ---------
+def render_markdown_file(filename: str) -> str:
+    path = Path(__file__).resolve().parent / "docs" / filename
+    text = path.read_text(encoding="utf-8")
+    return markdown.markdown(
+        text,
+        extensions=[
+            "fenced_code",
+            "tables",
+            TocExtension(),
+            "pymdownx.arithmatex",
+        ],
+        extension_configs={
+            "pymdownx.arithmatex": {"generic": True}
+        }
+    )
+
+DOCS = {
+    "simple_setup": render_markdown_file("simple_setup.md"),
+    "advanced_setup": render_markdown_file("advanced_setup.md")
+}
+
+# inject into Jinja
+templates.env.globals["docs"] = DOCS
 
 # --------- Long-lived (optional) user cookie ONLY ---------
 USER_COOKIE = "qmsuser"
