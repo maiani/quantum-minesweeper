@@ -18,9 +18,13 @@ from qminesweeper.game import (
 )
 from qminesweeper.stim_backend import StimBackend
 from qminesweeper.auth import enable_basic_auth
+from qminesweeper.logging_config import setup_logging
 
 from dotenv import load_dotenv
 load_dotenv()
+
+
+logger = setup_logging()
 
 # --------- App & assets ---------
 app = FastAPI()
@@ -204,12 +208,14 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
 
     bombs_exp = board.expected_bombs()
     ent_score = board.entanglement_score("mean") * board.n
-    
+
     result_msg = None
     if game.status == GameStatus.WIN:
         result_msg = "You win! 🎉"
+        log.info(f"WIN user={user_id} sid={suid}")
     elif game.status == GameStatus.LOST:
         result_msg = "You lost! 💥"
+        log.info(f"LOST user={user_id} sid={suid}")
 
     return attach_user_cookie(templates.TemplateResponse("game.html", {
         "request": request,
