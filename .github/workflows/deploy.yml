@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-  workflow_dispatch:
+  workflow_dispatch: {}   # allow manual trigger
 
 jobs:
   deploy:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Build and Push Image
         run: |
-          TAG="${GITHUB_REF_NAME}" 
+          TAG="${GITHUB_REF_NAME:-manual}"
           IMAGE="europe-west1-docker.pkg.dev/qminesweeper/qms/qminesweeper:${TAG}"
           echo "Using image: $IMAGE"
 
@@ -34,18 +34,6 @@ jobs:
 
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Write env file
-        run: |
-          # Explicit secrets
-          echo "QMS_USER=${{ secrets.QMS_USER }}" >> env.list
-          echo "QMS_PASS=${{ secrets.QMS_PASS }}" >> env.list
-          
-          # Dump all environment variables starting with QMS_ (non-secrets)
-          printenv | grep '^QMS_' >> env.list
-          
-          echo "Final env.list:"
-          cat env.list
-
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy quantum-minesweeper \
@@ -53,4 +41,10 @@ jobs:
             --region europe-west1 \
             --platform managed \
             --allow-unauthenticated \
-            --env-vars-file env.list
+            --set-env-vars \
+              QMS_USER=${{ secrets.QMS_USER }},\
+              QMS_PASS=${{ secrets.QMS_PASS }},\
+              QMS_ENABLE_AUTH=${{ vars.QMS_ENABLE_AUTH }},\
+              QMS_ENABLE_HELP=${{ vars.QMS_ENABLE_HELP }},\
+              QMS_ENABLE_TUTORIAL=${{ vars.QMS_ENABLE_TUTORIAL }},\
+              QMS_TUTORIAL_URL=${{ vars.QMS_TUTORIAL_URL }}
