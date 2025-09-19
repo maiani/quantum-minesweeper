@@ -47,7 +47,7 @@
 
         <td>
           {% if status == "ONGOING" %}
-            <button type="button"
+            <button type="tool-btn"
                     onclick="clickCell({{ r }},{{ c }})"
                     class="tile {{ cls }}"
                     {% if cls == "clue" %} data-val="{{ val }}" {% endif %}>
@@ -104,14 +104,17 @@
   <input type="hidden" id="cmd-input" name="cmd" value="">
 </form>
 
+<!-- Inline Help mount (mobile only) -->
+<div id="help-mount"></div>
+
 <!-- Actions -->
 {% if status == "ONGOING" %}
 <h3>Actions</h3>
 <form action="/game?suid={{ suid }}" method="post">
   <input type="hidden" name="suid" value="{{ suid }}">
-  <button type="submit" name="action" value="reset">Reset Board</button>
-  <button type="submit" name="action" value="new_same">New Game</button>
-  <button type="submit" name="action" value="new_rules">New Setup</button>
+  <button type="submit" class="btn" name="action" value="reset">Reset Board</button>
+  <button type="submit" class="btn" name="action" value="new_same">New Game</button>
+  <button type="submit" class="btn" name="action" value="new_rules">New Setup</button>
 </form>
 
 {% else %}
@@ -126,9 +129,9 @@
     <div class="actions">
       <form action="/game?suid={{ suid }}" method="post">
         <input type="hidden" name="suid" value="{{ suid }}">
-        <button type="submit" name="action" value="reset">Reset Board</button>
-        <button type="submit" name="action" value="new_same">New Game</button>
-        <button type="submit" name="action" value="new_rules">New Setup</button>
+        <button type="submit" name="action" value="reset" class="btn">Reset Board</button>
+        <button type="submit" name="action" value="new_same" class="btn">New Game</button>
+        <button type="submit" name="action" value="new_rules" class="btn">New Setup</button>
       </form>
     </div>
   </div>

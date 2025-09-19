@@ -1,6 +1,5 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,12 +8,11 @@
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 
-    <style>
-      html { background: #17191e; }  /* default dark */
-      html.light { background: #f7f9fc;   /* softer off-white instead of pure white */
-; }
+  <style>
+    html { background: #17191e; }
+    html.light { background: #f7f9fc; }
   </style>
-  
+
   <!-- Preload theme before paint -->
   <script>
     (function () {
@@ -28,9 +26,7 @@
           document.documentElement.classList.add('light');
           document.body?.classList.add('light');
         }
-      } catch (e) {
-        /* fail silently */
-      }
+      } catch (e) {}
     })();
   </script>
 
@@ -40,8 +36,7 @@
   <!-- Theme toggle -->
   <script src="/static/scripts/theme_toggle.js" defer></script>
 
-
-  <!-- MathJax for rendering LaTeX -->
+  <!-- MathJax -->
   <script>
     window.MathJax = {
       tex: {
@@ -51,9 +46,8 @@
       svg: { fontCache: 'global' }
     };
   </script>
-  <script id="MathJax-script" async 
-    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-  </script>
+  <script id="MathJax-script" async
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
   {% block extra_head %}{% endblock %}
 </head>
@@ -65,28 +59,25 @@
     <main>
       {% block content %}{% endblock %}
 
-  <!-- Help Sidebar -->
-  <aside id="sidebar">
-    <div id="sidebar-spacer"></div>
-    <div id="sidebar-header">
-      <h2>Help</h2>
-    </div>
-    <div id="sidebar-content">
-      <h3 class="help-title" id="help-title">Object Name</h3>
+      <!-- Help Sidebar -->
+      <aside id="sidebar">
+        <div id="sidebar-spacer"></div>
+        <div id="sidebar-header">
+          <h2>Help</h2>
+        </div>
+        <div id="sidebar-content">
+          <h3 class="help-title" id="help-title">Object Name</h3>
 
-      <div id="help-visual" class="help-card">
-        <!-- Visual explanation (gif, svg, or animation) will go here -->
-      </div>
+          <div id="help-visual" class="help-card"></div>
+          <div id="help-text" class="help-card"></div>
+        </div>
+      </aside>
+    </main>
 
-      <div id="help-text" class="help-card">
-        <!-- Textual explanation will go here -->
-      </div>
-    </div>
-  </aside>
-
-  </main>  
-  <script src="/static/scripts/help.js"></script>
-
+  <script>
+      window.QMS_ENABLE_HELP = {{ FEATURES.enable_help | tojson }};
+    </script>
+    <script src="/static/scripts/help.js" defer></script>
   </div>
 
   {% include "footer.html" %}
