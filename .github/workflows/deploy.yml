@@ -33,6 +33,18 @@ jobs:
 
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
+      - name: Write env file
+        run: |
+          # Explicit secrets
+          echo "QMS_USER=${{ secrets.QMS_USER }}" >> env.list
+          echo "QMS_PASS=${{ secrets.QMS_PASS }}" >> env.list
+          
+          # Dump all environment variables starting with QMS_ (non-secrets)
+          printenv | grep '^QMS_' >> env.list
+          
+          echo "Final env.list:"
+          cat env.list
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy quantum-minesweeper \
@@ -40,4 +52,4 @@ jobs:
             --region europe-west1 \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars QMS_USER=${{ secrets.QMS_USER }},QMS_PASS=${{ secrets.QMS_PASS }},QMS_ENABLE_AUTH=1
+            --env-vars-file env.list
