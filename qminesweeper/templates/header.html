@@ -7,6 +7,9 @@
   <div class="header-right">
   {% if FEATURES.enable_help %}
     <button id="toggle-help" class="header-btn" title="Toggle Help">❓</button>
+    <script>window.QMS_ENABLE_HELP = true;</script>
+  {% else %}
+    <script>window.QMS_ENABLE_HELP = false;</script>
   {% endif %}
 
   {% if FEATURES.enable_tutorial and FEATURES.tutorial_url %}

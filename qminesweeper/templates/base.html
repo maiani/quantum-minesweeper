@@ -58,9 +58,9 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-{% include "header.html" %}
-
 <body>
+  {% include "header.html" %}
+
   <div class="app-body">
     <main>
       {% block content %}{% endblock %}
@@ -85,7 +85,7 @@
   </aside>
 
   </main>  
-  <script src="static/scripts/help.js"></script>
+  <script src="/static/scripts/help.js"></script>
 
   </div>
 
