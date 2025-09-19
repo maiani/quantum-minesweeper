@@ -9,6 +9,11 @@
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 
+    <style>
+      html { background: #0f1115; }  /* default dark */
+      html.light { background: #fafafa; }
+  </style>
+  
   <!-- Preload theme before paint -->
   <script>
     (function () {
@@ -16,11 +21,11 @@
         const KEY = 'qms_theme';
         let t = localStorage.getItem(KEY);
         if (!t && window.matchMedia) {
-          t = window.matchMedia('(prefers-color-scheme: light)').matches
-              ? 'light' : 'dark';
+          t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
         if (t === 'light') {
           document.documentElement.classList.add('light');
+          document.body?.classList.add('light');
         }
       } catch (e) {
         /* fail silently */
@@ -30,6 +35,10 @@
 
   <!-- Styles -->
   <link rel="stylesheet" href="/static/style.css">
+
+  <!-- Theme toggle -->
+  <script src="/static/scripts/theme_toggle.js" defer></script>
+
 
   <!-- MathJax for rendering LaTeX -->
   <script>
@@ -45,18 +54,26 @@
     src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
   </script>
 
-  <!-- Theme toggle script (non-critical, can be loaded after CSS) -->
-  <script src="/static/theme.js" defer></script>
-
   {% block extra_head %}{% endblock %}
 </head>
 
 {% include "header.html" %}
 
 <body>
-  <main>
-    {% block content %}{% endblock %}
-  </main>
+  <div class="app-body">
+    <main>
+      {% block content %}{% endblock %}
+
+    <!-- Help Sidebar -->
+    <aside id="help-panel">
+      <h2>Help</h2>
+      <p>This is your help sidebar. Content will go here.</p>
+    </aside>
+  </main>  
+  <script src="static/scripts/help.js"></script>
+
+  </div>
+
   {% include "footer.html" %}
 </body>
 </html>

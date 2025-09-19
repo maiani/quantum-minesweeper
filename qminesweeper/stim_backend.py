@@ -1,4 +1,4 @@
-# ./src/stim_backend.py
+# qminesweeper/stim_backend.py
 from __future__ import annotations
 from typing import List
 import stim

@@ -1,15 +1,20 @@
 # qminesweeper/__main__.py
+from __future__ import annotations
+
 import typer
 import uvicorn
-from dotenv import load_dotenv
 
 from qminesweeper.textUI import run_tui
 from qminesweeper.stim_backend import StimBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.logging_config import setup_logging
+from qminesweeper.settings import get_settings
 
-load_dotenv()
+# Initialize logging once (uvicorn still prints its own access logs)
 setup_logging()
+
+# Force-load settings at startup so .env are parsed early
+settings = get_settings()
 
 app = typer.Typer(help="Quantum Minesweeper CLI")
 

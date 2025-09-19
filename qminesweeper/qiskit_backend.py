@@ -1,4 +1,4 @@
-#./src/qiskit_backend.py
+# qminesweeper/qiskit_backend.py
 from __future__ import annotations
 from typing import List
 from qiskit import QuantumCircuit

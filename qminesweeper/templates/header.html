@@ -2,13 +2,17 @@
   <div class="header-left">
   </div>
     <div class="header-center">
-    <h1>Quantum Minesweeper 💣</h1>
+    <h1>Quantum Minesweeper <span class="bomb-icon">💣</span></h1>
   </div>
   <div class="header-right">
-    <!-- 
-        <button id="toggle-help" class="header-btn" title="Toggle help">❓</button>
-        <a href="/tutorial" class="header-link" title="Tutorial / Rulebook">📖</a> 
-    -->
+  {% if FEATURES.enable_help %}
+    <button id="toggle-help" class="header-btn" title="Toggle Help">❓</button>
+  {% endif %}
+
+  {% if FEATURES.enable_tutorial and FEATURES.tutorial_url %}
+    <a class="header-link" href="{{ FEATURES.tutorial_url }}" target="_blank" rel="noopener">📖</a>
+  {% endif %}
+
     <button id="toggle-theme" class="header-btn" title="Toggle theme">🌙</button>
   </div>
 </header>

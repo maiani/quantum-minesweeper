@@ -1,3 +1,4 @@
+// static/scripts/tools.js
 const singleQ = new Set(['X','Y','Z','H','S','SDG','SX','SXDG','SY','SYDG']);
 const twoQ    = new Set(['CX','CY','CZ','SWAP']);
 const allTools = new Set(['M','P', ...singleQ, ...twoQ]);

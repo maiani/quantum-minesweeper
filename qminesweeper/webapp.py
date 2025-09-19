@@ -15,9 +15,6 @@ from fastapi.templating import Jinja2Templates
 import markdown
 from markdown.extensions.toc import TocExtension
 
-from dotenv import load_dotenv
-load_dotenv()
-
 from qminesweeper import __version__
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import (
@@ -26,13 +23,22 @@ from qminesweeper.game import (
 from qminesweeper.stim_backend import StimBackend
 from qminesweeper.auth import enable_basic_auth
 from qminesweeper.logging_config import setup_logging
+from qminesweeper.settings import get_settings
 
 # --------- Logging ---------
 logger = setup_logging()
 
+# --------- Settings ---------
+settings = get_settings()
+
 # --------- App & assets ---------
 app = FastAPI()
-enable_basic_auth(app, exclude_paths=["/health", "/static/*"])
+enable_basic_auth(
+    app,
+    username=settings.USER,
+    password=settings.PASS,
+    exclude_paths=["/health", "/static/*"],
+)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
@@ -46,6 +52,12 @@ DOCS_DIR = BASE_DIR / "docs"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
 templates.env.globals["version"] = __version__
+
+templates.env.globals["FEATURES"] = {
+    "enable_help": settings.ENABLE_HELP,
+    "enable_tutorial": settings.ENABLE_TUTORIAL,
+    "tutorial_url": settings.TUTORIAL_URL,
+}
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

@@ -1,3 +1,6 @@
+
+// static/scripts/clue_style.js
+
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".tile.clue").forEach(el => {
     const val = parseFloat(el.dataset.val);

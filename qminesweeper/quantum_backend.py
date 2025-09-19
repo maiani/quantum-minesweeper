@@ -1,4 +1,4 @@
-# ./src/quantum_backend.py
+# qminesweeper/quantum_backend.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, ClassVar

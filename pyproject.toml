@@ -29,9 +29,9 @@ dependencies = [
   "starlette",
   "itsdangerous",
   "python-multipart",
-  "python-dotenv",
   "markdown",
   "pymdown-extensions",
+  "pydantic-settings"
 ]
 
 [project.optional-dependencies]

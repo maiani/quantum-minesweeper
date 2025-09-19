@@ -1,6 +1,5 @@
-# qminesweeper/auth.py
+# qminesweeper/ayth.py
 from __future__ import annotations
-import os
 import base64
 import secrets
 from typing import Iterable, Optional, Set
@@ -8,9 +7,7 @@ from typing import Iterable, Optional, Set
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-ENABLE_AUTH_ENV = "QMS_ENABLE_AUTH"
-USERNAME_ENV = "QMS_USER"
-PASSWORD_ENV = "QMS_PASS"
+from qminesweeper.settings import get_settings
 
 # ---------- middleware ----------
 
@@ -25,26 +22,25 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        *,
+        username: str,
+        password: str,
         realm: str = "Restricted",
         exclude_paths: Optional[Iterable[str]] = None,
     ):
         super().__init__(app)
 
-        user_str = (username or os.getenv(USERNAME_ENV) or "").strip()
-        pass_str = (password or os.getenv(PASSWORD_ENV) or "").strip()
-
+        user_str = (username or "").strip()
+        pass_str = (password or "").strip()
         if not user_str or not pass_str:
             raise RuntimeError(
                 "BasicAuthMiddleware: credentials not configured. "
-                "Set QMS_USER and QMS_PASS (env) or pass username/password."
+                "Provide username/password (from settings or args)."
             )
 
-        # store as bytes for constant-time comparisons (and to satisfy type checkers)
+        # store as bytes for constant-time comparisons
         self._user_b = user_str.encode("utf-8")
         self._pass_b = pass_str.encode("utf-8")
-
         self.realm = realm
 
         raw = list(exclude_paths or ["/health"])
@@ -96,35 +92,29 @@ def enable_basic_auth(
     exclude_paths: Optional[Iterable[str]] = None,
 ) -> bool:
     """
-    Conditionally enable Basic Auth on `app`.
+    Enable Basic Auth if QMS settings say so.
 
-    Enabling rules:
-      - If QMS_ENABLE_AUTH is set to 1
-      - If QMS_ENABLE_AUTH is NOT set: enable iff both credentials are present
-        (from args or QMS_USER/QMS_PASS env). Otherwise disabled.
-
-    If enabled but credentials are missing, raises RuntimeError.
-
-    Returns:
-      bool: True if middleware was added; False if auth is disabled.
+    Rules:
+      - If settings.ENABLE_AUTH is False: do nothing.
+      - If True: require username/password (from args or settings.USER/PASS) else raise.
     """
-    env_val = os.getenv(ENABLE_AUTH_ENV)
-    if env_val is not None:
-        enabled = env_val.strip().lower() == "1"
-    else:
-        # auto-enable only if creds exist
-        u = (username or os.getenv(USERNAME_ENV) or "").strip()
-        p = (password or os.getenv(PASSWORD_ENV) or "").strip()
-        enabled = bool(u and p)
+    settings = get_settings()
 
-    if not enabled:
+    if not settings.ENABLE_AUTH:
         return False
 
-    # Will raise with a clear error if creds are missing:
+    u = (username or settings.USER or "").strip()
+    p = (password  or settings.PASS or "").strip()
+    if not u or not p:
+        raise RuntimeError(
+            "Auth is enabled but credentials are missing. "
+            "Set QMS_USER / QMS_PASS or pass username/password."
+        )
+
     app.add_middleware(
         BasicAuthMiddleware,
-        username=username,
-        password=password,
+        username=u,
+        password=p,
         realm=realm,
         exclude_paths=exclude_paths or ["/health", "/static/*"],
     )
