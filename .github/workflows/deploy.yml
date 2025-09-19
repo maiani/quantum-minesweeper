@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-  workflow_dispatch: {}   # allow manual trigger
+  workflow_dispatch: {}   # allow manual trigger from Actions tab
 
 jobs:
   deploy:
@@ -23,6 +23,7 @@ jobs:
 
       - name: Build and Push Image
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME:-manual}"
           IMAGE="europe-west1-docker.pkg.dev/qminesweeper/qms/qminesweeper:${TAG}"
           echo "Using image: $IMAGE"
@@ -41,10 +42,4 @@ jobs:
             --region europe-west1 \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars \
-              QMS_USER=${{ secrets.QMS_USER }},\
-              QMS_PASS=${{ secrets.QMS_PASS }},\
-              QMS_ENABLE_AUTH=${{ vars.QMS_ENABLE_AUTH }},\
-              QMS_ENABLE_HELP=${{ vars.QMS_ENABLE_HELP }},\
-              QMS_ENABLE_TUTORIAL=${{ vars.QMS_ENABLE_TUTORIAL }},\
-              QMS_TUTORIAL_URL=${{ vars.QMS_TUTORIAL_URL }}
+            --set-env-vars "QMS_USER=${{ secrets.QMS_USER }},QMS_PASS=${{ secrets.QMS_PASS }},QMS_ENABLE_AUTH=${{ vars.QMS_ENABLE_AUTH }},QMS_ENABLE_HELP=${{ vars.QMS_ENABLE_HELP }},QMS_ENABLE_TUTORIAL=${{ vars.QMS_ENABLE_TUTORIAL }},QMS_TUTORIAL_URL=${{ vars.QMS_TUTORIAL_URL }}"
