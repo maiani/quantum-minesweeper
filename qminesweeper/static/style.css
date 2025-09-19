@@ -1,6 +1,6 @@
 /* ---------- Base theme ---------- */
 :root {
-  --bg: #0f1115;
+  --bg: #17191e;
   --fg: #e8e8e8;
   --muted: #7a7f87;
   --tile-muted: #5a6070;
@@ -428,9 +428,8 @@ button.active {
 }
 
 /* ---------- Help Sidebar ---------- */
-#help-panel {
+#sidebar {
 position: fixed;
-  padding-top: calc(var(--header-height) + 10px);
   right: 0;
   bottom: 0;
   width: 320px;
@@ -441,35 +440,97 @@ position: fixed;
   color: var(--fg);
   font-size: 0.95rem;
   border-left: 1px solid var(--tile-muted);
-  padding-left: 16px;
   overflow-y: auto;
   transform: translateX(100%);
   transition: transform 0.3s ease;
   z-index: 20;
   top: 0;
   padding-right: 16px;
+  
 }
 
-#help-panel.active {
+#sidebar.active {
   transform: translateX(0);
 }
 
 /* Light theme */
-body.light #help-panel {
+body.light #sidebar {
   background: rgba(255, 255, 255, 0.95);
   border-left: 1px solid #ddd;
 }
 
-
-#help-panel.active {
+#sidebar.active {
   transform: translateX(0);
 }
 
-/* Light theme adjustment */
-body.light #help-panel {
+#sidebar-spacer{
+  padding-top: var(--header-height);
+}
+
+#sidebar-header{
+  padding-top: 10px;
+  padding-bottom: 0.0em;
+  background: #2d3c58;
+}
+
+#sidebar-content {
+  padding-left: 16px;
+} 
+ /* Light theme adjustment */
+body.light #sidebar {
   background: rgba(255, 255, 255, 0.95);
   border-left: 1px solid #ddd;
 }
+
+/* --- Help Sidebar --- */
+#sidebar-header {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--accent-h);
+  color: #2d3c58;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid var(--tile-muted);
+}
+
+#sidebar-header h2 {
+  margin: 0;
+  vertical-align: middle;
+  font-size: 1.4rem;
+  color: #000;
+}
+
+html.light #sidebar-header h2 {
+  color: #fff ;
+}
+
+#sidebar-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help-title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.2rem;
+  color: var(--accent);
+}
+
+.help-card {
+  background: rgba(32, 36, 49, 0.35);
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  min-height: 60px; /* reserve space for dynamic content */
+}
+
+body.light .help-card {
+  background: rgba(240, 243, 250, 0.9);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
 
 /* ---------- Setup form layout ---------- */
 .setup {
@@ -525,6 +586,15 @@ body.light #help-panel {
   display: flex;
   justify-content: center;
   margin-top: 6px;
+}
+
+.setup-expl {
+  max-width: 900px;
+  margin: 28px auto;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  background: rgba(32, 36, 49, 0.35);
+  backdrop-filter: blur(2px);
 }
 
 /* ---------- Light theme ---------- */
@@ -606,6 +676,16 @@ body.light form button.active {
   color: #fff;
 }
 
+body.light .setup{
+  background: rgba(183, 191, 216, 0.35)
+}
+
+body.light .setup-form{
+  background: rgba(73, 91, 149, 0.35)
+}
+body.light .setup-expl{
+  background: rgba(183, 191, 216, 0.35)
+}
 
 /* ---------- Animations ---------- */
 @keyframes pop {

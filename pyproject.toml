@@ -54,6 +54,8 @@ where = ["."]
 include = ["qminesweeper*"]
 
 [tool.setuptools.package-data]
-qminesweeper = ["templates/*", 
-                "static/*", 
-                "docs/*"]
+qminesweeper = [
+  "templates/**/*",
+  "static/**/*",
+  "docs/**/*"
+]

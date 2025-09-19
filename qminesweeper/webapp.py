@@ -9,7 +9,7 @@ from uuid import uuid4
 from datetime import datetime
 
 from fastapi import FastAPI, Request, Form, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import markdown
@@ -48,6 +48,7 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 DOCS_DIR = BASE_DIR / "docs"
+HELP_DIR = DOCS_DIR / "help"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
@@ -60,31 +61,6 @@ templates.env.globals["FEATURES"] = {
 }
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-# --------- Markdown rendering ---------
-def render_markdown_file(filename: str) -> str:
-    path = Path(__file__).resolve().parent / "docs" / filename
-    text = path.read_text(encoding="utf-8")
-    return markdown.markdown(
-        text,
-        extensions=[
-            "fenced_code",
-            "tables",
-            TocExtension(),
-            "pymdownx.arithmatex",
-        ],
-        extension_configs={
-            "pymdownx.arithmatex": {"generic": True}
-        }
-    )
-
-DOCS = {
-    "simple_setup": render_markdown_file("simple_setup.md"),
-    "advanced_setup": render_markdown_file("advanced_setup.md")
-}
-
-# inject into Jinja
-templates.env.globals["docs"] = DOCS
 
 # --------- Long-lived (optional) user cookie ONLY ---------
 USER_COOKIE = "qmsuser"
@@ -294,3 +270,74 @@ async def game_post(action: str = Form(...), suid: Optional[str] = Query(None, a
         return RedirectResponse(f"/setup?suid={suid}", status_code=303)
 
     return RedirectResponse(f"/game?suid={suid}", status_code=303)
+
+# --------- Markdown rendering ---------
+def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
+    """
+    Render markdown file to HTML.
+    
+    Parameters
+    ----------
+    path : Path
+        File to read.
+    strip_title : bool
+        If True, extracts first heading as title and strips it from body.
+    
+    Returns
+    -------
+    title : str
+        Title (from first heading, or filename stem if not found).
+    html : str
+        Rendered HTML content.
+    """
+    if not path.exists():
+        return path.stem, "<p>Not found.</p>"
+
+    text = path.read_text(encoding="utf-8")
+    title = path.stem
+
+    if strip_title:
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
+            if line.strip().startswith("#"):
+                title = line.lstrip("# ").strip()
+                lines = lines[i+1:]
+                break
+        text = "\n".join(lines).strip()
+
+    html = markdown.markdown(
+        text,
+        extensions=[
+            "fenced_code",
+            "tables",
+            TocExtension(),
+            "pymdownx.arithmatex",
+        ],
+        extension_configs={
+            "pymdownx.arithmatex": {"generic": True}
+        }
+    )
+    return title, html
+
+
+DOCS_DIR = BASE_DIR / "docs"
+
+DOCS = {
+    "simple_setup": render_markdown(DOCS_DIR / "simple_setup.md")[1],
+    "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
+}
+templates.env.globals["docs"] = DOCS
+
+@app.get("/help/{obj_id}", response_class=JSONResponse)
+async def help_content(obj_id: str):
+    base = HELP_DIR / obj_id
+    text_path = base / "text.md"
+    visual_path = base / "visual.html"
+
+    title, text_html = render_markdown(text_path, strip_title=True)
+    visual_html = "<div>No visual available.</div>"
+
+    if visual_path.exists():
+        visual_html = visual_path.read_text(encoding="utf-8")
+
+    return {"title": title, "text": text_html, "visual": visual_html}

@@ -6,7 +6,7 @@
 <table class="status-table">
   <tr>
     <!-- Left: expected bombs -->
-    <td class="bomb-counter">
+    <td class="bomb-counter" help-id="mine-counter">
       ⟨Mines⟩ = {{ "%.1f"|format(bombs_exp) }}
     </td>
 
@@ -14,7 +14,7 @@
     <td class="status-spacer"></td>
 
     <!-- Right: entanglement -->
-    <td class="entanglement" style="text-align: right;">
+    <td class="entanglement" help-id="entanglement">
       Entanglement = {{ "%d"|format(ent_measure) }} bits
     </td>
   </tr>
@@ -71,27 +71,27 @@
 <h3>Select Move</h3>
 <div class="tools">
   <div class="tool-row">
-    <button type="button" class="tool-btn" onclick="setTool('M')">M</button>
-    <button type="button" class="tool-btn" onclick="setTool('P')">P</button>
+    <button type="button" class="tool-btn" onclick="setTool('M')" help-id="M-move">M</button>
+    <button type="button" class="tool-btn" onclick="setTool('P')" help-id="P-move">P</button>
   </div>
   {% if moveset in ["ONE_QUBIT", "ONE_QUBIT_COMPLETE", "TWO_QUBIT"] %}
   <div class="tool-row">
     {% for t in ["X","Y","Z","H","S"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')">{{t}}</button>
+      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-move">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
   {% if moveset in ["ONE_QUBIT_COMPLETE", "TWO_QUBIT"] %}
   <div class="tool-row">
     {% for t in ["SDG","SX","SXDG","SY","SYDG"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')">{{t}}</button>
+      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-move">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
   {% if moveset == "TWO_QUBIT" %}
   <div class="tool-row">
     {% for t in ["CX","CY","CZ","SWAP"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')">{{t}}</button>
+      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-move">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
