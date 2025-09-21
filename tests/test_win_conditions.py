@@ -5,10 +5,12 @@ from qminesweeper.game import (
     QMineSweeperGame, GameConfig,
     WinCondition, MoveSet, GameStatus
 )
+from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
+from qminesweeper.qiskit_backend import QiskitBackend
 
-
-def test_loss_on_mine():
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+def test_loss_on_mine(Backend : type[QuantumBackend]):
     board = QMineSweeperBoard(3, 3, StimBackend())
     board.span_classical_mines(1)
     game = QMineSweeperGame(board, GameConfig(WinCondition.IDENTIFY, MoveSet.CLASSIC))
@@ -20,8 +22,9 @@ def test_loss_on_mine():
     assert game.status == GameStatus.LOST
 
 
-def test_win_classic_by_exploring_all_safe():
-    board = QMineSweeperBoard(2, 2, StimBackend())
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+def test_win_classic_by_exploring_all_safe(Backend : type[QuantumBackend]):
+    board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)
     game = QMineSweeperGame(board, GameConfig(WinCondition.IDENTIFY, MoveSet.CLASSIC))
 
@@ -32,10 +35,11 @@ def test_win_classic_by_exploring_all_safe():
                 game.cmd_measure(r, c)
 
     assert game.status == GameStatus.WIN
-    
-def test_clear_condition_win():
+ 
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])   
+def test_clear_condition_win(Backend : type[QuantumBackend]):
     # Board with 1 mine → clear it manually
-    board = QMineSweeperBoard(1, 1, StimBackend())
+    board = QMineSweeperBoard(1, 1, Backend())
     board.span_classical_mines(1)
     game = QMineSweeperGame(board, GameConfig(WinCondition.CLEAR, MoveSet.CLASSIC))
 
@@ -51,8 +55,9 @@ def test_clear_condition_win():
         assert game.status in (GameStatus.ONGOING, GameStatus.LOST)
 
 
-def test_sandbox_never_finishes():
-    board = QMineSweeperBoard(2, 2, StimBackend())
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+def test_sandbox_never_finishes(Backend : type[QuantumBackend]):
+    board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)
     game = QMineSweeperGame(board, GameConfig(WinCondition.SANDBOX, MoveSet.CLASSIC))
 

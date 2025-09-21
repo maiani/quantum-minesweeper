@@ -35,7 +35,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov"]
+qiskit = ["qiskit"]
+dev = ["pytest", "pytest-cov", "qiskit"]
 
 [project.urls]
 # Homepage = "https://example.com"

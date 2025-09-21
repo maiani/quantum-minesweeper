@@ -1,9 +1,9 @@
 # qminesweeper/qiskit_backend.py
 from __future__ import annotations
-from typing import List
+from typing import List, Optional, Tuple
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import StabilizerState, Pauli, Clifford
-from qiskit.circuit.library import XGate, YGate, ZGate, HGate, SGate, CXGate
+from qiskit.quantum_info import StabilizerState, Pauli, Clifford, random_clifford
+from qiskit.circuit.library import XGate, YGate, ZGate, HGate, SGate, SXGate, SdgGate, CXGate, CYGate, CZGate, SwapGate
 
 from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
@@ -13,7 +13,7 @@ class QiskitState(StabilizerQuantumState):
         self.n = n_qubits
         self._init_state()
 
-    def _init_state(self):
+    def _init_state(self) -> None:
         self.state = StabilizerState(QuantumCircuit(self.n))
 
     def reset(self) -> None:
@@ -36,20 +36,41 @@ class QiskitState(StabilizerQuantumState):
         return int(outcome)
 
     def apply_gate(self, gate: str, targets: List[int]) -> None:
-        gate_cls = {
+        gate_map = {
             "X": XGate, "Y": YGate, "Z": ZGate,
-            "H": HGate, "S": SGate, "CX": CXGate
-        }.get(gate)
+            "H": HGate, "S": SGate, "Sdg": SdgGate,
+            "SX": SXGate,
+            "CX": CXGate, "CY": CYGate, "CZ": CZGate, "SWAP": SwapGate,
+        }
+        gate_cls = gate_map.get(gate)
         if gate_cls is None:
             raise ValueError(f"Unsupported gate: {gate}")
-
         cl = Clifford(gate_cls())
         if cl.num_qubits != len(targets):
             raise ValueError(f"Gate {gate} expects {cl.num_qubits} qubits, got {len(targets)}")
-
         self.state = self.state.evolve(cl, targets)
 
 
 class QiskitBackend(QuantumBackend):
     def generate_stabilizer_state(self, n_qubits: int) -> StabilizerQuantumState:
         return QiskitState(n_qubits)
+
+    def random_clifford_circuit(self, k: int, *, seed: Optional[int] = None) -> List[Tuple[str, List[int]]]:
+        """
+        Use Qiskit to sample a random k-qubit Clifford and convert to a local circuit.
+        Gate names are normalized to the vocabulary accepted by QiskitState.apply_gate.
+        """
+        if k <= 0:
+            return []
+        cl = random_clifford(k, seed=seed)
+        qc = cl.to_circuit()
+
+        out: List[Tuple[str, List[int]]] = []
+        for instr in qc.data:
+            name = instr.operation.name.upper()
+            if name == "SDG":
+                name = "Sdg"  # canonicalize
+            # Map qargs to local indices 0..k-1
+            tloc = [qc.qubits.index(q) for q in instr.qubits]
+            out.append((name, tloc))
+        return out

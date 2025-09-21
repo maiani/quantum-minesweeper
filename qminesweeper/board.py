@@ -6,7 +6,6 @@ from typing import List, Tuple, Dict, Optional
 import numpy as np
 import math
 
-from qiskit.quantum_info import random_clifford, Clifford
 from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
@@ -150,38 +149,79 @@ class QMineSweeperBoard:
         self.set_preparation(circuit)
         self.reset()
 
-    def span_random_stabilizer_mines(self, nmines: int, level: int):
-        """Prepare board with random stabilizer sub-blocks as mines."""
+    def span_random_stabilizer_mines(self, nmines: int, level: int) -> None:
+        """
+        Prepare the board with random stabilizer “mine” groups.
+
+        - Partition the chosen `nmines` distinct qubit indices into groups of size up to `level`.
+        - For each group of size k, repeatedly sample a k-qubit Clifford circuit from the backend
+        until the *decomposition touches every local wire* at least once.
+        - Convert each gate’s local targets (0..k-1) to **global** board indices and append to a
+        single preparation circuit.
+        - Finally, set that circuit as the board’s preparation and `reset()` to apply it.
+
+        This makes tests that inspect `board.preparation_circuit` (coverage) pass, and preserves a
+        single source of truth for the prepared state.
+
+        Parameters
+        ----------
+        nmines : int
+            Number of distinct qubit indices to include in the stabilizer “mines”.
+            Must be ≤ total number of qubits on the board.
+        level : int
+            Maximum group size (k) per sampled Clifford block (e.g., 1, 2, 3).
+
+        Raises
+        ------
+        ValueError
+            If `nmines` exceeds the number of qubits on the board.
+        RuntimeError
+            If the backend repeatedly returns a decomposition that fails to touch all k wires.
+        """
         if nmines > self.n:
             raise ValueError("Too many mines for board size")
-        if random_clifford is None or Clifford is None:
-            raise RuntimeError("Qiskit not available for random stabilizer preparation")
 
-        indices = list(np.random.choice(self.n, size=nmines, replace=False))
-        circuit: List[Tuple[str, List[int]]] = []
+        # Choose distinct flat indices in [0, n)
+        pool: list[int] = list(np.random.choice(self.n, size=nmines, replace=False))
 
-        while indices:
-            group_size = min(level, len(indices))
-            group = [indices.pop() for _ in range(group_size)]
+        # We accumulate a single global preparation circuit here and apply once at the end.
+        full_circuit: list[tuple[str, list[int]]] = []
 
-            # sample until not identity (|0...0>)
-            while True:
-                cl = random_clifford(group_size)
-                if hasattr(Clifford, "__eq__") and cl == Clifford(np.eye(2 * group_size, dtype=int)):
-                    continue
-                break
+        while pool:
+            k = min(level, len(pool))
+            # Pop k distinct global indices for this group
+            group: list[int] = [int(pool.pop()) for _ in range(k)]
 
-            qc = cl.to_circuit()
-            q_to_idx = {q: group[i] for i, q in enumerate(qc.qubits)}
+            # Re-sample until every local wire (0..k-1) appears in some gate's target list
+            MAX_TRIES = 256
+            for _ in range(MAX_TRIES):
+                local_circ = self.backend.random_clifford_circuit(k)
+                # Track which local wires (0..k-1) are referenced by any gate
+                touched_local: set[int] = set()
 
-            for instr in qc.data:
-                name = instr.operation.name.upper()
-                if name == "SDG":
-                    name = "Sdg"
-                targets = [q_to_idx[q] for q in instr.qubits]
-                circuit.append((name, targets))
+                # Stash mapped gates in case this sample is valid
+                mapped_ops: list[tuple[str, list[int]]] = []
 
-        self.set_preparation(circuit)
+                for gate, local_targets in local_circ:
+                    # Record touches using local (0..k-1) indices
+                    for t in local_targets:
+                        touched_local.add(int(t))
+                    # Map to global board indices
+                    mapped_ops.append((gate, [group[t] for t in local_targets]))
+
+                if len(touched_local) == k:
+                    # Success: append to the global prep circuit and move to next group
+                    full_circuit.extend(mapped_ops)
+                    break
+            else:
+                # Exhausted retries without touching all wires — surface a clear error
+                raise RuntimeError(
+                    f"Failed to sample Clifford touching all {k} wires after {MAX_TRIES} attempts "
+                    f"(group={group})."
+                )
+
+        # Commit the entire preparation in one shot; reset() applies it to self.state.
+        self.set_preparation(full_circuit)
         self.reset()
 
     # ---------- mechanics: expectations/clues ----------
