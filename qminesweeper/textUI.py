@@ -69,8 +69,8 @@ def ask_int(prompt: str, cond=lambda x: True) -> int:
 
 def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
     console.print("[bold]Win condition:[/]\n"
-                  "  [cyan]1.[/] Identify (classic: lose on measuring a bomb, win when all safe cells are explored)\n"
-                  "  [cyan]2.[/] Clear (all bomb probabilities ~ 0)")
+                  "  [cyan]1.[/] Identify (classic: lose on measuring a mine, win when all safe cells are explored)\n"
+                  "  [cyan]2.[/] Clear (all mine probabilities ~ 0)")
     w_choice = ask_int("Choice [1-2]: ", lambda x: x in (1, 2))
     win = WinCondition.IDENTIFY if w_choice == 1 else WinCondition.CLEAR
 
@@ -89,19 +89,19 @@ def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
 
     rows = ask_int("Rows: ", lambda x: x > 0)
     cols = ask_int("Cols: ", lambda x: x > 0)
-    bombs = ask_int("Bombs: ", lambda x: 0 < x < rows * cols)
+    mines = ask_int("Mines: ", lambda x: 0 < x < rows * cols)
     ent_level = ask_int("Entanglement level (0=classical, >=1 stabilizers): ", lambda x: x >= 0)
 
-    return win, move, rows, cols, bombs, ent_level
+    return win, move, rows, cols, mines, ent_level
 
 
-def make_board(backend: QuantumBackend, rows: int, cols: int, bombs: int,
+def make_board(backend: QuantumBackend, rows: int, cols: int, mines: int,
                ent_level: int, basis: str = "Z", flood: bool = True) -> QMineSweeperBoard:
     board = QMineSweeperBoard(rows, cols, backend=backend, flood_fill=flood)
     if ent_level == 0:
-        board.span_classical_bombs(bombs)
+        board.span_classical_mines(mines)
     else:
-        board.span_random_stabilizer_bombs(nbombs=bombs, level=ent_level)
+        board.span_random_stabilizer_mines(nmines=mines, level=ent_level)
     board.set_clue_basis(basis)
     return board
 
@@ -256,7 +256,7 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
         # ---- end-game menu ----
         console.print("[bold]Game over![/bold]")
         console.print(
-            "Choose: [bold]N[/] new setup · [bold]S[/] same setup (new bombs) · "
+            "Choose: [bold]N[/] new setup · [bold]S[/] same setup (new mines) · "
             "[bold]R[/] reset board · [bold]Q[/] quit"
         )
         while True:
@@ -281,10 +281,10 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
 def run_tui(backend: QuantumBackend):
     welcome_screen()
     while True:
-        win, move, rows, cols, bombs, ent_level = advanced_setup()
+        win, move, rows, cols, mines, ent_level = advanced_setup()
 
         while True:
-            board = make_board(backend, rows, cols, bombs, ent_level, basis="Z", flood=True)
+            board = make_board(backend, rows, cols, mines, ent_level, basis="Z", flood=True)
             game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=move))
 
             outcome = game_loop(board, game)

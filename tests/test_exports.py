@@ -4,7 +4,7 @@ from qminesweeper.stim_backend import StimBackend
 
 def test_export_grid_values():
     board = QMineSweeperBoard(2, 2, StimBackend())
-    board.span_classical_bombs(1)
+    board.span_classical_mines(1)
     game = QMineSweeperGame(board, GameConfig(win_condition=WinCondition.IDENTIFY,
                                               move_set=MoveSet.CLASSIC))
 

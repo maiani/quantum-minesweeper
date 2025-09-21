@@ -89,13 +89,13 @@ def clue_color(val: float) -> str:
     r = int(255 * v); g = int(255 * (1.0 - v))
     return f"rgb({r},{g},0)"
 
-def build_board_and_game(rows:int, cols:int, bombs:int, ent_level:int,
+def build_board_and_game(rows:int, cols:int, mines:int, ent_level:int,
                          win:WinCondition, moves:MoveSet):
     board = QMineSweeperBoard(rows, cols, backend=StimBackend(), flood_fill=True)
     if ent_level == 0:
-        board.span_classical_bombs(bombs)
+        board.span_classical_mines(mines)
     else:
-        board.span_random_stabilizer_bombs(bombs, level=ent_level)
+        board.span_random_stabilizer_mines(mines, level=ent_level)
     board.set_clue_basis("Z")
     game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
     return board, game
@@ -157,7 +157,7 @@ async def setup_post(
     request: Request,
     rows: int = Form(...),
     cols: int = Form(...),
-    bombs: int = Form(...),
+    mines: int = Form(...),
     ent_level: int = Form(...),
     win_condition: str = Form(...),
     move_set: str = Form(...),
@@ -180,15 +180,15 @@ async def setup_post(
         "two": MoveSet.TWO_QUBIT,
     }.get(move_set.lower(), MoveSet.CLASSIC)
 
-    board, game = build_board_and_game(rows, cols, bombs, ent_level, win, mv)
+    board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)
     GAMES[suid] = {
         "board": board,
         "game": game,
-        "config": {"rows": rows, "cols": cols, "bombs": bombs,
+        "config": {"rows": rows, "cols": cols, "mines": mines,
                    "ent_level": ent_level, "win": win, "moves": mv},
     }
 
-    log.info(f"SETUP user={user_id} sid={suid} rows={rows} cols={cols} bombs={bombs} "
+    log.info(f"SETUP user={user_id} sid={suid} rows={rows} cols={cols} mines={mines} "
              f"ent={ent_level} win={win.name} moves={mv.name}")
 
     return attach_user_cookie(RedirectResponse(f"/game?suid={suid}", status_code=303),
@@ -204,7 +204,7 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
     game: QMineSweeperGame = GAMES[suid]["game"]
 
     grid = board.export_numeric_grid().tolist()
-    bombs_exp = board.expected_bombs()
+    mines_exp = board.expected_mines()
     ent_score = board.entanglement_score("mean") * board.n
 
     if game.status == GameStatus.WIN:
@@ -219,7 +219,7 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
         "status": game.status.name,
         "moveset": game.cfg.move_set.name,
         "suid": suid,
-        "bombs_exp": bombs_exp,
+        "mines_exp": mines_exp,
         "ent_measure": ent_score,
     }), user_id, request)
 
@@ -262,7 +262,7 @@ async def game_post(action: str = Form(...), suid: Optional[str] = Query(None, a
         game.status = GameStatus.ONGOING
     elif action == "new_same":
         board, game = build_board_and_game(
-            cfg["rows"], cfg["cols"], cfg["bombs"], cfg["ent_level"], cfg["win"], cfg["moves"]
+            cfg["rows"], cfg["cols"], cfg["mines"], cfg["ent_level"], cfg["win"], cfg["moves"]
         )
         GAMES[suid]["board"] = board
         GAMES[suid]["game"] = game

@@ -24,7 +24,7 @@ In the **quantum version**, mines are no longer fixed.
 - Gates let you change the state of qubits and gradually “clear” mines.  
 - Your objective is to remove the mine by appling the right combination of gates.
 
-#### Entangled Bombs
+#### Entangled Mines
 At higher levels, mines may be **entangled**.  
 - Entanglement means two or more mines are **linked together**: their states are correlated, no matter which cell you open first.  
 - Intuitively, think of it as mines that “share a fuse” — cutting one affects the others.  

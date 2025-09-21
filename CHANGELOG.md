@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - Better logging
 - Fixed responsive layout
 - Fixed light theme
+- Changed bombs -> mines everywhere
+- Improved testing
 
 ## [0.1.1] - 2025-09-15
 - Rework authorization module 

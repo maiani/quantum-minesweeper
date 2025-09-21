@@ -5,9 +5,9 @@
 <!-- Status  -->
 <table class="status-table">
   <tr>
-    <!-- Left: expected bombs -->
-    <td class="bomb-counter" help-id="mine-counter">
-      ⟨Mines⟩ = {{ "%.1f"|format(bombs_exp) }}
+    <!-- Left: expected mines -->
+    <td class="mine-counter" help-id="mine-counter">
+      ⟨Mines⟩ = {{ "%.1f"|format(mines_exp) }}
     </td>
 
     <!-- Middle: empty for now -->
@@ -36,7 +36,7 @@
           {% set cls = "pinned" %}
         {% elif val == 9.0 %}
           {% set symbol = "💥" %}
-          {% set cls = "bomb" %}
+          {% set cls = "mine" %}
         {% elif val == 0.0 %}
           {% set symbol = "&nbsp;" %}
           {% set cls = "empty" %}

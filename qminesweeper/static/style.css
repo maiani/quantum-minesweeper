@@ -224,7 +224,7 @@ body.light .header-action:hover {
   color: var(--pin);
 }
 
-.tile.bomb {
+.tile.mine {
   font-weight: 700;
   color: var(--boom);
 }
@@ -668,7 +668,7 @@ body.light .setup-expl {
   100% { transform: scale(1); opacity: 1; }
 }
 
-.bomb-icon {
+.mine-icon {
   display: inline-block;
   animation: quantum-fade 2s ease-in-out infinite;
 }

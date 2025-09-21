@@ -141,23 +141,23 @@ class QMineSweeperBoard:
         self._measured.clear()
         self._exploration.fill(CellState.UNEXPLORED)
 
-    def span_classical_bombs(self, nbombs: int):
-        """Prepare board with nbombs placed as classical |1> states."""
-        if nbombs > self.n:
-            raise ValueError("Too many bombs for board size")
-        chosen = np.random.choice(np.arange(self.n), size=nbombs, replace=False)
+    def span_classical_mines(self, nmines: int):
+        """Prepare board with nmines placed as classical |1> states."""
+        if nmines > self.n:
+            raise ValueError("Too many mines for board size")
+        chosen = np.random.choice(np.arange(self.n), size=nmines, replace=False)
         circuit = [("X", [int(i)]) for i in chosen]
         self.set_preparation(circuit)
         self.reset()
 
-    def span_random_stabilizer_bombs(self, nbombs: int, level: int):
-        """Prepare board with random stabilizer sub-blocks as bombs."""
-        if nbombs > self.n:
-            raise ValueError("Too many bombs for board size")
+    def span_random_stabilizer_mines(self, nmines: int, level: int):
+        """Prepare board with random stabilizer sub-blocks as mines."""
+        if nmines > self.n:
+            raise ValueError("Too many mines for board size")
         if random_clifford is None or Clifford is None:
             raise RuntimeError("Qiskit not available for random stabilizer preparation")
 
-        indices = list(np.random.choice(self.n, size=nbombs, replace=False))
+        indices = list(np.random.choice(self.n, size=nmines, replace=False))
         circuit: List[Tuple[str, List[int]]] = []
 
         while indices:
@@ -189,13 +189,13 @@ class QMineSweeperBoard:
         """Return <basis> expectation value for qubit idx."""
         return self.state.expectation_pauli(idx, basis)
 
-    def bomb_probability_z(self, idx: int) -> float:
-        """Return probability that qubit idx is a bomb (Z=1)."""
+    def mine_probability_z(self, idx: int) -> float:
+        """Return probability that qubit idx is a mine (Z=1)."""
         return 0.5 * (1.0 - self.expectation(idx, "Z"))
 
     def clue_value(self, r: int, c: int, basis: Optional[str] = None) -> float:
         """
-        Return clue for cell (r, c): sum of neighbor bomb probabilities
+        Return clue for cell (r, c): sum of neighbor mine probabilities
         in the chosen basis.
         """
         b = basis or self._clue_basis
@@ -205,7 +205,7 @@ class QMineSweeperBoard:
     def get_clue(self, r: int, c: int) -> float:
         """
         Return clue at (r, c) in current basis, or 9.0 if cell is a
-        definite bomb.
+        definite mine.
         """
         idx = self.index(r, c)
         if self.expectation(idx, self._clue_basis) == -1.0:
@@ -217,9 +217,9 @@ class QMineSweeperBoard:
         vals = np.array([self.expectation(i, basis) for i in range(self.n)], dtype=float)
         return vals.reshape(self.rows, self.cols)
 
-    def expected_bombs(self) -> float:
-        """Return expected total number of bombs (sum of Z-probs)."""
-        return sum(self.bomb_probability_z(i) for i in range(self.n))
+    def expected_mines(self) -> float:
+        """Return expected total number of mines (sum of Z-probs)."""
+        return sum(self.mine_probability_z(i) for i in range(self.n))
 
     # ---------- mechanics: pins & measurement & gates ----------
     def toggle_pin(self, r: int, c: int) -> None:
@@ -336,7 +336,7 @@ class QMineSweeperBoard:
         Encoding:
         -1 = unexplored
         -2 = pinned
-         9 = definite bomb
+         9 = definite mine
          else = fractional clue value
         """
         grid = np.full((self.rows, self.cols), -1.0, dtype=float)

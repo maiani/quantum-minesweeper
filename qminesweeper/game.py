@@ -15,8 +15,8 @@ class GameStatus(IntEnum):
 
 
 class WinCondition(Enum):
-    IDENTIFY = auto()  # identify all bombs (all safe cells explored)
-    CLEAR = auto()     # clear all bombs (prob=0 evrywhere)
+    IDENTIFY = auto()  # identify all mines (all safe cells explored)
+    CLEAR = auto()     # clear all mines (prob=0 evrywhere)
     SANDBOX = auto()   # no win condition    
 
 class MoveType(IntEnum):
@@ -161,14 +161,14 @@ class QMineSweeperGame:
 
     def _check_win(self):
         if self.cfg.win_condition == WinCondition.CLEAR:
-            probs = np.array([self.board.bomb_probability_z(i) for i in range(self.board.n)])
+            probs = np.array([self.board.mine_probability_z(i) for i in range(self.board.n)])
             self.status = GameStatus.WIN if np.all(probs <= 1e-6) else GameStatus.ONGOING
         
         elif self.cfg.win_condition == WinCondition.IDENTIFY:
 
             state = self.board.exploration_state()
             explored = (state == CellState.EXPLORED)
-            probs = np.fromiter((self.board.bomb_probability_z(i) for i in range(self.board.n)), float)
+            probs = np.fromiter((self.board.mine_probability_z(i) for i in range(self.board.n)), float)
             safe  = (probs <= 1e-6).reshape(self.board.rows, self.board.cols)
 
             self.status = GameStatus.WIN if np.all(explored[safe]) else GameStatus.ONGOING

@@ -12,12 +12,12 @@
       <option value="8x8">8 × 8</option>
       <option value="10x10" selected>10 × 10</option>
       <option value="15x15">15 × 15</option>
-      <option value="15x30">15 × 30</option>
+      <option value="30x15">30 × 15</option>
     </select>
 
     <!-- Bombs -->
-    <label for="bombs-choice">Mines:</label>
-    <select id="bombs-choice" name="bombs-choice">
+    <label for="mines-choice">Mines:</label>
+    <select id="mines-choice" name="mines-choice">
       <option value="5">5</option>
       <option value="10" selected>10</option>
       <option value="15">15</option>
@@ -39,7 +39,7 @@
     <!-- Hidden real inputs -->
     <input type="hidden" id="rows" name="rows" value="10">
     <input type="hidden" id="cols" name="cols" value="10">
-    <input type="hidden" id="bombs" name="bombs" value="10">
+    <input type="hidden" id="mines" name="mines" value="10">
     <input type="hidden" id="ent" name="ent_level" value="1">
     <input type="hidden" id="win" name="win_condition" value="clear">
     <input type="hidden" id="moves" name="move_set" value="one">
@@ -68,8 +68,8 @@
     <label for="cols">Cols:</label>
     <input id="cols" name="cols" type="number" min="2" value="10" required>
 
-    <label for="bombs">Mines:</label>
-    <input id="bombs" name="bombs" type="number" min="0" value="10" required>
+    <label for="mines">Mines:</label>
+    <input id="mines" name="mines" type="number" min="0" value="10" required>
 
     <label for="ent">Entanglement level:</label>
     <input id="ent" name="ent_level" type="number" min="0" max="10" value="1" required>
@@ -105,7 +105,7 @@
 <script>
   function applySelections() {
     const size = document.getElementById("board-size").value.split("x");
-    const bombs = document.getElementById("bombs-choice").value;
+    const mines = document.getElementById("mines-choice").value;
     const diff = document.getElementById("difficulty").value;
 
     let rows = parseInt(size[0]);
@@ -113,7 +113,7 @@
     let ent = 0;
     let win = "identify";
     let moves = "classic";
-    let bombsFinal = bombs;
+    let minesFinal = mines;
 
     // Difficulty mapping
     switch (diff) {
@@ -135,7 +135,7 @@
     // Push values into hidden inputs
     document.getElementById("rows").value = rows;
     document.getElementById("cols").value = cols;
-    document.getElementById("bombs").value = bombsFinal;
+    document.getElementById("mines").value = minesFinal;
     document.getElementById("ent").value = ent;
     document.getElementById("win").value = win;
     document.getElementById("moves").value = moves;
