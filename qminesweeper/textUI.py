@@ -1,18 +1,25 @@
 # qminesweeper/textUI.py
 from __future__ import annotations
-from typing import Tuple, List, Dict
-import numpy as np
+
+from typing import Dict, List, Tuple
+
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from qminesweeper.board import QMineSweeperBoard, CellState
+from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import (
-    QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus, MoveType
+    GameConfig,
+    GameStatus,
+    MoveSet,
+    MoveType,
+    QMineSweeperGame,
+    WinCondition,
 )
-from qminesweeper.quantum_backend import QuantumBackend  # interface
+from qminesweeper.quantum_backend import QuantumBackend
 
 console = Console()
+
 
 # ---------- Coloring helper for fractional clues ----------
 def clue_style(val: float) -> str:
@@ -68,17 +75,21 @@ def ask_int(prompt: str, cond=lambda x: True) -> int:
 
 
 def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
-    console.print("[bold]Win condition:[/]\n"
-                  "  [cyan]1.[/] Identify (classic: lose on measuring a mine, win when all safe cells are explored)\n"
-                  "  [cyan]2.[/] Clear (all mine probabilities ~ 0)")
+    console.print(
+        "[bold]Win condition:[/]\n"
+        "  [cyan]1.[/] Identify (classic: lose on measuring a mine, win when all safe cells are explored)\n"
+        "  [cyan]2.[/] Clear (all mine probabilities ~ 0)"
+    )
     w_choice = ask_int("Choice [1-2]: ", lambda x: x in (1, 2))
     win = WinCondition.IDENTIFY if w_choice == 1 else WinCondition.CLEAR
 
-    console.print("[bold]Move set:[/]\n"
-                  "  [cyan]1.[/] Classic (Measure, Pin)\n"
-                  "  [cyan]2.[/] One-qubit (X,Y,Z,H,S)\n"
-                  "  [cyan]3.[/] One-qubit (complete: +Sdg,SX,SXdg,SY,SYdg)\n"
-                  "  [cyan]4.[/] Two-qubit (adds CX,CY,CZ,SWAP)")
+    console.print(
+        "[bold]Move set:[/]\n"
+        "  [cyan]1.[/] Classic (Measure, Pin)\n"
+        "  [cyan]2.[/] One-qubit (X,Y,Z,H,S)\n"
+        "  [cyan]3.[/] One-qubit (complete: +Sdg,SX,SXdg,SY,SYdg)\n"
+        "  [cyan]4.[/] Two-qubit (adds CX,CY,CZ,SWAP)"
+    )
     m_choice = ask_int("Choice [1-4]: ", lambda x: x in (1, 2, 3, 4))
     move = {
         1: MoveSet.CLASSIC,
@@ -95,8 +106,9 @@ def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
     return win, move, rows, cols, mines, ent_level
 
 
-def make_board(backend: QuantumBackend, rows: int, cols: int, mines: int,
-               ent_level: int, basis: str = "Z", flood: bool = True) -> QMineSweeperBoard:
+def make_board(
+    backend: QuantumBackend, rows: int, cols: int, mines: int, ent_level: int, basis: str = "Z", flood: bool = True
+) -> QMineSweeperBoard:
     board = QMineSweeperBoard(rows, cols, backend=backend, flood_fill=flood)
     if ent_level == 0:
         board.span_classical_mines(mines)
@@ -108,17 +120,27 @@ def make_board(backend: QuantumBackend, rows: int, cols: int, mines: int,
 
 # ---------- Allowed tools computation & prompt ----------
 TOKEN_TO_MOVE: Dict[str, MoveType] = {
-    "M": MoveType.MEASURE, "P": MoveType.PIN_TOGGLE,
-    "X": MoveType.X_GATE, "Y": MoveType.Y_GATE, "Z": MoveType.Z_GATE,
-    "H": MoveType.H_GATE, "S": MoveType.S_GATE, "SDG": MoveType.SDG_GATE,
-    "SX": MoveType.SX_GATE, "SXDG": MoveType.SXDG_GATE,
-    "SY": MoveType.SY_GATE, "SYDG": MoveType.SYDG_GATE,
-    "CX": MoveType.CX_GATE, "CY": MoveType.CY_GATE,
-    "CZ": MoveType.CZ_GATE, "SWAP": MoveType.SWAP_GATE,
+    "M": MoveType.MEASURE,
+    "P": MoveType.PIN_TOGGLE,
+    "X": MoveType.X_GATE,
+    "Y": MoveType.Y_GATE,
+    "Z": MoveType.Z_GATE,
+    "H": MoveType.H_GATE,
+    "S": MoveType.S_GATE,
+    "SDG": MoveType.SDG_GATE,
+    "SX": MoveType.SX_GATE,
+    "SXDG": MoveType.SXDG_GATE,
+    "SY": MoveType.SY_GATE,
+    "SYDG": MoveType.SYDG_GATE,
+    "CX": MoveType.CX_GATE,
+    "CY": MoveType.CY_GATE,
+    "CZ": MoveType.CZ_GATE,
+    "SWAP": MoveType.SWAP_GATE,
 }
 ONE_QUBIT_BASIC: List[str] = ["X", "Y", "Z", "H", "S"]
 ONE_QUBIT_EXTRA: List[str] = ["SDG", "SX", "SXDG", "SY", "SYDG"]
 TWO_QUBIT_TOKENS: List[str] = ["CX", "CY", "CZ", "SWAP"]
+
 
 def allowed_tokens_for_moveset(ms: MoveSet) -> Dict[str, List[str]]:
     """
@@ -137,14 +159,15 @@ def allowed_tokens_for_moveset(ms: MoveSet) -> Dict[str, List[str]]:
         tokens["two"] = TWO_QUBIT_TOKENS[:]
     return tokens
 
+
 def build_prompt(tokens: Dict[str, List[str]]) -> str:
     parts = []
     if tokens["mp"]:
-        parts.append(f"[{ '/'.join(tokens['mp'])}] r,c")
+        parts.append(f"[{'/'.join(tokens['mp'])}] r,c")
     if tokens["single"]:
-        parts.append(f"[{ '/'.join(tokens['single'])}] r,c")
+        parts.append(f"[{'/'.join(tokens['single'])}] r,c")
     if tokens["two"]:
-        parts.append(f"[{ '/'.join(tokens['two'])}] r1,c1 r2,c2")
+        parts.append(f"[{'/'.join(tokens['two'])}] r1,c1 r2,c2")
     parts.append("R")
     parts.append("N")
     parts.append("Q")
@@ -164,15 +187,11 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
     while True:
         # ---- live gameplay until win/lose ----
         render_rich(board)
-        console.print(
-            "[dim]Tip: entering 'r,c' without a command performs a Measure (M).[/dim]"
-        )
+        console.print("[dim]Tip: entering 'r,c' without a command performs a Measure (M).[/dim]")
 
         while game.status == GameStatus.ONGOING:
             try:
-                raw = console.input(
-                    "[yellow]Your move[/] " + build_prompt(tokens)
-                ).strip()
+                raw = console.input("[yellow]Your move[/] " + build_prompt(tokens)).strip()
                 if not raw:
                     continue
 
@@ -294,4 +313,3 @@ def run_tui(backend: QuantumBackend):
                 break
             if outcome == "SAME_RULES":
                 continue
-

@@ -1,6 +1,8 @@
 # qminesweeper/stim_backend.py
 from __future__ import annotations
-from typing import List, Tuple, Optional
+
+from typing import List
+
 import stim
 
 from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
@@ -48,12 +50,21 @@ class StimBackend(QuantumBackend):
     """Factory that creates Stim stabilizer states."""
 
     gate_name_map = {
-            "X": "X", "Y": "Y", "Z": "Z",
-            "H": "H", "S": "S", "Sdg": "S_DAG",
-            "SX": "SQRT_X", "SXdg": "SQRT_X_DAG",
-            "SY": "SQRT_Y", "SYdg": "SQRT_Y_DAG",
-            "CX": "CX", "CY": "CY", "CZ": "CZ", "SWAP": "SWAP",
-        }
+        "X": "X",
+        "Y": "Y",
+        "Z": "Z",
+        "H": "H",
+        "S": "S",
+        "Sdg": "S_DAG",
+        "SX": "SQRT_X",
+        "SXdg": "SQRT_X_DAG",
+        "SY": "SQRT_Y",
+        "SYdg": "SQRT_Y_DAG",
+        "CX": "CX",
+        "CY": "CY",
+        "CZ": "CZ",
+        "SWAP": "SWAP",
+    }
 
     def generate_stabilizer_state(self, n_qubits: int) -> StabilizerQuantumState:
         return StimState(n_qubits)
@@ -68,9 +79,16 @@ class StimBackend(QuantumBackend):
         circuit = tableau.to_circuit()
 
         ARITY = {
-            "H": 1, "S": 1, "S_DAG": 1,
-            "X": 1, "Y": 1, "Z": 1,
-            "CX": 2, "CY": 2, "CZ": 2, "SWAP": 2,
+            "H": 1,
+            "S": 1,
+            "S_DAG": 1,
+            "X": 1,
+            "Y": 1,
+            "Z": 1,
+            "CX": 2,
+            "CY": 2,
+            "CZ": 2,
+            "SWAP": 2,
         }
         name_map = {"S_DAG": "Sdg"}  # map Stim to your board conventions
 
@@ -91,6 +109,6 @@ class StimBackend(QuantumBackend):
                 raise ValueError(f"Unexpected arity for {name}: {qubits}")
 
             for i in range(0, len(qubits), arity):
-                out.append((name, qubits[i:i+arity]))
+                out.append((name, qubits[i : i + arity]))
 
         return out

@@ -7,13 +7,13 @@ name = "qminesweeper"
 version = "0.1.2"
 description = "Quantum Minesweeper Game"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
   {name="Andrea Maiani", email="andrea.maiani@su.se"}
-  ]
+]
 maintainers = [
   {name="Andrea Maiani", email="andrea.maiani@su.se"}
-  ]
+]
 license = "MIT"
 license-files = ["LICENSE"]
 
@@ -24,7 +24,6 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "jinja2",
-  "qiskit",
   "stim",
   "starlette",
   "itsdangerous",
@@ -36,11 +35,15 @@ dependencies = [
 
 [project.optional-dependencies]
 qiskit = ["qiskit"]
-dev = ["pytest", "pytest-cov", "qiskit"]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "qiskit",
+  "ruff",
+  "pre-commit"
+]
 
 [project.urls]
-# Homepage = "https://example.com"
-# Documentation = "https://readthedocs.org"
 Repository = "https://github.com/maiani/quantum-minesweeper.git"
 Changelog = "https://github.com/maiani/quantum-minesweeper/blob/master/CHANGELOG.md"
 
@@ -60,3 +63,21 @@ qminesweeper = [
   "static/**/*",
   "docs/**/*"
 ]
+
+# ---------------- Ruff ----------------
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+# Enable linting + autofix
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # pyflakes, pycodestyle, and isort rules
+fixable = ["ALL"]
+
+# Enable Ruff formatter
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

@@ -3,27 +3,37 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 from uuid import uuid4
-from datetime import datetime
 
-from fastapi import FastAPI, Request, Form, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response, JSONResponse
+import markdown
+from fastapi import FastAPI, Form, Query, Request
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import markdown
 from markdown.extensions.toc import TocExtension
 
 from qminesweeper import __version__
+from qminesweeper.auth import enable_basic_auth
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import (
-    QMineSweeperGame, GameConfig, WinCondition, MoveSet, GameStatus
+    GameConfig,
+    GameStatus,
+    MoveSet,
+    QMineSweeperGame,
+    WinCondition,
 )
-from qminesweeper.stim_backend import StimBackend
-from qminesweeper.auth import enable_basic_auth
 from qminesweeper.logging_config import setup_logging
 from qminesweeper.settings import get_settings
+from qminesweeper.stim_backend import StimBackend
 
 # --------- Logging ---------
 logger = setup_logging()
@@ -40,8 +50,7 @@ enable_basic_auth(
     exclude_paths=["/health", "/static/*"],
 )
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
 log = logging.getLogger("qminesweeper.web")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -65,6 +74,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # --------- Long-lived (optional) user cookie ONLY ---------
 USER_COOKIE = "qmsuser"
 
+
 def ensure_user_id(request: Request) -> str:
     uid = request.cookies.get(USER_COOKIE)
     if not uid:
@@ -72,25 +82,32 @@ def ensure_user_id(request: Request) -> str:
         log.info(f"New user_id created: {uid}")
     return uid
 
+
 def attach_user_cookie(resp: Response, user_id: str, request: Request) -> Response:
     resp.set_cookie(
-        key=USER_COOKIE, value=user_id, path="/",
-        httponly=True, samesite="lax",
+        key=USER_COOKIE,
+        value=user_id,
+        path="/",
+        httponly=True,
+        samesite="lax",
         secure=(request.url.scheme == "https"),
     )
     return resp
 
+
 # --------- Demo in-memory game store ---------
 GAMES: dict[str, dict] = {}  # suid -> {board, game, config}
+
 
 # --------- Helpers ---------
 def clue_color(val: float) -> str:
     v = max(0.0, min(val / 8.0, 1.0))
-    r = int(255 * v); g = int(255 * (1.0 - v))
+    r = int(255 * v)
+    g = int(255 * (1.0 - v))
     return f"rgb({r},{g},0)"
 
-def build_board_and_game(rows:int, cols:int, mines:int, ent_level:int,
-                         win:WinCondition, moves:MoveSet):
+
+def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: WinCondition, moves: MoveSet):
     board = QMineSweeperBoard(rows, cols, backend=StimBackend(), flood_fill=True)
     if ent_level == 0:
         board.span_classical_mines(mines)
@@ -100,15 +117,18 @@ def build_board_and_game(rows:int, cols:int, mines:int, ent_level:int,
     game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
     return board, game
 
-# ----- Command parsing -----
-_SINGLE_Q = {"X","Y","Z","H","S","SDG","SX","SXDG","SY","SYDG"}
-_TWO_Q = {"CX","CY","CZ","SWAP"}
 
-def _parse_rc(token: str) -> Tuple[int,int]:
+# ----- Command parsing -----
+_SINGLE_Q = {"X", "Y", "Z", "H", "S", "SDG", "SX", "SXDG", "SY", "SYDG"}
+_TWO_Q = {"CX", "CY", "CZ", "SWAP"}
+
+
+def _parse_rc(token: str) -> Tuple[int, int]:
     m = re.match(r"^\s*(\d+)\s*,\s*(\d+)\s*$", token)
     if not m:
         raise ValueError(f"Bad coord '{token}' (expected 'r,c')")
-    return int(m.group(1))-1, int(m.group(2))-1
+    return int(m.group(1)) - 1, int(m.group(2)) - 1
+
 
 def parse_cmd(cmd: str):
     if not cmd or not cmd.strip():
@@ -128,10 +148,12 @@ def parse_cmd(cmd: str):
         return ("G2", (op, _parse_rc(parts[1]), _parse_rc(parts[2])))
     raise ValueError(f"Unrecognized command: '{cmd}'")
 
+
 # --------- Routes ---------
 @app.get("/health")
 def health():
     return PlainTextResponse("ok")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -141,16 +163,21 @@ async def home(request: Request):
     resp = RedirectResponse(f"/setup?suid={suid}")
     return attach_user_cookie(resp, user_id, request)
 
+
 @app.get("/setup", response_class=HTMLResponse)
 async def setup_get(request: Request, suid: Optional[str] = Query(None)):
     user_id = ensure_user_id(request)
     suid = suid or str(uuid4())
     log.info(f"User {user_id} -> setup sid={suid}")
-    resp = templates.TemplateResponse("setup.html", {
-        "request": request,
-        "suid": suid,
-    })
+    resp = templates.TemplateResponse(
+        "setup.html",
+        {
+            "request": request,
+            "suid": suid,
+        },
+    )
     return attach_user_cookie(resp, user_id, request)
+
 
 @app.post("/setup")
 async def setup_post(
@@ -167,9 +194,9 @@ async def setup_post(
     suid = suid or str(uuid4())
 
     wc = {
-    "clear": WinCondition.CLEAR,
-    "identify": WinCondition.IDENTIFY,
-    "sandbox": WinCondition.SANDBOX,
+        "clear": WinCondition.CLEAR,
+        "identify": WinCondition.IDENTIFY,
+        "sandbox": WinCondition.SANDBOX,
     }
     win = wc.get(win_condition.lower(), WinCondition.IDENTIFY)
 
@@ -184,15 +211,16 @@ async def setup_post(
     GAMES[suid] = {
         "board": board,
         "game": game,
-        "config": {"rows": rows, "cols": cols, "mines": mines,
-                   "ent_level": ent_level, "win": win, "moves": mv},
+        "config": {"rows": rows, "cols": cols, "mines": mines, "ent_level": ent_level, "win": win, "moves": mv},
     }
 
-    log.info(f"SETUP user={user_id} sid={suid} rows={rows} cols={cols} mines={mines} "
-             f"ent={ent_level} win={win.name} moves={mv.name}")
+    log.info(
+        f"SETUP user={user_id} sid={suid} rows={rows} cols={cols} mines={mines} "
+        f"ent={ent_level} win={win.name} moves={mv.name}"
+    )
 
-    return attach_user_cookie(RedirectResponse(f"/game?suid={suid}", status_code=303),
-                              user_id, request)
+    return attach_user_cookie(RedirectResponse(f"/game?suid={suid}", status_code=303), user_id, request)
+
 
 @app.get("/game", response_class=HTMLResponse)
 async def game_get(request: Request, suid: Optional[str] = Query(None, alias="suid")):
@@ -212,23 +240,32 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
     elif game.status == GameStatus.LOST:
         log.info(f"LOST user={user_id} sid={suid}")
 
-    return attach_user_cookie(templates.TemplateResponse("game.html", {
-        "request": request,
-        "grid": grid, 
-        "rows": board.rows, "cols": board.cols,
-        "status": game.status.name,
-        "moveset": game.cfg.move_set.name,
-        "suid": suid,
-        "mines_exp": mines_exp,
-        "ent_measure": ent_score,
-    }), user_id, request)
+    return attach_user_cookie(
+        templates.TemplateResponse(
+            "game.html",
+            {
+                "request": request,
+                "grid": grid,
+                "rows": board.rows,
+                "cols": board.cols,
+                "status": game.status.name,
+                "moveset": game.cfg.move_set.name,
+                "suid": suid,
+                "mines_exp": mines_exp,
+                "ent_measure": ent_score,
+            },
+        ),
+        user_id,
+        request,
+    )
+
 
 @app.post("/move")
 async def move_post(cmd: str = Form(...), suid: Optional[str] = Query(None, alias="suid")):
     if not suid or suid not in GAMES:
         return RedirectResponse("/setup", status_code=303)
 
-    board: QMineSweeperBoard = GAMES[suid]["board"]
+    # board: QMineSweeperBoard = GAMES[suid]["board"]
     game: QMineSweeperGame = GAMES[suid]["game"]
 
     try:
@@ -247,6 +284,7 @@ async def move_post(cmd: str = Form(...), suid: Optional[str] = Query(None, alia
         log.exception(f"MOVE error sid={suid} cmd='{cmd}' err={e}")
 
     return RedirectResponse(f"/game?suid={suid}", status_code=303)
+
 
 @app.post("/game")
 async def game_post(action: str = Form(...), suid: Optional[str] = Query(None, alias="suid")):
@@ -271,18 +309,19 @@ async def game_post(action: str = Form(...), suid: Optional[str] = Query(None, a
 
     return RedirectResponse(f"/game?suid={suid}", status_code=303)
 
+
 # --------- Markdown rendering ---------
 def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
     """
     Render markdown file to HTML.
-    
+
     Parameters
     ----------
     path : Path
         File to read.
     strip_title : bool
         If True, extracts first heading as title and strips it from body.
-    
+
     Returns
     -------
     title : str
@@ -301,7 +340,7 @@ def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
         for i, line in enumerate(lines):
             if line.strip().startswith("#"):
                 title = line.lstrip("# ").strip()
-                lines = lines[i+1:]
+                lines = lines[i + 1 :]
                 break
         text = "\n".join(lines).strip()
 
@@ -313,9 +352,7 @@ def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
             TocExtension(),
             "pymdownx.arithmatex",
         ],
-        extension_configs={
-            "pymdownx.arithmatex": {"generic": True}
-        }
+        extension_configs={"pymdownx.arithmatex": {"generic": True}},
     )
     return title, html
 
@@ -327,6 +364,7 @@ DOCS = {
     "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
 }
 templates.env.globals["docs"] = DOCS
+
 
 @app.get("/help/{obj_id}", response_class=JSONResponse)
 async def help_content(obj_id: str):

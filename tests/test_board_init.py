@@ -1,12 +1,13 @@
 # tests/test_board_init.py
-import numpy as np
-import pytest
 import random
 
+import numpy as np
+import pytest
+
 from qminesweeper.board import QMineSweeperBoard
+from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
-from qminesweeper.qiskit_backend import QiskitBackend
 
 
 def touched_indices(board: QMineSweeperBoard) -> list[int]:
@@ -46,7 +47,7 @@ def test_classical_mine_count_still_exact() -> None:
 
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
-def test_no_trivial_product_mines_level1(Backend : type[QuantumBackend]):
+def test_no_trivial_product_mines_level1(Backend: type[QuantumBackend]):
     """
     Level=1 stabilizer 'mines' are single-qubit stabilizers.
     We still require the sampler to avoid collapsing to the trivial |0...0> state
@@ -58,16 +59,17 @@ def test_no_trivial_product_mines_level1(Backend : type[QuantumBackend]):
 
     idxs = touched_indices(board)
     assert len(idxs) == nb, "Sampler must touch exactly nmines indices"
-    
+
     # If every touched index has <Z>=+1, that suggests |0...0> on that subset.
     expZ = board.board_expectations("Z").ravel()
-    assert not all(abs(float(expZ[i]) - 1.0) < 1e-9 for i in idxs), \
+    assert not all(abs(float(expZ[i]) - 1.0) < 1e-9 for i in idxs), (
         "Group collapsed to |0...0> (identity Clifford), which should be excluded"
+    )
 
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
 @pytest.mark.parametrize("level", [1, 2, 3])
-def test_group_levels_cover_indices(Backend : type[QuantumBackend], level : int):
+def test_group_levels_cover_indices(Backend: type[QuantumBackend], level: int):
     n = 5 if level == 3 else 4
     board = QMineSweeperBoard(n, n, Backend())
     nb = level * 2
@@ -81,7 +83,7 @@ def test_group_levels_cover_indices(Backend : type[QuantumBackend], level : int)
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
 @pytest.mark.parametrize("seed", list(range(10)))
-def test_remainder_smaller_groups_still_exact_coverage(Backend : type[QuantumBackend], seed : list[int]):
+def test_remainder_smaller_groups_still_exact_coverage(Backend: type[QuantumBackend], seed: list[int]):
     np.random.seed(seed)
     random.seed(seed)
 
@@ -94,7 +96,7 @@ def test_remainder_smaller_groups_still_exact_coverage(Backend : type[QuantumBac
 
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
-def test_randomness_varies(Backend : type[QuantumBackend]):
+def test_randomness_varies(Backend: type[QuantumBackend]):
     """
     Sanity check that the sampler produces different states across runs.
     We collect the full Z-expectations board and require at least one pair
@@ -106,8 +108,5 @@ def test_randomness_varies(Backend : type[QuantumBackend]):
         board.span_random_stabilizer_mines(nmines=3, level=2)
         exps.append(board.board_expectations("Z").copy())
 
-    found_diff = any(
-        not np.allclose(exps[i], exps[j])
-        for i in range(len(exps)) for j in range(i + 1, len(exps))
-    )
+    found_diff = any(not np.allclose(exps[i], exps[j]) for i in range(len(exps)) for j in range(i + 1, len(exps)))
     assert found_diff, "Sampler did not produce varied states across runs"

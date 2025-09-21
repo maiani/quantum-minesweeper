@@ -1,7 +1,8 @@
 # qminesweeper/quantum_backend.py
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 
 class StabilizerQuantumState(ABC):

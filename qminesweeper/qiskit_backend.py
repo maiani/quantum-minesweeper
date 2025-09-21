@@ -1,9 +1,23 @@
 # qminesweeper/qiskit_backend.py
 from __future__ import annotations
+
 from typing import List, Optional, Tuple
+
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import StabilizerState, Pauli, Clifford, random_clifford
-from qiskit.circuit.library import XGate, YGate, ZGate, HGate, SGate, SXGate, SdgGate, CXGate, CYGate, CZGate, SwapGate
+from qiskit.circuit.library import (
+    CXGate,
+    CYGate,
+    CZGate,
+    HGate,
+    SdgGate,
+    SGate,
+    SwapGate,
+    SXGate,
+    XGate,
+    YGate,
+    ZGate,
+)
+from qiskit.quantum_info import Clifford, Pauli, StabilizerState, random_clifford
 
 from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
@@ -37,10 +51,17 @@ class QiskitState(StabilizerQuantumState):
 
     def apply_gate(self, gate: str, targets: List[int]) -> None:
         gate_map = {
-            "X": XGate, "Y": YGate, "Z": ZGate,
-            "H": HGate, "S": SGate, "Sdg": SdgGate,
+            "X": XGate,
+            "Y": YGate,
+            "Z": ZGate,
+            "H": HGate,
+            "S": SGate,
+            "Sdg": SdgGate,
             "SX": SXGate,
-            "CX": CXGate, "CY": CYGate, "CZ": CZGate, "SWAP": SwapGate,
+            "CX": CXGate,
+            "CY": CYGate,
+            "CZ": CZGate,
+            "SWAP": SwapGate,
         }
         gate_cls = gate_map.get(gate)
         if gate_cls is None:

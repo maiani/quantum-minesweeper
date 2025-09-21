@@ -35,9 +35,6 @@ cd quantum-minesweeper
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python -m pip install -U pip
-
-# Editable install with extras (stim, qiskit, dev tools, etc.)
-pip install -e ".[dev]"
 ```
 ---
 
@@ -104,12 +101,20 @@ Right-click pins a cell.
 
 ## 🧪 Development & Testing
 
-Run tests with [pytest](https://pytest.org/):
+You can install the package including the development dependencies in editable mode as 
+
+```bash
+pip install -e ".[dev]"
+pre-commit install
+```
+
+We run tests with [pytest](https://pytest.org/):
 ```bash
 pytest tests/
 ```
 
-Project structure:
+
+## Project structure:
 ```
 qminesweeper/
   __main__.py           # Typer CLI: tui, webui

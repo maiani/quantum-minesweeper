@@ -4,11 +4,11 @@ from __future__ import annotations
 import typer
 import uvicorn
 
-from qminesweeper.textUI import run_tui
-from qminesweeper.stim_backend import StimBackend
-from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.logging_config import setup_logging
+from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.settings import get_settings
+from qminesweeper.stim_backend import StimBackend
+from qminesweeper.textUI import run_tui
 
 # Initialize logging once (uvicorn still prints its own access logs)
 setup_logging()
@@ -17,6 +17,7 @@ setup_logging()
 settings = get_settings()
 
 app = typer.Typer(help="Quantum Minesweeper CLI")
+
 
 @app.command()
 def tui(backend: str = typer.Option("stim", help="Backend: stim or qiskit")):
@@ -27,6 +28,7 @@ def tui(backend: str = typer.Option("stim", help="Backend: stim or qiskit")):
         run_tui(QiskitBackend())
     else:
         typer.echo("Invalid backend, choose 'stim' or 'qiskit'")
+
 
 @app.command()
 def webui(
@@ -41,6 +43,7 @@ def webui(
         port=port,
         reload=reload,
     )
+
 
 if __name__ == "__main__":
     app()

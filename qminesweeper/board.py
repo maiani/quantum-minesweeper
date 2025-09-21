@@ -1,16 +1,19 @@
 # qminesweeper/board.py
 from __future__ import annotations
+
+import math
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import List, Tuple, Dict, Optional
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
-import math
 
 from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
 
 
 class CellState(IntEnum):
     """Exploration state of a cell."""
+
     UNEXPLORED = 0
     PINNED = 1
     EXPLORED = 2
@@ -18,9 +21,14 @@ class CellState(IntEnum):
 
 # Offsets for 8-neighborhood (row, col)
 NBR_OFFSETS = [
-    (-1, -1), (-1, 0), (-1, 1),
-    ( 0, -1),          ( 0, 1),
-    ( 1, -1), ( 1, 0), ( 1, 1),
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, -1),
+    (0, 1),
+    (1, -1),
+    (1, 0),
+    (1, 1),
 ]
 
 
@@ -28,7 +36,7 @@ NBR_OFFSETS = [
 class MeasureMoveResult:
     """
     Result of measure move.
-    
+
     Attributes
     ----------
     idx : int
@@ -42,6 +50,7 @@ class MeasureMoveResult:
     skipped : bool
         True if measurement was skipped due to PINNED/EXPLORED.
     """
+
     idx: int
     outcome: Optional[int]
     explored: List[Tuple[int, int]]
@@ -121,7 +130,7 @@ class QMineSweeperBoard:
         """Return a copy of the current exploration grid."""
         return self._exploration.copy()
 
-    # ---------- preparation ----------    
+    # ---------- preparation ----------
     @property
     def preparation_circuit(self):
         """Return the preparation circuit (read-only shallow copy)."""
@@ -216,8 +225,7 @@ class QMineSweeperBoard:
             else:
                 # Exhausted retries without touching all wires — surface a clear error
                 raise RuntimeError(
-                    f"Failed to sample Clifford touching all {k} wires after {MAX_TRIES} attempts "
-                    f"(group={group})."
+                    f"Failed to sample Clifford touching all {k} wires after {MAX_TRIES} attempts (group={group})."
                 )
 
         # Commit the entire preparation in one shot; reset() applies it to self.state.
@@ -239,8 +247,7 @@ class QMineSweeperBoard:
         in the chosen basis.
         """
         b = basis or self._clue_basis
-        return sum(0.5 * (1.0 - self.expectation(self.index(nr, nc), b))
-                   for nr, nc in self.neighbors(r, c))
+        return sum(0.5 * (1.0 - self.expectation(self.index(nr, nc), b)) for nr, nc in self.neighbors(r, c))
 
     def get_clue(self, r: int, c: int) -> float:
         """
@@ -330,21 +337,19 @@ class QMineSweeperBoard:
     # ---------- entanglement & entropy ----------
     def _bloch_vector(self, idx: int) -> tuple[float, float, float]:
         """Return Bloch vector components (<X>,<Y>,<Z>) for qubit idx."""
-        return (self.expectation(idx, "X"),
-                self.expectation(idx, "Y"),
-                self.expectation(idx, "Z"))
+        return (self.expectation(idx, "X"), self.expectation(idx, "Y"), self.expectation(idx, "Z"))
 
     def _bloch_length(self, idx: int) -> float:
         """Return Bloch vector length |r| for qubit idx."""
         Ex, Ey, Ez = self._bloch_vector(idx)
-        return math.sqrt(Ex*Ex + Ey*Ey + Ez*Ez)
+        return math.sqrt(Ex * Ex + Ey * Ey + Ez * Ez)
 
     @staticmethod
     def _H2(p: float) -> float:
         """Binary entropy H2(p) in bits, with 0 log 0 = 0 convention."""
         if p <= 0.0 or p >= 1.0:
             return 0.0
-        return -(p*math.log2(p) + (1.0-p)*math.log2(1.0-p))
+        return -(p * math.log2(p) + (1.0 - p) * math.log2(1.0 - p))
 
     def single_qubit_entropy(self, idx: int) -> float:
         """Single-qubit entanglement entropy (vs. rest of system)."""
@@ -372,7 +377,7 @@ class QMineSweeperBoard:
     def export_numeric_grid(self) -> np.ndarray:
         """
         Export board for UI rendering.
-        
+
         Encoding:
         -1 = unexplored
         -2 = pinned

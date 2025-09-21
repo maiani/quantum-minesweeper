@@ -2,6 +2,7 @@
 import logging
 from logging.config import dictConfig
 
+
 def setup_logging(level: str = "INFO", use_colors: bool = True):
     """
     Configure logging to mimic Uvicorn's default style but with timestamp.

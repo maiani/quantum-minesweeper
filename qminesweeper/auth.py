@@ -1,5 +1,6 @@
 # qminesweeper/ayth.py
 from __future__ import annotations
+
 import base64
 import secrets
 from typing import Iterable, Optional, Set
@@ -10,6 +11,7 @@ from starlette.responses import Response
 from qminesweeper.settings import get_settings
 
 # ---------- middleware ----------
+
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
     """
@@ -34,8 +36,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
         pass_str = (password or "").strip()
         if not user_str or not pass_str:
             raise RuntimeError(
-                "BasicAuthMiddleware: credentials not configured. "
-                "Provide username/password (from settings or args)."
+                "BasicAuthMiddleware: credentials not configured. Provide username/password (from settings or args)."
             )
 
         # store as bytes for constant-time comparisons
@@ -81,7 +82,9 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
+
 # ---------- setup API ----------
+
 
 def enable_basic_auth(
     app,
@@ -104,11 +107,10 @@ def enable_basic_auth(
         return False
 
     u = (username or settings.USER or "").strip()
-    p = (password  or settings.PASS or "").strip()
+    p = (password or settings.PASS or "").strip()
     if not u or not p:
         raise RuntimeError(
-            "Auth is enabled but credentials are missing. "
-            "Set QMS_USER / QMS_PASS or pass username/password."
+            "Auth is enabled but credentials are missing. Set QMS_USER / QMS_PASS or pass username/password."
         )
 
     app.add_middleware(
