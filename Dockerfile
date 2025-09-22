@@ -41,9 +41,5 @@ RUN python -m pip install --upgrade pip \
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Basic Auth defaults (override in deploy)
-ENV DEMO_USER=demo \
-    DEMO_PASS=nordita
-
 EXPOSE 8080
 CMD ["sh","-c","uvicorn qminesweeper.webapp:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --proxy-headers"]

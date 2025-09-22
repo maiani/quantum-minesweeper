@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Runtime
     BACKEND: str = "stim"  # "stim" or "qiskit"
     WEB_HOST: str = "127.0.0.1"  # default bind host for webui
-    WEB_PORT: int = 8000  # default port for webui
+    WEB_PORT: int = 8080  # default port for webui
 
     model_config = SettingsConfigDict(
         env_prefix="QMS_",
