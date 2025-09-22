@@ -69,21 +69,51 @@ def test_no_trivial_product_mines_level1(Backend: type[QuantumBackend]):
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
 @pytest.mark.parametrize("level", [1, 2, 3])
-def test_group_levels_cover_indices(Backend: type[QuantumBackend], level: int):
+@pytest.mark.parametrize("seed", list(range(32)))
+def test_group_levels_cover_indices(Backend: type[QuantumBackend], level: int, seed: int):
+    """
+    For stabilizer mines with group size `level`, ensure that:
+      1. Exactly `nmines` distinct qubits are touched.
+      2. Each touched qubit is actually non-trivial (not left as |0⟩).
+         That is, its ⟨Z⟩ expectation should not be +1.
+
+    This prevents the sampler from generating identity blocks or
+    per-qubit trivial stabilizers (e.g., H;H or S;Sdg).
+    """
+    np.random.seed(seed)
+    random.seed(seed)
+
     n = 5 if level == 3 else 4
-    board = QMineSweeperBoard(n, n, Backend())
     nb = level * 2
+    board = QMineSweeperBoard(n, n, Backend())
     board.span_random_stabilizer_mines(nmines=nb, level=level)
 
+    # Collect the indices that appear in the preparation circuit
     idxs = touched_indices(board)
-    assert len(idxs) == nb
+    assert len(idxs) == nb, "Sampler must touch exactly nmines indices"
+
+    # For each touched qubit, ⟨Z⟩ must not be +1 (i.e., not left in |0⟩)
     expZ = board.board_expectations("Z").ravel()
-    assert not all(abs(float(expZ[i]) - 1.0) < 1e-9 for i in idxs)
+    for i in idxs:
+        assert abs(float(expZ[i]) - 1.0) > 1e-9, f"Qubit {i} left trivial (⟨Z⟩=+1)"
 
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
-@pytest.mark.parametrize("seed", list(range(10)))
-def test_remainder_smaller_groups_still_exact_coverage(Backend: type[QuantumBackend], seed: list[int]):
+@pytest.mark.parametrize("seed", list(range(32)))
+def test_remainder_smaller_groups_still_exact_coverage(
+    Backend: type[QuantumBackend], seed: int
+):
+    """
+    When `nmines` is not divisible by `level`, the sampler must
+    still cover exactly `nmines` distinct qubits.
+
+    Example: with `nmines=5` and `level=3`, groups will be formed
+    like [3] + [2]. This test ensures that the remainder group is
+    handled correctly — no qubits are dropped or duplicated.
+
+    We repeat with multiple RNG seeds to ensure robustness across
+    randomized choices of indices.
+    """
     np.random.seed(seed)
     random.seed(seed)
 

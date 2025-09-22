@@ -162,15 +162,11 @@ class QMineSweeperBoard:
         """
         Prepare the board with random stabilizer “mine” groups.
 
-        - Partition the chosen `nmines` distinct qubit indices into groups of size up to `level`.
-        - For each group of size k, repeatedly sample a k-qubit Clifford circuit from the backend
-          until the *decomposition touches every local wire* at least once.
-        - Convert each gate’s local targets (0..k-1) to **global** board indices and append to a
-          single preparation circuit.
-        - Finally, set that circuit as the board’s preparation and `reset()` to apply it.
-
-        This makes tests that inspect `board.preparation_circuit` (coverage) pass, and preserves a
-        single source of truth for the prepared state.
+        Guarantees:
+        - Each group is sampled until the decomposition:
+            (a) touches every local wire at least once, AND
+            (b) acts non-trivially on every local wire, i.e. starting from |0^k>,
+                the final state's <Z> != +1 on each local qubit (no identity per wire).
 
         Parameters
         ----------
@@ -185,7 +181,7 @@ class QMineSweeperBoard:
         ValueError
             If `nmines` exceeds the number of qubits on the board.
         RuntimeError
-            If the backend repeatedly returns a decomposition that fails to touch all k wires.
+            If the backend repeatedly returns decompositions that fail the criteria.
         """
         if nmines > self.n:
             raise ValueError("Too many mines for board size")
@@ -198,39 +194,43 @@ class QMineSweeperBoard:
 
         while pool:
             k = min(level, len(pool))
-            # Pop k distinct global indices for this group
             group: list[int] = [int(pool.pop()) for _ in range(k)]
 
-            # Re-sample until every local wire (0..k-1) appears in some gate's target list
             MAX_TRIES = 256
             for _ in range(MAX_TRIES):
                 local_circ = self.backend.random_clifford_circuit(k)
+
                 # Track which local wires (0..k-1) are referenced by any gate
                 touched_local: set[int] = set()
-
-                # Stash mapped gates in case this sample is valid
-                mapped_ops: list[tuple[str, list[int]]] = []
-
-                for gate, local_targets in local_circ:
-                    # Record touches using local (0..k-1) indices
+                for _, local_targets in local_circ:
                     for t in local_targets:
                         touched_local.add(int(t))
-                    # Map to global board indices
-                    mapped_ops.append((gate, [group[t] for t in local_targets]))
 
-                if len(touched_local) == k:
-                    # Success: append to the global prep circuit and move to next group
-                    full_circuit.extend(mapped_ops)
+                if len(touched_local) != k:
+                    # Must touch every wire at least once
+                    continue
+
+                # Simulate on a temporary k-qubit stabilizer state to reject per-wire identity.
+                tmp = self.backend.generate_stabilizer_state(k)
+                for gate, local_targets in local_circ:
+                    tmp.apply_gate(gate, [int(t) for t in local_targets])
+
+                # Require: for EVERY local wire i, <Z_i> != +1 (i.e., not left at |0>)
+                expZ = [float(tmp.expectation_pauli(i, "Z")) for i in range(k)]
+                if all(abs(z - 1.0) > 1e-9 for z in expZ):
+                    # Map to global board indices and accept this block
+                    for gate, local_targets in local_circ:
+                        full_circuit.append((gate, [group[t] for t in local_targets]))
                     break
             else:
-                # Exhausted retries without touching all wires — surface a clear error
                 raise RuntimeError(
-                    f"Failed to sample Clifford touching all {k} wires after {MAX_TRIES} attempts (group={group})."
+                    f"Failed to sample non-trivial Clifford touching all {k} wires "
+                    f"after {MAX_TRIES} attempts (group={group})."
                 )
 
-        # Commit the entire preparation in one shot; reset() applies it to self.state.
         self.set_preparation(full_circuit)
         self.reset()
+
 
     # ---------- mechanics: expectations/clues ----------
     def expectation(self, idx: int, basis: str) -> float:

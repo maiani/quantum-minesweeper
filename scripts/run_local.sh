@@ -8,6 +8,7 @@ if [ -f .env ]; then
 fi
 
 IMAGE=$(cat .last_image 2>/dev/null || echo "qminesweeper:latest")
+CONTAINER_NAME="qminesweeper-local"
 
 echo ">>> Running $IMAGE locally..."
-docker run --name qminesweeper-local -p 8080:8080 $ENV_FILE_OPT "$IMAGE"
+docker run --name $CONTAINER_NAME -p 8080:8080 $ENV_FILE_OPT "$IMAGE"
