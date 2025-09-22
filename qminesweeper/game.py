@@ -49,6 +49,7 @@ class MoveSet(Enum):
     ONE_QUBIT = auto()  # + single-qubit gates
     ONE_QUBIT_COMPLETE = auto()  # + single-qubit gates (all)
     TWO_QUBIT = auto()  # + two-qubit gates
+    TWO_QUBIT_EXTENDED = ()
 
 
 _GATE_FROM_MOVE = {
@@ -58,7 +59,6 @@ _GATE_FROM_MOVE = {
     MoveType.H_GATE: "H",
     MoveType.S_GATE: "S",
     MoveType.SDG_GATE: "Sdg",
-    MoveType.SX_GATE: "SX",
     MoveType.SXDG_GATE: "SXdg",
     MoveType.SY_GATE: "SY",
     MoveType.SYDG_GATE: "SYdg",
@@ -68,7 +68,7 @@ _GATE_FROM_MOVE = {
     MoveType.SWAP_GATE: "SWAP",
 }
 
-_ALLOWED = {
+ALLOWED_MOVES = {
     MoveSet.CLASSIC: {MoveType.MEASURE, MoveType.PIN_TOGGLE},
     MoveSet.ONE_QUBIT: {
         MoveType.MEASURE,
@@ -88,12 +88,39 @@ _ALLOWED = {
         MoveType.H_GATE,
         MoveType.S_GATE,
         MoveType.SDG_GATE,
-        MoveType.SX_GATE,
         MoveType.SXDG_GATE,
         MoveType.SY_GATE,
         MoveType.SYDG_GATE,
     },
-    MoveSet.TWO_QUBIT: set(MoveType),
+    MoveSet.TWO_QUBIT: {
+        MoveType.MEASURE,
+        MoveType.PIN_TOGGLE,
+        MoveType.X_GATE,
+        MoveType.Y_GATE,
+        MoveType.Z_GATE,
+        MoveType.H_GATE,
+        MoveType.S_GATE,
+        MoveType.CX_GATE,
+        MoveType.CZ_GATE,
+        MoveType.SWAP_GATE,
+    },
+    MoveSet.TWO_QUBIT_EXTENDED: {
+        MoveType.MEASURE,
+        MoveType.PIN_TOGGLE,
+        MoveType.X_GATE,
+        MoveType.Y_GATE,
+        MoveType.Z_GATE,
+        MoveType.H_GATE,
+        MoveType.S_GATE,
+        MoveType.SDG_GATE,
+        MoveType.SXDG_GATE,
+        MoveType.SY_GATE,
+        MoveType.SYDG_GATE,
+        MoveType.CX_GATE,
+        MoveType.CY_GATE,
+        MoveType.CZ_GATE,
+        MoveType.SWAP_GATE,
+    },
 }
 
 
@@ -129,7 +156,7 @@ class QMineSweeperGame:
 
     # ---------- permissions ----------
     def _allowed(self, mt: MoveType) -> bool:
-        return mt in _ALLOWED[self.cfg.move_set]
+        return mt in ALLOWED_MOVES[self.cfg.move_set]
 
     # ---------- commands ----------
     def cmd_toggle_pin(self, r: int, c: int):

@@ -2,7 +2,31 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from enum import StrEnum
 from typing import List, Optional, Tuple
+
+
+class QuantumGate(StrEnum):
+    """
+    Backend-agnostic set of Clifford gates
+    """
+
+    # Single-qubit
+    X = "X"
+    Y = "Y"
+    Z = "Z"
+    H = "H"
+    S = "S"
+    Sdg = "Sdg"
+    SXdg = "SXdg"
+    SY = "SY"
+    SYdg = "SYdg"
+
+    # Two-qubit
+    CX = "CX"
+    CY = "CY"
+    CZ = "CZ"
+    SWAP = "SWAP"
 
 
 class StabilizerQuantumState(ABC):
@@ -14,7 +38,7 @@ class StabilizerQuantumState(ABC):
         ...
 
     @abstractmethod
-    def measure(self, idx: int) -> int:
+    def measure(self, idx: int, basis: str = "Z") -> int:
         """Projectively measure qubit `idx` in the Z basis and return 0/1."""
         ...
 
@@ -48,7 +72,7 @@ class QuantumBackend(ABC):
 
         The returned gate names MUST be in the vocabulary accepted by
         StabilizerQuantumState.apply_gate (e.g., 'X','Y','Z','H','S','Sdg',
-        'SX','SXdg','SY','SYdg','CX','CY','CZ','SWAP').
+        'SXdg','SY','SYdg','CX','CY','CZ','SWAP').
 
         Implementations are free to choose any (reasonable) decomposition.
         """

@@ -1,11 +1,9 @@
 # qminesweeper/stim_backend.py
 from __future__ import annotations
 
-from typing import List
-
 import stim
 
-from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState
 
 
 class StimState(StabilizerQuantumState):
@@ -15,9 +13,22 @@ class StimState(StabilizerQuantumState):
         self.n = n_qubits
         self._init_state()
 
+    # ---------- internal helpers ----------
+
     def _init_state(self) -> None:
+        """Initialize tableau to |0>^n."""
         self.tab = stim.TableauSimulator()
         self.tab.set_num_qubits(self.n)
+
+    def _do1(self, opname: str, t: int) -> None:
+        """Apply a single-qubit op by name to target index."""
+        self.tab.do(stim.Circuit(f"{opname} {t}"))
+
+    def _do2(self, opname: str, t0: int, t1: int) -> None:
+        """Apply a two-qubit op by name to (t0, t1)."""
+        self.tab.do(stim.Circuit(f"{opname} {t0} {t1}"))
+
+    # ---------- public API ----------
 
     def reset(self) -> None:
         """Reset to |0>^n."""
@@ -35,36 +46,117 @@ class StimState(StabilizerQuantumState):
         obs = stim.PauliString("".join(pauli))
         return float(self.tab.peek_observable_expectation(obs))
 
-    def measure(self, idx: int) -> int:
-        return int(self.tab.measure(idx))
+    def measure(self, idx: int, basis: str = "Z") -> int:
+        """
+        Projectively measure qubit `idx` in a Pauli basis (X, Y, or Z).
+        We rotate into Z, measure, then rotate back, so the post-measurement
+        state matches a true X/Y/Z measurement collapse.
+        """
+        if basis == "Z":
+            return int(self.tab.measure(idx))
 
-    def apply_gate(self, gate: str, targets: List[int]) -> None:
-        op = StimBackend.gate_name_map.get(gate)
-        if op is None:
-            raise ValueError(f"Unsupported gate for Stim: {gate}")
-        instr = op + " " + " ".join(str(t) for t in targets)
-        self.tab.do(stim.Circuit(instr))
+        if basis == "X":
+            # U = H; U Z U† = X
+            self._do1("H", idx)
+            out = int(self.tab.measure(idx))
+            self._do1("H", idx)
+            return out
+
+        if basis == "Y":
+            # U = S_DAG ∘ H; U Z U† = Y
+            self._do1("S_DAG", idx)
+            self._do1("H", idx)
+            out = int(self.tab.measure(idx))
+            self._do1("H", idx)
+            self._do1("S", idx)
+            return out
+
+        raise ValueError("Basis must be 'X','Y','Z'")
+
+    def apply_gate(self, gate: QuantumGate | str, targets: list[int]) -> None:
+        """
+        Apply a supported Clifford gate.
+
+        Parameters
+        ----------
+        gate : QuantumGate | str
+            Gate name or QuantumGate enum.
+        targets : list[int]
+            Target indices.
+        """
+        if isinstance(gate, str):
+            try:
+                gate_enum = QuantumGate[gate]
+            except KeyError:
+                raise ValueError(f"Unsupported gate for Stim: {gate}")
+        else:
+            gate_enum = gate
+
+        # one-qubit gates
+        if gate_enum == QuantumGate.X:
+            for t in targets:
+                self._do1("X", t)
+                return
+        if gate_enum == QuantumGate.Y:
+            for t in targets:
+                self._do1("Y", t)
+                return
+        if gate_enum == QuantumGate.Z:
+            for t in targets:
+                self._do1("Z", t)
+                return
+        if gate_enum == QuantumGate.H:
+            for t in targets:
+                self._do1("H", t)
+                return
+        if gate_enum == QuantumGate.S:
+            for t in targets:
+                self._do1("S", t)
+                return
+        if gate_enum == QuantumGate.Sdg:
+            for t in targets:
+                self._do1("S_DAG", t)
+                return
+        if gate_enum == QuantumGate.SXdg:
+            for t in targets:
+                self._do1("SQRT_X_DAG", t)
+                return
+        if gate_enum == QuantumGate.SY:
+            for t in targets:
+                self._do1("SQRT_Y", t)
+                return
+        if gate_enum == QuantumGate.SYdg:
+            for t in targets:
+                self._do1("SQRT_Y_DAG", t)
+                return
+
+        # two-qubit gates
+        if gate_enum == QuantumGate.CX:
+            if len(targets) != 2:
+                raise ValueError("CX expects 2 targets")
+            self._do2("CX", targets[0], targets[1])
+            return
+        if gate_enum == QuantumGate.CY:
+            if len(targets) != 2:
+                raise ValueError("CY expects 2 targets")
+            self._do2("CY", targets[0], targets[1])
+            return
+        if gate_enum == QuantumGate.CZ:
+            if len(targets) != 2:
+                raise ValueError("CZ expects 2 targets")
+            self._do2("CZ", targets[0], targets[1])
+            return
+        if gate_enum == QuantumGate.SWAP:
+            if len(targets) != 2:
+                raise ValueError("SWAP expects 2 targets")
+            self._do2("SWAP", targets[0], targets[1])
+            return
+
+        raise ValueError(f"Unsupported gate for Stim: {gate_enum}")
 
 
 class StimBackend(QuantumBackend):
     """Factory that creates Stim stabilizer states."""
-
-    gate_name_map = {
-        "X": "X",
-        "Y": "Y",
-        "Z": "Z",
-        "H": "H",
-        "S": "S",
-        "Sdg": "S_DAG",
-        "SX": "SQRT_X",
-        "SXdg": "SQRT_X_DAG",
-        "SY": "SQRT_Y",
-        "SYdg": "SQRT_Y_DAG",
-        "CX": "CX",
-        "CY": "CY",
-        "CZ": "CZ",
-        "SWAP": "SWAP",
-    }
 
     def generate_stabilizer_state(self, n_qubits: int) -> StabilizerQuantumState:
         return StimState(n_qubits)
@@ -99,12 +191,9 @@ class StimBackend(QuantumBackend):
                 continue
 
             name = name_map.get(name, name)
-            arity = ARITY[name]
+            arity = ARITY[name]  # 1 or 2
 
-            # collect only real qubit indices
             qubits = [t.value for t in inst.targets_copy() if t.is_qubit_target]
-
-            # sanity: Stim sometimes emits packed targets, split correctly
             if len(qubits) % arity != 0:
                 raise ValueError(f"Unexpected arity for {name}: {qubits}")
 

@@ -205,6 +205,7 @@ async def setup_post(
         "one": MoveSet.ONE_QUBIT,
         "one_complete": MoveSet.ONE_QUBIT_COMPLETE,
         "two": MoveSet.TWO_QUBIT,
+        "two_extended": MoveSet.TWO_QUBIT_EXTENDED,
     }.get(move_set.lower(), MoveSet.CLASSIC)
 
     board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)
