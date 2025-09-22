@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto
-from typing import List, Tuple
 
 import numpy as np
 
 from qminesweeper.board import CellState, MeasureMoveResult, QMineSweeperBoard
+from qminesweeper.quantum_backend import QuantumGate
 
 
 class GameStatus(IntEnum):
@@ -18,108 +18,77 @@ class GameStatus(IntEnum):
 
 class WinCondition(Enum):
     IDENTIFY = auto()  # identify all mines (all safe cells explored)
-    CLEAR = auto()  # clear all mines (prob=0 evrywhere)
+    CLEAR = auto()  # clear all mines (prob=0 everywhere)
     SANDBOX = auto()  # no win condition
 
 
-class MoveType(IntEnum):
-    # Non-quantum
-    PIN_TOGGLE = -1
-    MEASURE = 0
-    # 1-qubit
-    X_GATE = 1
-    Y_GATE = 2
-    Z_GATE = 3
-    H_GATE = 4
-    S_GATE = 5
-    SDG_GATE = 6
-    SX_GATE = 7
-    SXDG_GATE = 8
-    SY_GATE = 9
-    SYDG_GATE = 10
-    # 2-qubit
-    CX_GATE = 11
-    CY_GATE = 12
-    CZ_GATE = 13
-    SWAP_GATE = 14
+# Non-gate actions that are still "moves"
+class Action(Enum):
+    MEASURE = "M"
+    PIN = "P"
 
 
 class MoveSet(Enum):
-    CLASSIC = auto()  #   measure + pin
+    CLASSIC = auto()  # measure + pin
     ONE_QUBIT = auto()  # + single-qubit gates
     ONE_QUBIT_COMPLETE = auto()  # + single-qubit gates (all)
     TWO_QUBIT = auto()  # + two-qubit gates
-    TWO_QUBIT_EXTENDED = ()
+    TWO_QUBIT_EXTENDED = ()  # + two-qubit + all 1-qubit
 
 
-_GATE_FROM_MOVE = {
-    MoveType.X_GATE: "X",
-    MoveType.Y_GATE: "Y",
-    MoveType.Z_GATE: "Z",
-    MoveType.H_GATE: "H",
-    MoveType.S_GATE: "S",
-    MoveType.SDG_GATE: "Sdg",
-    MoveType.SXDG_GATE: "SXdg",
-    MoveType.SY_GATE: "SY",
-    MoveType.SYDG_GATE: "SYdg",
-    MoveType.CX_GATE: "CX",
-    MoveType.CY_GATE: "CY",
-    MoveType.CZ_GATE: "CZ",
-    MoveType.SWAP_GATE: "SWAP",
-}
-
-ALLOWED_MOVES = {
-    MoveSet.CLASSIC: {MoveType.MEASURE, MoveType.PIN_TOGGLE},
+# Allowed moves: mix of Action and QuantumGate enums
+ALLOWED_MOVES: dict[MoveSet, set[Action | QuantumGate]] = {
+    MoveSet.CLASSIC: {Action.MEASURE, Action.PIN},
     MoveSet.ONE_QUBIT: {
-        MoveType.MEASURE,
-        MoveType.PIN_TOGGLE,
-        MoveType.X_GATE,
-        MoveType.Y_GATE,
-        MoveType.Z_GATE,
-        MoveType.H_GATE,
-        MoveType.S_GATE,
+        Action.MEASURE,
+        Action.PIN,
+        QuantumGate.X,
+        QuantumGate.Y,
+        QuantumGate.Z,
+        QuantumGate.H,
+        QuantumGate.S,
     },
     MoveSet.ONE_QUBIT_COMPLETE: {
-        MoveType.MEASURE,
-        MoveType.PIN_TOGGLE,
-        MoveType.X_GATE,
-        MoveType.Y_GATE,
-        MoveType.Z_GATE,
-        MoveType.H_GATE,
-        MoveType.S_GATE,
-        MoveType.SDG_GATE,
-        MoveType.SXDG_GATE,
-        MoveType.SY_GATE,
-        MoveType.SYDG_GATE,
+        Action.MEASURE,
+        Action.PIN,
+        QuantumGate.X,
+        QuantumGate.Y,
+        QuantumGate.Z,
+        QuantumGate.H,
+        QuantumGate.S,
+        QuantumGate.Sdg,
+        QuantumGate.SXdg,
+        QuantumGate.SY,
+        QuantumGate.SYdg,
     },
     MoveSet.TWO_QUBIT: {
-        MoveType.MEASURE,
-        MoveType.PIN_TOGGLE,
-        MoveType.X_GATE,
-        MoveType.Y_GATE,
-        MoveType.Z_GATE,
-        MoveType.H_GATE,
-        MoveType.S_GATE,
-        MoveType.CX_GATE,
-        MoveType.CZ_GATE,
-        MoveType.SWAP_GATE,
+        Action.MEASURE,
+        Action.PIN,
+        QuantumGate.X,
+        QuantumGate.Y,
+        QuantumGate.Z,
+        QuantumGate.H,
+        QuantumGate.S,
+        QuantumGate.CX,
+        QuantumGate.CZ,
+        QuantumGate.SWAP,
     },
     MoveSet.TWO_QUBIT_EXTENDED: {
-        MoveType.MEASURE,
-        MoveType.PIN_TOGGLE,
-        MoveType.X_GATE,
-        MoveType.Y_GATE,
-        MoveType.Z_GATE,
-        MoveType.H_GATE,
-        MoveType.S_GATE,
-        MoveType.SDG_GATE,
-        MoveType.SXDG_GATE,
-        MoveType.SY_GATE,
-        MoveType.SYDG_GATE,
-        MoveType.CX_GATE,
-        MoveType.CY_GATE,
-        MoveType.CZ_GATE,
-        MoveType.SWAP_GATE,
+        Action.MEASURE,
+        Action.PIN,
+        QuantumGate.X,
+        QuantumGate.Y,
+        QuantumGate.Z,
+        QuantumGate.H,
+        QuantumGate.S,
+        QuantumGate.Sdg,
+        QuantumGate.SXdg,
+        QuantumGate.SY,
+        QuantumGate.SYdg,
+        QuantumGate.CX,
+        QuantumGate.CY,
+        QuantumGate.CZ,
+        QuantumGate.SWAP,
     },
 }
 
@@ -139,32 +108,26 @@ class QMineSweeperGame:
     """
 
     def __init__(self, board: QMineSweeperBoard, config: GameConfig):
-        """
-        Initialize a new game with the given board and configuration.
-
-        Parameters
-        ----------
-        board : QMineSweeperBoard
-            The game board.
-        config : GameConfig
-            The game configuration (win condition, move set).
-        """
-
         self.board = board
         self.cfg = config
         self.status = GameStatus.ONGOING
 
     # ---------- permissions ----------
-    def _allowed(self, mt: MoveType) -> bool:
-        return mt in ALLOWED_MOVES[self.cfg.move_set]
+    def _allowed(self, move: Action | QuantumGate) -> bool:
+        return move in ALLOWED_MOVES[self.cfg.move_set]
 
     # ---------- commands ----------
-    def cmd_toggle_pin(self, r: int, c: int):
+    def cmd_toggle_pin(self, r: int, c: int) -> None:
         """
-        Toggle a pin on cell (r,c).
+        Toggles the pin status of the cell at the specified row and column.
+        Args:
+            r (int): The row index of the cell to toggle pin.
+            c (int): The column index of the cell to toggle pin.
+        Raises:
+            ValueError: If pinning is not allowed in the current MoveSet.
         """
 
-        if not self._allowed(MoveType.PIN_TOGGLE):
+        if not self._allowed(Action.PIN):
             raise ValueError("Pin not allowed in this MoveSet")
         self.board.toggle_pin(r, c)
         self._check_win()
@@ -185,55 +148,57 @@ class QMineSweeperGame:
         MeasureResult
             The result of the measurement.
         """
-        if not self._allowed(MoveType.MEASURE):
+        if not self._allowed(Action.MEASURE):
             raise ValueError("Measure not allowed in this MoveSet")
         res = self.board.measure_cell(r, c)
         self._update_status_after_measure(res)
         return res
 
-    def cmd_gate(self, gate: str, targets: List[Tuple[int, int]]):
+    def cmd_gate(self, gate: str | QuantumGate, targets: list[tuple[int, int]]) -> None:
         """
         Apply a quantum gate to the specified targets.
 
         Parameters
         ----------
-        gate : str
-            The gate to apply (e.g., "X", "H", "CX").
-        targets : List[Tuple[int, int]]
-            List of (row, col) tuples specifying the target cells.
+        gate : str | QuantumGate
+            Gate name (e.g., "X", "H", "CX"). Case-insensitive if str.
+        targets : list[tuple[int, int]]
+            List of (row, col) targets.
         """
+        # Normalize to QuantumGate
+        if isinstance(gate, QuantumGate):
+            gate_enum = gate
+        else:
+            try:
+                gate_enum = QuantumGate[gate] if gate.isupper() else QuantumGate(gate.upper())
+            except Exception:
+                raise ValueError(f"Unsupported gate: {gate}")
 
-        # infer MoveType from gate name
-        mt = None
-        for k, v in _GATE_FROM_MOVE.items():
-            if v.upper() == gate.upper():
-                mt = k
-                break
-        if mt is None:
-            raise ValueError(f"Unsupported gate: {gate}")
-        if not self._allowed(mt):
-            raise ValueError(f"Move {gate} not allowed in {self.cfg.move_set.name}")
-        self.board.apply_gate(_GATE_FROM_MOVE[mt], targets)
+        if not self._allowed(gate_enum):
+            raise ValueError(f"Move {gate_enum.value} not allowed in {self.cfg.move_set.name}")
+
+        # Board still takes canonical string names
+        self.board.apply_gate(gate_enum.value, targets)
         self._check_win()
 
     # ---------- rules ----------
-    def _update_status_after_measure(self, res: MeasureMoveResult):
+    def _update_status_after_measure(self, res: MeasureMoveResult) -> None:
         if self.cfg.win_condition == WinCondition.SANDBOX:
-            pass
-        elif res.outcome == 1:
+            return
+        if res.outcome == 1:
             self.status = GameStatus.LOST
         else:
             self._check_win()
 
-    def _check_win(self):
+    def _check_win(self) -> None:
         if self.cfg.win_condition == WinCondition.CLEAR:
             probs = np.array([self.board.mine_probability_z(i) for i in range(self.board.n)])
             self.status = GameStatus.WIN if np.all(probs <= 1e-6) else GameStatus.ONGOING
+            return
 
-        elif self.cfg.win_condition == WinCondition.IDENTIFY:
+        if self.cfg.win_condition == WinCondition.IDENTIFY:
             state = self.board.exploration_state()
             explored = state == CellState.EXPLORED
             probs = np.fromiter((self.board.mine_probability_z(i) for i in range(self.board.n)), float)
             safe = (probs <= 1e-6).reshape(self.board.rows, self.board.cols)
-
             self.status = GameStatus.WIN if np.all(explored[safe]) else GameStatus.ONGOING

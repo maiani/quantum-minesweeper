@@ -1,8 +1,6 @@
 # qminesweeper/textUI.py
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -12,7 +10,6 @@ from qminesweeper.game import (
     GameConfig,
     GameStatus,
     MoveSet,
-    MoveType,
     QMineSweeperGame,
     WinCondition,
 )
@@ -29,7 +26,20 @@ def clue_style(val: float) -> str:
     return f"rgb({r},{g},0)"
 
 
+def _header_stats(board: QMineSweeperBoard) -> None:
+    exp_mines = board.expected_mines()
+    ent_score = board.entanglement_score("mean") * board.n
+    console.print(
+        f"[bold magenta]⟨Mines⟩ =[/bold magenta] {exp_mines:.1f}    "
+        f"[bold magenta]Entanglement = [/bold magenta] {int(ent_score):2d}"
+        f"\n"
+    )
+
+
 def render_rich(board: QMineSweeperBoard, prec: int = 1):
+    console.clear()
+    _header_stats(board)
+
     table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
     table.add_column(" ", justify="right")
     for col in range(1, board.cols + 1):
@@ -53,7 +63,6 @@ def render_rich(board: QMineSweeperBoard, prec: int = 1):
             row.append(cell)
         table.add_row(*row)
 
-    console.clear()
     console.print(table)
 
 
@@ -74,7 +83,24 @@ def ask_int(prompt: str, cond=lambda x: True) -> int:
         console.print("[red]Invalid input.[/]")
 
 
-def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
+def ask_two_ints(prompt: str, sep: str = ",") -> tuple[int, int]:
+    """
+    Ask for two positive integers on one line, e.g. '5,6'.
+    """
+    while True:
+        raw = console.input(prompt).strip()
+        try:
+            a_str, b_str = raw.split(sep, 1)
+            a = int(a_str)
+            b = int(b_str)
+            if a > 0 and b > 0:
+                return a, b
+        except Exception:
+            pass
+        console.print(f"[red]Invalid input. Use the form r{sep}c like 5{sep}6[/]")
+
+
+def advanced_setup() -> tuple[WinCondition, MoveSet, int, int, int, int]:
     console.print(
         "[bold]Win condition:[/]\n"
         "  [cyan]1.[/] Identify (classic: lose on measuring a mine, win when all safe cells are explored)\n"
@@ -88,18 +114,19 @@ def advanced_setup() -> Tuple[WinCondition, MoveSet, int, int, int, int]:
         "  [cyan]1.[/] Classic (Measure, Pin)\n"
         "  [cyan]2.[/] One-qubit (X,Y,Z,H,S)\n"
         "  [cyan]3.[/] One-qubit (complete: +Sdg,SX,SXdg,SY,SYdg)\n"
-        "  [cyan]4.[/] Two-qubit (adds CX,CY,CZ,SWAP)"
+        "  [cyan]4.[/] Two-qubit (adds CX,CZ,SWAP; single-qubit: X,Y,Z,H,S)\n"
+        "  [cyan]5.[/] Two-qubit (extended: +CY and all single-qubit extras)"
     )
-    m_choice = ask_int("Choice [1-4]: ", lambda x: x in (1, 2, 3, 4))
+    m_choice = ask_int("Choice [1-5]: ", lambda x: x in (1, 2, 3, 4, 5))
     move = {
         1: MoveSet.CLASSIC,
         2: MoveSet.ONE_QUBIT,
         3: MoveSet.ONE_QUBIT_COMPLETE,
         4: MoveSet.TWO_QUBIT,
+        5: MoveSet.TWO_QUBIT_EXTENDED,
     }[m_choice]
 
-    rows = ask_int("Rows: ", lambda x: x > 0)
-    cols = ask_int("Cols: ", lambda x: x > 0)
+    rows, cols = ask_two_ints("Rows,Cols (e.g. 5,6): ")
     mines = ask_int("Mines: ", lambda x: 0 < x < rows * cols)
     ent_level = ask_int("Entanglement level (0=classical, >=1 stabilizers): ", lambda x: x >= 0)
 
@@ -119,30 +146,13 @@ def make_board(
 
 
 # ---------- Allowed tools computation & prompt ----------
-TOKEN_TO_MOVE: Dict[str, MoveType] = {
-    "M": MoveType.MEASURE,
-    "P": MoveType.PIN_TOGGLE,
-    "X": MoveType.X_GATE,
-    "Y": MoveType.Y_GATE,
-    "Z": MoveType.Z_GATE,
-    "H": MoveType.H_GATE,
-    "S": MoveType.S_GATE,
-    "SDG": MoveType.SDG_GATE,
-    "SX": MoveType.SX_GATE,
-    "SXDG": MoveType.SXDG_GATE,
-    "SY": MoveType.SY_GATE,
-    "SYDG": MoveType.SYDG_GATE,
-    "CX": MoveType.CX_GATE,
-    "CY": MoveType.CY_GATE,
-    "CZ": MoveType.CZ_GATE,
-    "SWAP": MoveType.SWAP_GATE,
-}
-ONE_QUBIT_BASIC: List[str] = ["X", "Y", "Z", "H", "S"]
-ONE_QUBIT_EXTRA: List[str] = ["SDG", "SX", "SXDG", "SY", "SYDG"]
-TWO_QUBIT_TOKENS: List[str] = ["CX", "CY", "CZ", "SWAP"]
+ONE_QUBIT_BASIC: list[str] = ["X", "Y", "Z", "H", "S"]
+ONE_QUBIT_EXTRA: list[str] = ["Sdg", "SX", "SXdg", "SY", "SYdg"]
+TWO_QUBIT_BASIC: list[str] = ["CX", "CZ", "SWAP"]
+TWO_QUBIT_EXTD: list[str] = ["CX", "CY", "CZ", "SWAP"]
 
 
-def allowed_tokens_for_moveset(ms: MoveSet) -> Dict[str, List[str]]:
+def allowed_tokens_for_moveset(ms: MoveSet) -> dict[str, list[str]]:
     """
     Returns dict with keys: 'mp' (measure/pin), 'single', 'two'
     listing the tokens allowed for the given MoveSet.
@@ -155,12 +165,17 @@ def allowed_tokens_for_moveset(ms: MoveSet) -> Dict[str, List[str]]:
     elif ms == MoveSet.ONE_QUBIT_COMPLETE:
         tokens["single"] = ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA
     elif ms == MoveSet.TWO_QUBIT:
+        # basic: single {X,Y,Z,H,S}, two {CX,CZ,SWAP}
+        tokens["single"] = ONE_QUBIT_BASIC[:]
+        tokens["two"] = TWO_QUBIT_BASIC[:]
+    elif ms == MoveSet.TWO_QUBIT_EXTENDED:
+        # extended: add CY and the extra single-qubit gates
         tokens["single"] = ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA
-        tokens["two"] = TWO_QUBIT_TOKENS[:]
+        tokens["two"] = TWO_QUBIT_EXTD[:]
     return tokens
 
 
-def build_prompt(tokens: Dict[str, List[str]]) -> str:
+def build_prompt(tokens: dict[str, list[str]]) -> str:
     parts = []
     if tokens["mp"]:
         parts.append(f"[{'/'.join(tokens['mp'])}] r,c")
@@ -168,9 +183,7 @@ def build_prompt(tokens: Dict[str, List[str]]) -> str:
         parts.append(f"[{'/'.join(tokens['single'])}] r,c")
     if tokens["two"]:
         parts.append(f"[{'/'.join(tokens['two'])}] r1,c1 r2,c2")
-    parts.append("R")
-    parts.append("N")
-    parts.append("Q")
+    parts.extend(["R", "N", "Q"])
     return "([ " + " | ".join(parts) + " ]): "
 
 
@@ -240,12 +253,14 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
 
                         if cmd == "P":
                             game.cmd_toggle_pin(r - 1, c - 1)
-                        elif cmd == "M" or cmd in ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA:
+                        elif cmd == "M" or cmd in ONE_QUBIT_BASIC + [s.upper() for s in ONE_QUBIT_EXTRA]:
                             if cmd == "M":
                                 game.cmd_measure(r - 1, c - 1)
                             else:
                                 # Single-qubit gate must be explicitly allowed
-                                if cmd not in tokens["single"]:
+                                if cmd not in [*ONE_QUBIT_BASIC, *[s.upper() for s in ONE_QUBIT_EXTRA]] or cmd not in [
+                                    t.upper() for t in tokens["single"]
+                                ]:
                                     console.print(f"[red]{cmd} not allowed in this MoveSet.[/]")
                                     continue
                                 game.cmd_gate(cmd, [(r - 1, c - 1)])

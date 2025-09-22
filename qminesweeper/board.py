@@ -4,11 +4,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
-from qminesweeper.quantum_backend import QuantumBackend, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState
 
 
 class CellState(IntEnum):
@@ -43,9 +43,9 @@ class MeasureMoveResult:
         Flat index of the measured cell.
     outcome : Optional[int]
         Measurement outcome (0/1). None if skipped.
-    explored : List[Tuple[int,int]]
+    explored : list[tuple[int,int]]
         Cells newly marked as EXPLORED (includes the seed).
-    flood_measures : List[Tuple[int,int,int]]
+    flood_measures : list[tuple[int,int,int]]
         Flood-expanded measurements as (r, c, outcome).
     skipped : bool
         True if measurement was skipped due to PINNED/EXPLORED.
@@ -53,8 +53,8 @@ class MeasureMoveResult:
 
     idx: int
     outcome: Optional[int]
-    explored: List[Tuple[int, int]]
-    flood_measures: List[Tuple[int, int, int]]
+    explored: list[tuple[int, int]]
+    flood_measures: list[tuple[int, int, int]]
     skipped: bool = False
 
 
@@ -88,23 +88,23 @@ class QMineSweeperBoard:
         self._flood_fill: bool = flood_fill
 
         # Record of measured outcomes (Z-basis)
-        self._measured: Dict[int, int] = {}
+        self._measured: dict[int, int] = {}
 
         # Preparation recipe (list of gates)
-        self._prep: List[Tuple[str, List[int]]] = []
+        self._prep: list[tuple[str, list[int]]] = []
 
     # ---------- geometry ----------
     def index(self, r: int, c: int) -> int:
         """Convert (row, col) -> flat index."""
         return r * self.cols + c
 
-    def coords(self, idx: int) -> Tuple[int, int]:
+    def coords(self, idx: int) -> tuple[int, int]:
         """Convert flat index -> (row, col)."""
         return divmod(idx, self.cols)
 
-    def neighbors(self, r: int, c: int) -> List[Tuple[int, int]]:
+    def neighbors(self, r: int, c: int) -> list[tuple[int, int]]:
         """Return 8-neighborhood of (r, c), clipped to board bounds."""
-        out = []
+        out: list[tuple[int, int]] = []
         for dr, dc in NBR_OFFSETS:
             nr, nc = r + dr, c + dc
             if 0 <= nr < self.rows and 0 <= nc < self.cols:
@@ -112,11 +112,11 @@ class QMineSweeperBoard:
         return out
 
     # ---------- config ----------
-    def set_flood_fill(self, on: bool):
+    def set_flood_fill(self, on: bool) -> None:
         """Enable/disable flood-fill expansion."""
         self._flood_fill = bool(on)
 
-    def set_clue_basis(self, basis: str):
+    def set_clue_basis(self, basis: str) -> None:
         """Set basis used for clues (must be X, Y, or Z)."""
         if basis not in ("X", "Y", "Z"):
             raise ValueError("basis must be one of 'X','Y','Z'")
@@ -132,15 +132,15 @@ class QMineSweeperBoard:
 
     # ---------- preparation ----------
     @property
-    def preparation_circuit(self):
+    def preparation_circuit(self) -> list[tuple[str, list[int]]]:
         """Return the preparation circuit (read-only shallow copy)."""
         return list(self._prep)
 
-    def set_preparation(self, circuit: List[Tuple[str, List[int]]]) -> None:
+    def set_preparation(self, circuit: list[tuple[str, list[int]]]) -> None:
         """Define preparation circuit to be re-applied on reset()."""
         self._prep = circuit
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset state and reapply preparation circuit."""
         self.state.reset()
         for gate, targets in self._prep:
@@ -149,12 +149,12 @@ class QMineSweeperBoard:
         self._measured.clear()
         self._exploration.fill(CellState.UNEXPLORED)
 
-    def span_classical_mines(self, nmines: int):
+    def span_classical_mines(self, nmines: int) -> None:
         """Prepare board with nmines placed as classical |1> states."""
         if nmines > self.n:
             raise ValueError("Too many mines for board size")
         chosen = np.random.choice(np.arange(self.n), size=nmines, replace=False)
-        circuit = [("X", [int(i)]) for i in chosen]
+        circuit: list[tuple[str, list[int]]] = [("X", [int(i)]) for i in chosen]
         self.set_preparation(circuit)
         self.reset()
 
@@ -164,9 +164,9 @@ class QMineSweeperBoard:
 
         - Partition the chosen `nmines` distinct qubit indices into groups of size up to `level`.
         - For each group of size k, repeatedly sample a k-qubit Clifford circuit from the backend
-        until the *decomposition touches every local wire* at least once.
+          until the *decomposition touches every local wire* at least once.
         - Convert each gate’s local targets (0..k-1) to **global** board indices and append to a
-        single preparation circuit.
+          single preparation circuit.
         - Finally, set that circuit as the board’s preparation and `reset()` to apply it.
 
         This makes tests that inspect `board.preparation_circuit` (coverage) pass, and preserves a
@@ -277,10 +277,11 @@ class QMineSweeperBoard:
         elif st == CellState.UNEXPLORED:
             self._exploration[r, c] = CellState.PINNED
 
-    def apply_gate(self, gate: str, targets: List[Tuple[int, int]]) -> None:
+    def apply_gate(self, gate: QuantumGate | str, targets: list[tuple[int, int]]) -> None:
         """Apply quantum gate to given cells (row,col)."""
         idxs = [self.index(r, c) for (r, c) in targets]
-        self.state.apply_gate(gate, idxs)
+        gate_name = gate.value if isinstance(gate, QuantumGate) else gate
+        self.state.apply_gate(gate_name, idxs)
 
         # Gates invalidate exploration
         for r, c in targets:
@@ -303,8 +304,8 @@ class QMineSweeperBoard:
         self._measured[idx] = outcome
         self._exploration[r, c] = CellState.EXPLORED
 
-        explored_cells = [(r, c)]
-        flood_measures: List[Tuple[int, int, int]] = []
+        explored_cells: list[tuple[int, int]] = [(r, c)]
+        flood_measures: list[tuple[int, int, int]] = []
 
         # Flood-fill expansion
         if self._flood_fill and outcome == 0 and self.clue_value(r, c, self._clue_basis) == 0.0:

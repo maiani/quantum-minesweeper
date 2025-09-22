@@ -6,4 +6,3 @@
 - Implement the change of basis for the clues
 - Extend the entanglement measure
 - Implement the RL agent
-- Simplify the game.py enums using strings and support two-qubit extended moveset.

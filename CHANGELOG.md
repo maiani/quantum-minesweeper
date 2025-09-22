@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 - Improved testing
 - Remove dependence on qiskit for the bomb spanning
 - Added pre-commit
+- Align TUI
+- Simplify the game.py enums using strings and support two-qubit extended moveset.
 
 ## [0.1.1] - 2025-09-15
 - Rework authorization module 
