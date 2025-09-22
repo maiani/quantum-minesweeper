@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 - Fixed light theme
 - Changed bombs -> mines everywhere
 - Improved testing
+- Remove dependence on qiskit for the bomb spanning
+- Added pre-commit
 
 ## [0.1.1] - 2025-09-15
 - Rework authorization module 
