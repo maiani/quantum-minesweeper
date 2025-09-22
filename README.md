@@ -29,11 +29,18 @@ You interact with the board by **measuring qubits** or **applying quantum gates*
 ## 🧰 Installation (Dev)
 
 ```bash
+# Clone the repository
 git clone https://github.com/maiani/quantum-minesweeper.git
 cd quantum-minesweeper
 
+# Copy the setting
+cp .env_example .env
+
+# Create and activate a virtual environment 
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+# Install the package
 python -m pip install -U pip
 ```
 ---
