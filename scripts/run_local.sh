@@ -1,14 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Default to using local .env if present
-ENV_FILE_OPT=""
-if [ -f .env ]; then
-  ENV_FILE_OPT="--env-file .env"
+# Load config (defines IMAGE, PORT, CONTAINER_NAME, etc.)
+source "$(dirname "$0")/config.sh"
+
+# Use last built image if available, else default IMAGE
+if [ -f .last_image ]; then
+  IMAGE=$(cat .last_image)
+  echo ">>> Using last built image: $IMAGE"
+else
+  echo ">>> No .last_image found, falling back to default IMAGE: $IMAGE"
+fi
+# Stop/remove existing container if running
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
+  echo ">>> Stopping existing container: $CONTAINER_NAME"
+  docker rm -f "$CONTAINER_NAME"
 fi
 
-IMAGE=$(cat .last_image 2>/dev/null || echo "qminesweeper:latest")
-CONTAINER_NAME="qminesweeper-local"
+echo ">>> Running $IMAGE locally on port $PORT..."
 
-echo ">>> Running $IMAGE locally..."
-docker run --name $CONTAINER_NAME -p 8080:8080 $ENV_FILE_OPT "$IMAGE"
+docker run --name "$CONTAINER_NAME" \
+  -p "${PORT}:${PORT}" \
+  --env-file .env \
+  "$IMAGE"

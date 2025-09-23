@@ -1,6 +1,8 @@
 # qminesweeper/__main__.py
 from __future__ import annotations
 
+import os
+
 import typer
 import uvicorn
 
@@ -37,34 +39,32 @@ def tui(backend: str | None = typer.Option(None, help="Backend: stim or qiskit")
 
 @app.command()
 def webui(
-    host: str | None = typer.Option(None, help="Bind host (default: settings.WEB_HOST)"),
-    port: int | None = typer.Option(None, help="Port (default: settings.WEB_PORT)"),
+    host: str | None = typer.Option(None, help="Bind host (default: 0.0.0.0)"),
+    port: int | None = typer.Option(None, help="Port (default: $PORT or 8080)"),
     reload: bool = typer.Option(True, help="Auto-reload"),
     backend: str | None = typer.Option(None, help="Backend: stim or qiskit (default: settings.BACKEND)"),
 ):
     """
     Run the FastAPI web interface.
-    Reads defaults from settings; CLI options override for this run.
+    Reads defaults from environment (PORT) and settings; CLI options override for this run.
     """
     settings = get_settings()
 
-    # Apply CLI overrides in-place for this process
+    # Backend override
     if backend is not None:
         chosen = backend.strip().lower()
         if chosen not in {"stim", "qiskit"}:
             raise typer.BadParameter("Invalid backend, choose 'stim' or 'qiskit'")
         settings.BACKEND = chosen
 
-    if host is not None:
-        settings.WEB_HOST = host
-
-    if port is not None:
-        settings.WEB_PORT = port
+    # Host/port resolution
+    host_final = host or "0.0.0.0"
+    port_final = port or int(os.getenv("PORT", "8080"))
 
     uvicorn.run(
         "qminesweeper.webapp:app",
-        host=settings.WEB_HOST,
-        port=settings.WEB_PORT,
+        host=host_final,
+        port=port_final,
         reload=reload,
     )
 

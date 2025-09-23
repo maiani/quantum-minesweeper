@@ -3,7 +3,7 @@
 ############################
 # Builder: build only our wheel
 ############################
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1 PIP_ROOT_USER_ACTION=ignore
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,7 +22,7 @@ RUN python -m build --wheel --outdir /wheels
 ############################
 # Final: slim runtime image
 ############################
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -31,7 +31,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install app + deps directly from PyPI wheels
+# Install app + deps from wheel
 COPY --from=builder /wheels /wheels
 RUN python -m pip install --upgrade pip \
  && pip install --no-cache-dir /wheels/*.whl \
@@ -41,5 +41,8 @@ RUN python -m pip install --upgrade pip \
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Expose same port as scripts (default 8080, overridable with PORT env)
 EXPOSE 8080
-CMD ["sh","-c","uvicorn qminesweeper.webapp:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --proxy-headers"]
+ENV PORT=8080
+
+CMD ["sh", "-c", "uvicorn qminesweeper.webapp:app --host 0.0.0.0 --port ${PORT} --workers 1 --proxy-headers"]

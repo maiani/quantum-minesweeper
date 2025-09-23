@@ -3,6 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  {% if BASE_URL %}
+  <meta property="og:url" content="{{ BASE_URL }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Quantum Minesweeper">
+  <meta property="og:description" content="A quantum twist on the classic game of Minesweeper — explore, entangle, and measure!">
+  <meta property="og:image" content="{{ BASE_URL }}/static/og-image.png">
+  {% endif %}
+
   <title>{% block title %}Quantum Minesweeper{% endblock %}</title>
 
   <!-- Favicon -->

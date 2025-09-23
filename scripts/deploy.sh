@@ -1,27 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. "$(dirname "$0")/config.sh"
+source "$(dirname "$0")/config.sh"
 
-TAG="$(date +%Y%m%d-%H%M%S)"
-IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/qminesweeper:${TAG}"
+if [ -z "${GCP_PROJECT:-}" ]; then
+  echo "Set GCP_PROJECT (in .env or env)" >&2
+  exit 1
+fi
 
-echo ">>> Building and pushing image: $IMAGE"
-gcloud auth configure-docker "${REGION}-docker.pkg.dev" -q
-docker buildx build \
-  --platform linux/amd64 \
-  -t "$IMAGE" \
-  --push .
+TAG="${GITHUB_REF_NAME:-$(git describe --tags --always || echo 'manual')}"
+REMOTE_IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT}/qms/${IMAGE_NAME}:${TAG}"
 
-echo "$IMAGE" > .last_image
+echo ">>> Building and pushing $REMOTE_IMAGE"
+docker buildx build --platform linux/amd64 -t "$REMOTE_IMAGE" --push .
 
-echo ">>> Deploying to Cloud Run: $SERVICE with image $IMAGE"
+echo ">>> Deploying to Cloud Run: $SERVICE"
+# Cloud Run injects $PORT; we don't pass it.
+# Pass app configs (QMS_*) from your CI secrets/vars or .env if desired.
 gcloud run deploy "$SERVICE" \
-  --image "$IMAGE" \
+  --image "$REMOTE_IMAGE" \
   --region "$REGION" \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars QMS_ENABLE_AUTH="${QMS_ENABLE_AUTH:-1}",QMS_USER="$QMS_USER",QMS_PASS="$QMS_PASS"
-
-URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
-echo ">>> Deployment complete!"
-echo "Service URL: $URL"
+  --set-env-vars "QMS_ENABLE_AUTH=${QMS_ENABLE_AUTH:-1},QMS_USER=${QMS_USER:-},QMS_PASS=${QMS_PASS:-},QMS_AUTH_TOKEN=${QMS_AUTH_TOKEN:-},QMS_BACKEND=${QMS_BACKEND:-stim},QMS_ENABLE_HELP=${QMS_ENABLE_HELP:-1},QMS_ENABLE_TUTORIAL=${QMS_ENABLE_TUTORIAL:-1},QMS_TUTORIAL_URL=${QMS_TUTORIAL_URL:-},QMS_BASE_URL=${QMS_BASE_URL:-}"

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TAG="local-$(date +%Y%m%d-%H%M%S)"
-IMAGE="qminesweeper:latest"
+source "$(dirname "$0")/config.sh"
 
-echo ">>> Building local image: $IMAGE (tagged $TAG too)"
+TAG="local-$(date +%Y%m%d-%H%M%S)"
+
+echo ">>> Building image: $IMAGE (also tagged qminesweeper:$TAG)"
 
 docker build \
   -t "$IMAGE" \

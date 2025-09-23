@@ -60,6 +60,7 @@ DOCS_DIR = BASE_DIR / "docs"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
 templates.env.globals["version"] = __version__
+templates.env.globals["BASE_URL"] = settings.BASE_URL
 
 templates.env.globals["FEATURES"] = {
     "enable_help": settings.ENABLE_HELP,
