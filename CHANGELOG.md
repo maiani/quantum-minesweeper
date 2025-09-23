@@ -17,7 +17,8 @@ All notable changes to this project will be documented in this file.
 - Added pre-commit
 - Align TUI
 - Simplify the game.py enums using strings and support two-qubit extended moveset.
-
+- Open graph support
+  
 ## [0.1.1] - 2025-09-15
 - Rework authorization module 
 - Add single-qubit entropy
