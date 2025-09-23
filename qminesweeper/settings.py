@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     Application settings for Quantum Minesweeper.
     """
 
+    # --- Backend settings ---
+    ABANDON_THRESHOLD_MIN: int = 30
+
     # --- Feature flags ---
     ENABLE_HELP: bool = True
     ENABLE_TUTORIAL: bool = True
@@ -22,9 +25,10 @@ class Settings(BaseSettings):
     ENABLE_AUTH: bool = True
     USER: str | None = None
     PASS: str | None = None
+    ADMIN_PASS: str | None = None
 
     # --- Runtime ---
-    BACKEND: str = "stim"             # "stim" | "qiskit"
+    BACKEND: str = "stim"  # "stim" | "qiskit"
     BASE_URL: str = "http://127.0.0.1:8080"
     model_config = SettingsConfigDict(
         env_prefix="QMS_",

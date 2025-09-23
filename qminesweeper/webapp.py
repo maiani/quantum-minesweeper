@@ -1,9 +1,11 @@
 # qminesweeper/webapp.py
 from __future__ import annotations
 
+import csv
+import io
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Tuple
 from uuid import uuid4
@@ -15,6 +17,7 @@ from fastapi.responses import (
     PlainTextResponse,
     RedirectResponse,
     Response,
+    StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -23,6 +26,7 @@ from markdown.extensions.toc import TocExtension
 from qminesweeper import __version__
 from qminesweeper.auth import enable_basic_auth
 from qminesweeper.board import QMineSweeperBoard
+from qminesweeper.database import get_store
 from qminesweeper.game import (
     GameConfig,
     GameStatus,
@@ -57,6 +61,8 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 DOCS_DIR = BASE_DIR / "docs"
 
+STATS_DB = get_store()
+
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
 templates.env.globals["version"] = __version__
@@ -67,6 +73,8 @@ templates.env.globals["FEATURES"] = {
     "enable_tutorial": settings.ENABLE_TUTORIAL,
     "tutorial_url": settings.TUTORIAL_URL,
 }
+
+templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -94,11 +102,16 @@ def attach_user_cookie(resp: Response, user_id: str, request: Request) -> Respon
     return resp
 
 
-# --------- Demo in-memory game store ---------
-GAMES: dict[str, dict] = {}  # suid -> {board, game, config}
+# --------- In-memory game store ---------
+# game_id -> {board, game, config}
+GAMES: dict[str, dict] = {}
 
 
 # --------- Helpers ---------
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
 def clue_color(val: float) -> str:
     v = max(0.0, min(val / 8.0, 1.0))
     r = int(255 * v)
@@ -115,6 +128,29 @@ def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: 
     board.set_clue_basis("Z")
     game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
     return board, game
+
+
+def prune_stale_games() -> None:
+    # From memory
+    cutoff = datetime.now(timezone.utc) - timedelta(settings.ABANDON_THRESHOLD_MIN)
+    stale = [gid for gid, rec in GAMES.items() if rec.get("last_seen") and rec["last_seen"] < cutoff]
+    for gid in stale:
+        try:
+            game = GAMES[gid]["game"]
+            if game.status == GameStatus.ONGOING:
+                STATS_DB.outcome(game_id=gid, ts=_now_iso(), status="ABANDONED")
+        except Exception as e:
+            log.exception(f"DB outcome(ABANDONED) failed gid={gid}: {e}")
+        finally:
+            GAMES.pop(gid, None)
+
+    # From DB
+    try:
+        n = STATS_DB.prune_abandoned(minutes=settings.ABANDON_THRESHOLD_MIN)
+        if n:
+            log.info(f"Pruned {n} abandoned games (scheduled)")
+    except Exception as e:
+        log.exception(f"Scheduled prune failed: {e}")
 
 
 # ----- Command parsing -----
@@ -156,23 +192,27 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    # Stateless: always go to setup with a fresh suid in URL
+    prune_stale_games()
+
+    # Stateless: always go to setup with a fresh game_id in URL
     user_id = ensure_user_id(request)
-    suid = str(uuid4())
-    resp = RedirectResponse(f"/setup?suid={suid}")
+    game_id = str(uuid4())
+    resp = RedirectResponse(f"/setup?game_id={game_id}")
     return attach_user_cookie(resp, user_id, request)
 
 
 @app.get("/setup", response_class=HTMLResponse)
-async def setup_get(request: Request, suid: Optional[str] = Query(None)):
+async def setup_get(request: Request, game_id: Optional[str] = Query(None)):
+    prune_stale_games()
+
     user_id = ensure_user_id(request)
-    suid = suid or str(uuid4())
-    log.info(f"User {user_id} -> setup sid={suid}")
+    game_id = game_id or str(uuid4())
+    log.info(f"User {user_id} -> setup gid={game_id}")
     resp = templates.TemplateResponse(
         "setup.html",
         {
             "request": request,
-            "suid": suid,
+            "game_id": game_id,
         },
     )
     return attach_user_cookie(resp, user_id, request)
@@ -187,10 +227,11 @@ async def setup_post(
     ent_level: int = Form(...),
     win_condition: str = Form(...),
     move_set: str = Form(...),
-    suid: Optional[str] = Query(None, alias="suid"),
+    game_id: Optional[str] = Query(None, alias="game_id"),
 ):
     user_id = ensure_user_id(request)
-    suid = suid or str(uuid4())
+    # Always generate a fresh game_id for a new game
+    game_id = str(uuid4())
 
     wc = {
         "clear": WinCondition.CLEAR,
@@ -208,37 +249,73 @@ async def setup_post(
     }.get(move_set.lower(), MoveSet.CLASSIC)
 
     board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)
-    GAMES[suid] = {
+    GAMES[game_id] = {
         "board": board,
         "game": game,
         "config": {"rows": rows, "cols": cols, "mines": mines, "ent_level": ent_level, "win": win, "moves": mv},
+        "last_seen": datetime.now(timezone.utc),
     }
 
+    # Persist creation + initial heartbeat
+    ts = _now_iso()
+    try:
+        STATS_DB.game_created(
+            game_id=game_id,
+            user_id=user_id,
+            ts=ts,
+            rows=rows,
+            cols=cols,
+            mines=mines,
+            ent_level=ent_level,
+            win_cond=win.name,
+            moveset=mv.name,
+            prep_circuit=board.preparation_circuit,
+        )
+        STATS_DB.heartbeat(game_id=game_id, ts=ts)
+    except Exception as e:
+        log.exception(f"DB game_created/heartbeat failed gid={game_id}: {e}")
+
     log.info(
-        f"SETUP user={user_id} sid={suid} rows={rows} cols={cols} mines={mines} "
+        f"SETUP user={user_id} gid={game_id} rows={rows} cols={cols} mines={mines} "
         f"ent={ent_level} win={win.name} moves={mv.name}"
     )
 
-    return attach_user_cookie(RedirectResponse(f"/game?suid={suid}", status_code=303), user_id, request)
+    return attach_user_cookie(RedirectResponse(f"/game?game_id={game_id}", status_code=303), user_id, request)
 
 
 @app.get("/game", response_class=HTMLResponse)
-async def game_get(request: Request, suid: Optional[str] = Query(None, alias="suid")):
+async def game_get(request: Request, game_id: Optional[str] = Query(None, alias="game_id")):
     user_id = ensure_user_id(request)
-    if not suid or suid not in GAMES:
+    if not game_id or game_id not in GAMES:
         return attach_user_cookie(RedirectResponse("/setup", status_code=303), user_id, request)
 
-    board: QMineSweeperBoard = GAMES[suid]["board"]
-    game: QMineSweeperGame = GAMES[suid]["game"]
+    # Update last_seen + DB heartbeat (online)
+    GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
+    try:
+        STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
+    except Exception as e:
+        log.exception(f"DB heartbeat failed gid={game_id}: {e}")
+
+    board: QMineSweeperBoard = GAMES[game_id]["board"]
+    game: QMineSweeperGame = GAMES[game_id]["game"]
 
     grid = board.export_numeric_grid().tolist()
     mines_exp = board.expected_mines()
     ent_score = board.entanglement_score("mean") * board.n
 
+    # Persist terminal outcome once it happens
     if game.status == GameStatus.WIN:
-        log.info(f"WIN user={user_id} sid={suid}")
+        log.info(f"WIN user={user_id} gid={game_id}")
+        try:
+            STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="WIN")
+        except Exception as e:
+            log.exception(f"DB outcome(WIN) failed gid={game_id}: {e}")
     elif game.status == GameStatus.LOST:
-        log.info(f"LOST user={user_id} sid={suid}")
+        log.info(f"LOST user={user_id} gid={game_id}")
+        try:
+            STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
+        except Exception as e:
+            log.exception(f"DB outcome(LOST) failed gid={game_id}: {e}")
 
     return attach_user_cookie(
         templates.TemplateResponse(
@@ -250,7 +327,7 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
                 "cols": board.cols,
                 "status": game.status.name,
                 "moveset": game.cfg.move_set.name,
-                "suid": suid,
+                "game_id": game_id,
                 "mines_exp": mines_exp,
                 "ent_measure": ent_score,
             },
@@ -261,12 +338,11 @@ async def game_get(request: Request, suid: Optional[str] = Query(None, alias="su
 
 
 @app.post("/move")
-async def move_post(cmd: str = Form(...), suid: Optional[str] = Query(None, alias="suid")):
-    if not suid or suid not in GAMES:
+async def move_post(cmd: str = Form(...), game_id: Optional[str] = Query(None, alias="game_id")):
+    if not game_id or game_id not in GAMES:
         return RedirectResponse("/setup", status_code=303)
 
-    # board: QMineSweeperBoard = GAMES[suid]["board"]
-    game: QMineSweeperGame = GAMES[suid]["game"]
+    game: QMineSweeperGame = GAMES[game_id]["game"]
 
     try:
         kind, payload = parse_cmd(cmd)
@@ -281,33 +357,77 @@ async def move_post(cmd: str = Form(...), suid: Optional[str] = Query(None, alia
             gate, rc1, rc2 = payload
             game.cmd_gate(gate, [rc1, rc2])
     except Exception as e:
-        log.exception(f"MOVE error sid={suid} cmd='{cmd}' err={e}")
+        log.exception(f"MOVE error gid={game_id} cmd='{cmd}' err={e}")
 
-    return RedirectResponse(f"/game?suid={suid}", status_code=303)
+    # Heartbeat + last_seen after any move
+    GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
+    try:
+        STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
+    except Exception as e:
+        log.exception(f"DB heartbeat failed gid={game_id}: {e}")
+
+    return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
 
 @app.post("/game")
-async def game_post(action: str = Form(...), suid: Optional[str] = Query(None, alias="suid")):
-    if not suid or suid not in GAMES:
+async def game_post(
+    request: Request,
+    action: str = Form(...),
+    game_id: Optional[str] = Query(None, alias="game_id"),
+):
+    if not game_id or game_id not in GAMES:
         return RedirectResponse("/setup", status_code=303)
 
-    board: QMineSweeperBoard = GAMES[suid]["board"]
-    game: QMineSweeperGame = GAMES[suid]["game"]
-    cfg = GAMES[suid]["config"]
+    board: QMineSweeperBoard = GAMES[game_id]["board"]
+    game: QMineSweeperGame = GAMES[game_id]["game"]
+    cfg = GAMES[game_id]["config"]
 
     if action == "reset":
         board.reset()
         game.status = GameStatus.ONGOING
+        GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
+        try:
+            STATS_DB.increment_reset(game_id=game_id)
+            STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
+        except Exception as e:
+            log.exception(f"DB reset/heartbeat failed gid={game_id}: {e}")
+
     elif action == "new_same":
-        board, game = build_board_and_game(
+        # Fresh game_id, same rules
+        new_game_id = str(uuid4())
+        board2, game2 = build_board_and_game(
             cfg["rows"], cfg["cols"], cfg["mines"], cfg["ent_level"], cfg["win"], cfg["moves"]
         )
-        GAMES[suid]["board"] = board
-        GAMES[suid]["game"] = game
-    elif action == "new_rules":
-        return RedirectResponse(f"/setup?suid={suid}", status_code=303)
+        GAMES[new_game_id] = {
+            "board": board2,
+            "game": game2,
+            "config": cfg.copy(),
+            "last_seen": datetime.now(timezone.utc),
+        }
+        ts = _now_iso()
+        try:
+            STATS_DB.game_created(
+                game_id=new_game_id,
+                user_id=ensure_user_id(request),
+                ts=ts,
+                rows=cfg["rows"],
+                cols=cfg["cols"],
+                mines=cfg["mines"],
+                ent_level=cfg["ent_level"],
+                win_cond=cfg["win"].name,
+                moveset=cfg["moves"].name,
+                prep_circuit=board2.preparation_circuit,
+            )
+            STATS_DB.heartbeat(game_id=new_game_id, ts=ts)
+        except Exception as e:
+            log.exception(f"DB game_created failed gid={new_game_id}: {e}")
+        return RedirectResponse(f"/game?game_id={new_game_id}", status_code=303)
 
-    return RedirectResponse(f"/game?suid={suid}", status_code=303)
+    elif action == "new_rules":
+        # new setup flow (new game_id will be created during POST /setup)
+        return RedirectResponse(f"/setup?game_id={str(uuid4())}", status_code=303)
+
+    return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
 
 # --------- Markdown rendering ---------
@@ -357,10 +477,50 @@ def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
     return title, html
 
 
-DOCS_DIR = BASE_DIR / "docs"
-
 DOCS = {
     "simple_setup": render_markdown(DOCS_DIR / "simple_setup.md")[1],
     "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
 }
 templates.env.globals["docs"] = DOCS
+
+
+@app.get("/admin/db_download")
+def download_db(request: Request, admin_pass: str = Query(...)):
+    if admin_pass != settings.ADMIN_PASS:
+        return PlainTextResponse("Forbidden", status_code=403)
+
+    # fetch rows
+    cur = STATS_DB._db.cursor()
+    cur.execute("SELECT * FROM games")
+    rows = cur.fetchall()
+
+    # write CSV into memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(rows[0].keys() if rows else [])
+    for row in rows:
+        writer.writerow([row[k] for k in row.keys()])
+
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=qms_games.csv"},
+    )
+
+
+@app.get("/admin/db_view", response_class=HTMLResponse)
+def view_db(request: Request, admin_pass: str = Query(...)):
+    if admin_pass != settings.ADMIN_PASS:
+        return PlainTextResponse("Forbidden", status_code=403)
+
+    cur = STATS_DB._db.cursor()
+    cur.execute("SELECT * FROM games ORDER BY created_at DESC LIMIT 100")
+    rows = cur.fetchall()
+
+    html = "<h2>Last 100 Games</h2><table border=1>"
+    html += "<tr>" + "".join(f"<th>{k}</th>" for k in rows[0].keys()) + "</tr>"
+    for row in rows:
+        html += "<tr>" + "".join(f"<td>{row[k]}</td>" for k in row.keys()) + "</tr>"
+    html += "</table>"
+    return html

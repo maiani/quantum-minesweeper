@@ -5,7 +5,7 @@
 <!-- Simplified setup (shown by default) -->
 <div id="simple-setup" class="setup">
   <h2>Game Setup</h2>
-  <form action="/setup?suid={{ suid }}" method="post" class="setup-form">
+  <form action="/setup?game_id={{ game_id }}" method="post" class="setup-form">
     <!-- Board size -->
     <label for="board-size">Board size:</label>
     <select id="board-size" name="board-size">
@@ -61,7 +61,7 @@
 <!-- Advanced setup (hidden initially) -->
 <div id="advanced-setup" class="setup" style="display: none;">
   <h2>Game Setup - Advanced </h2>
-  <form action="/setup?suid={{ suid }}" method="post" class="setup-form">
+  <form action="/setup?game_id={{ game_id }}" method="post" class="setup-form">
     <label for="rows">Rows:</label>
     <input id="rows" name="rows" type="number" min="2" value="10" required>
 

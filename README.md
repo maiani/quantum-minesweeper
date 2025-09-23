@@ -26,7 +26,7 @@ You interact with the board by **measuring qubits** or **applying quantum gates*
 
 ---
 
-## 🧰 Installation (Dev)
+## 🧰 Installation
 
 ```bash
 # Clone the repository
@@ -47,6 +47,20 @@ python -m pip install -U pip
 
 ## ▶️ Running
 
+### 🔧 Configuration 
+
+Configuration is centralized with Pydantic Settings and loaded from environment variables (and .env in dev).
+
+Common flags:
+- `QMS_ENABLE_AUTH` (default: 1) — enable HTTP basic auth
+- `QMS_USER` / `QMS_PASS` — credentials for basic auth
+- `QMS_ENABLE_HELP` — render the in-app Help sidebar toggle
+- `QMS_ENABLE_TUTORIAL`, `QMS_TUTORIAL_URL` — show a Tutorial link
+- `QMS_BASE_URL` can be set for absolute pahts.
+  
+Create a `.env` (or use `.env.example`) in local dev.
+
+
 ### Textual Interface (TUI)
 Launch the text UI:
 ```bash
@@ -66,23 +80,7 @@ python -m qminesweeper web --port 8080
 
 Then open your browser at: [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
----
-
-## 🔧 Configuration 
-
-Configuration is centralized with Pydantic Settings and loaded from environment variables (and .env in dev).
-
-Common flags:
-- `QMS_ENABLE_AUTH` (default: 1) — enable HTTP basic auth
-- `QMS_USER` / `QMS_PASS` — credentials for basic auth
-- `QMS_ENABLE_HELP` — render the in-app Help sidebar toggle
-- `QMS_ENABLE_TUTORIAL`, `QMS_TUTORIAL_URL` — show a Tutorial link
-
-Create a `.env` (or use `.env.example`) in local dev.
-
----
-
-## 🐳 Docker
+### 🐳 Docker
 Build and run locally with
 
 ```bash
@@ -165,11 +163,14 @@ Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, etc. change clues a
 - New move: draw a line on the board and return the **bipartite entanglement entropy**.  
   Could the player use entanglement information strategically?
 - **Change clue basis**: allow switching from Z to X or Y basis for different perspectives on the bombs.
-- **Progressive entanglement levels**: difficulty tuned by preparing stabilizer states with higher-body entanglement (product states → Bell pairs → GHZ).
 - **RL Agent**: integrate with Gymnasium/OpenAI Gym for reinforcement learning experiments.
 - **PWA support**: package the web interface as a Progressive Web App for desktop/mobile play.
 
 ---
+
+
+## Authors
+- Andrea Maiani [andreamaian@su.se]
 
 ## License
 MIT License.  

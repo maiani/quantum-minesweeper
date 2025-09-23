@@ -41,7 +41,7 @@ def tui(backend: str | None = typer.Option(None, help="Backend: stim or qiskit")
 def webui(
     host: str | None = typer.Option(None, help="Bind host (default: 0.0.0.0)"),
     port: int | None = typer.Option(None, help="Port (default: $PORT or 8080)"),
-    reload: bool = typer.Option(True, help="Auto-reload"),
+    reload: bool = typer.Option(False, help="Auto-reload (default: False)"),
     backend: str | None = typer.Option(None, help="Backend: stim or qiskit (default: settings.BACKEND)"),
 ):
     """

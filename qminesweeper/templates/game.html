@@ -106,8 +106,8 @@
 {% endif %}
 
 <!-- Hidden form used for all moves -->
-<form id="move-form" action="/move?suid={{ suid }}" method="post" style="display:none">
-  <input type="hidden" name="suid" value="{{ suid }}">
+<form id="move-form" action="/move?game_id={{ game_id }}" method="post" style="display:none">
+  <input type="hidden" name="game_id" value="{{ game_id }}">
   <input type="hidden" id="cmd-input" name="cmd" value="">
 </form>
 
@@ -117,8 +117,8 @@
 <!-- Actions -->
 {% if status == "ONGOING" %}
 <h3>Actions</h3>
-<form action="/game?suid={{ suid }}" method="post">
-  <input type="hidden" name="suid" value="{{ suid }}">
+<form action="/game?game_id={{ game_id }}" method="post">
+  <input type="hidden" name="game_id" value="{{ game_id }}">
   <button type="submit" class="btn" name="action" value="reset">Reset Board</button>
   <button type="submit" class="btn" name="action" value="new_same">New Game</button>
   <button type="submit" class="btn" name="action" value="new_rules">New Setup</button>
@@ -134,8 +134,8 @@
       <p class="result-msg">You lost! 💥</p>
     {% endif %}
     <div class="actions">
-      <form action="/game?suid={{ suid }}" method="post">
-        <input type="hidden" name="suid" value="{{ suid }}">
+      <form action="/game?game_id={{ game_id }}" method="post">
+        <input type="hidden" name="game_id" value="{{ game_id }}">
         <button type="submit" name="action" value="reset" class="btn">Reset Board</button>
         <button type="submit" name="action" value="new_same" class="btn">New Game</button>
         <button type="submit" name="action" value="new_rules" class="btn">New Setup</button>
