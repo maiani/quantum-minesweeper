@@ -7,7 +7,7 @@ name = "qminesweeper"
 version = "0.1.2"
 description = "Quantum Minesweeper Game"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
   {name="Andrea Maiani", email="andrea.maiani@su.se"}
 ]
