@@ -231,7 +231,6 @@ class QMineSweeperBoard:
         self.set_preparation(full_circuit)
         self.reset()
 
-
     # ---------- mechanics: expectations/clues ----------
     def expectation(self, idx: int, basis: str) -> float:
         """Return <basis> expectation value for qubit idx."""

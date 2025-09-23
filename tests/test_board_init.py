@@ -100,9 +100,7 @@ def test_group_levels_cover_indices(Backend: type[QuantumBackend], level: int, s
 
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
 @pytest.mark.parametrize("seed", list(range(32)))
-def test_remainder_smaller_groups_still_exact_coverage(
-    Backend: type[QuantumBackend], seed: int
-):
+def test_remainder_smaller_groups_still_exact_coverage(Backend: type[QuantumBackend], seed: int):
     """
     When `nmines` is not divisible by `level`, the sampler must
     still cover exactly `nmines` distinct qubits.

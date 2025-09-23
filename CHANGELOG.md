@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.2] - 2025-09-19
+## [0.1.2] - 2025-09-23
 - Added keyboard input in the webUI
 - Add simplified setup
 - Add support for documentation

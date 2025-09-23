@@ -12,7 +12,6 @@ import markdown
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import (
     HTMLResponse,
-    JSONResponse,
     PlainTextResponse,
     RedirectResponse,
     Response,
@@ -57,7 +56,6 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 DOCS_DIR = BASE_DIR / "docs"
-HELP_DIR = DOCS_DIR / "help"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
@@ -365,18 +363,3 @@ DOCS = {
     "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
 }
 templates.env.globals["docs"] = DOCS
-
-
-@app.get("/help/{obj_id}", response_class=JSONResponse)
-async def help_content(obj_id: str):
-    base = HELP_DIR / obj_id
-    text_path = base / "text.md"
-    visual_path = base / "visual.html"
-
-    title, text_html = render_markdown(text_path, strip_title=True)
-    visual_html = "<div>No visual available.</div>"
-
-    if visual_path.exists():
-        visual_html = visual_path.read_text(encoding="utf-8")
-
-    return {"title": title, "text": text_html, "visual": visual_html}
