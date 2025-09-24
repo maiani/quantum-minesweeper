@@ -51,7 +51,7 @@ jobs:
               QMS_ENABLE_TUTORIAL=${{ vars.QMS_ENABLE_TUTORIAL }},
               QMS_TUTORIAL_URL=${{ vars.QMS_TUTORIAL_URL }},
               QMS_RESET_POLICY=${{ vars.QMS_RESET_POLICY }},
-              QMS_DB_PATH=/data/qms.sqlite
+              QMS_DB_PATH=/tmp/qms.sqlite
             " \
             --add-volume name=games-vol,type=cloud-storage,bucket=${{ vars.QMS_BUCKET }} \
             --add-volume-mount volume=games-vol,mount-path=/data \
