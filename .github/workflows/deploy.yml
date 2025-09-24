@@ -34,7 +34,7 @@ jobs:
             --push .
 
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
+      
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy quantum-minesweeper \
@@ -53,8 +53,8 @@ jobs:
               QMS_RESET_POLICY=${{ vars.QMS_RESET_POLICY }},
               QMS_DB_PATH=/data/qms.sqlite
             " \
-            --mount volume=games-vol,mount-path=/data \
-            --volume name=games-vol,cloud-storage-uri=gs://${{ vars.QMS_BUCKET }} \
+            --add-volume name=games-vol,type=cloud-storage,bucket=${{ vars.QMS_BUCKET }} \
+            --add-volume-mount volume=games-vol,mount-path=/data \
             --memory=512Mi \
             --cpu=1 \
             --concurrency=200 \
