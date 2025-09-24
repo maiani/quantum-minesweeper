@@ -1,32 +1,40 @@
 #!/bin/sh
 set -eu
 
-# Where Cloud Run/Docker bind the bucket/volume
 PERSIST_DIR="/data"
 PERSIST_DB="${PERSIST_DIR}/qms.sqlite"
 
-# Where the app actually reads/writes the DB (local ephemeral disk)
 RUNTIME_DB="/tmp/qms.sqlite"
+SYNC_INTERVAL_SECONDS="${SYNC_INTERVAL_SECONDS:-1800}"  # 30 minutes default
 
-echo "[entrypoint] Persist dir: ${PERSIST_DIR}"
-echo "[entrypoint] Persist DB : ${PERSIST_DB}"
-echo "[entrypoint] Runtime DB : ${RUNTIME_DB}"
-
-# Ensure dirs exist
+echo "[entrypoint] Persist dir : ${PERSIST_DIR}"
+echo "[entrypoint] Persist DB  : ${PERSIST_DB}"
+echo "[entrypoint] Runtime DB  : ${RUNTIME_DB}"
 mkdir -p "${PERSIST_DIR}" /tmp
 
-# --- Startup sync: copy persisted DB into runtime if present
-if [ -f "${PERSIST_DB}" ]; then
-  echo "[entrypoint] Found persisted DB, copying to runtime..."
-  cp -f "${PERSIST_DB}" "${RUNTIME_DB}"
+copy_trio() {
+  # $1 = src base, $2 = dst base
+  for s in "" "-wal" "-shm"; do
+    if [ -f "$1$s" ]; then
+      cp -f "$1$s" "$2$s"
+    else
+      # keep destination clean if source side doesn't have this sidecar
+      rm -f "$2$s" 2>/dev/null || true
+    fi
+  done
+  sync
+}
+
+# --- Startup: pull latest persisted DB (trio) into runtime
+if [ -f "${PERSIST_DB}" ] || [ -f "${PERSIST_DB}-wal" ]; then
+  echo "[entrypoint] Restoring DB from persisted storage..."
+  copy_trio "${PERSIST_DB}" "${RUNTIME_DB}"
 else
-  echo "[entrypoint] No persisted DB found. A new DB will be created at runtime."
+  echo "[entrypoint] No persisted DB found. A new DB will be created."
 fi
 
-# --- Launch app (point it to runtime DB)
+# --- Launch app using runtime DB
 export QMS_DB_PATH="${RUNTIME_DB}"
-SYNC_INTERVAL_SECONDS="${SYNC_INTERVAL_SECONDS:-1800}"  # default 30 minutes
-
 echo "[entrypoint] Starting uvicorn on port ${PORT:-8080}..."
 uvicorn qminesweeper.webapp:app \
   --host 0.0.0.0 \
@@ -35,42 +43,34 @@ uvicorn qminesweeper.webapp:app \
   --proxy-headers &
 PID=$!
 
-# Periodic sync (optional): copy runtime -> persisted every SYNC_INTERVAL_SECONDS
+# --- Periodic sync from runtime -> persisted (optional)
 sync_loop() {
-  # If interval <= 0, skip periodic sync completely
   if [ "${SYNC_INTERVAL_SECONDS}" -le 0 ] 2>/dev/null; then
     echo "[entrypoint] Periodic sync disabled."
     return
   fi
-
   echo "[entrypoint] Periodic sync every ${SYNC_INTERVAL_SECONDS}s."
   while kill -0 "$PID" 2>/dev/null; do
-    # Sleep first so we don't immediately sync on startup
     sleep "${SYNC_INTERVAL_SECONDS}" || true
-    # If the app is already gone, stop
     kill -0 "$PID" 2>/dev/null || break
-    # Perform sync only if DB exists and is non-empty
-    if [ -s "${RUNTIME_DB}" ]; then
-      cp -f "${RUNTIME_DB}" "${PERSIST_DB}"
-      # Ensure data hits the mount
-      sync
-      echo "[entrypoint] Periodic sync: ${RUNTIME_DB} -> ${PERSIST_DB}"
+    if [ -s "${RUNTIME_DB}" ] || [ -s "${RUNTIME_DB}-wal" ]; then
+      echo "[entrypoint] Periodic sync: runtime -> persisted"
+      copy_trio "${RUNTIME_DB}" "${PERSIST_DB}"
     fi
   done
 }
-
 sync_loop &
 SYNC_PID=$!
 
-# --- Shutdown trap: final sync back to persisted path
+# --- Graceful shutdown: stop app (closing DB), then final sync
 cleanup() {
-  echo "[entrypoint] Caught shutdown, syncing DB back to persisted storage..."
-  if [ -s "${RUNTIME_DB}" ]; then
-    cp -f "${RUNTIME_DB}" "${PERSIST_DB}"
-    sync
-  fi
+  echo "[entrypoint] Shutdown: stopping app and syncing DB..."
   kill -TERM "$PID" 2>/dev/null || true
   wait "$PID" 2>/dev/null || true
+  if [ -f "${RUNTIME_DB}" ] || [ -f "${RUNTIME_DB}-wal" ]; then
+    copy_trio "${RUNTIME_DB}" "${PERSIST_DB}"
+    echo "[entrypoint] Final sync complete."
+  fi
   kill "$SYNC_PID" 2>/dev/null || true
 }
 trap cleanup TERM INT
