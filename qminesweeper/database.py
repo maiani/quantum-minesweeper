@@ -31,9 +31,11 @@ def default_db_path() -> Path:
     Choose a sensible DB location:
 
     1) QMS_DB_PATH if set.
-    2) /data/qms.sqlite if /data is writable (container default).
-    3) ./qms_data/qms.sqlite (project-local) as a last resort.
+    2) /data/qms.sqlite if /data is writable (Cloud Run / Docker default).
+    3) ~/.local/share/qminesweeper/qms.sqlite (XDG-style fallback).
+    4) ./qms_data/qms.sqlite (last resort).
     """
+
     # 1) explicit env
     env = os.getenv("QMS_DB_PATH")
     if env:
@@ -46,11 +48,15 @@ def default_db_path() -> Path:
     if _is_writable_dir(data_dir):
         return data_dir / "qms.sqlite"
 
-    # 3) local project folder
+    # 3) XDG-style local dir
+    local_dir = Path.home() / ".local" / "share" / "qminesweeper"
+    if _is_writable_dir(local_dir):
+        return local_dir / "qms.sqlite"
+
+    # 4) project-local folder
     proj_data = Path.cwd() / "qms_data"
     proj_data.mkdir(parents=True, exist_ok=True)
     return proj_data / "qms.sqlite"
-
 
 # ---------- Store ----------
 
@@ -269,7 +275,8 @@ class SQLiteStore:
 
 # ---------- Singleton accessor ----------
 
-
 @lru_cache(maxsize=1)
 def get_store() -> SQLiteStore:
-    return SQLiteStore(default_db_path())
+    path = default_db_path()
+    log.info(f"Opening SQLite database at {path}")
+    return SQLiteStore(path)

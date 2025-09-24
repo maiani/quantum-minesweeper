@@ -7,6 +7,15 @@
 {% block content %}
 <h2>Last {{ rows|length }} Games</h2>
 
+<div class="admin-links">
+  <ul>
+    <li><a href="/admin?admin_pass={{ request.query_params.admin_pass }}">⬅️ Back to Admin Home</a></li>
+    <li><a href="/admin/db_download?admin_pass={{ request.query_params.admin_pass }}">⬇️ Download Database (CSV)</a></li>
+  </ul>
+</div>
+
+<hr>
+
 <div class="admin-controls">
   <input type="text" id="table-filter" placeholder="Filter rows...">
   <div id="column-toggles">

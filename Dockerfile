@@ -37,12 +37,18 @@ RUN python -m pip install --upgrade pip \
  && pip install --no-cache-dir /wheels/*.whl \
  && rm -rf /wheels
 
+# Create /data with proper ownership for SQLite DB
+RUN mkdir -p /data && chown -R 10001:10001 /data
+
+# Copy entrypoint
+COPY --chmod=755 scripts/entrypoint.sh /entrypoint.sh
+
 # Runtime user (non-root)
 RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose same port as scripts (default 8080, overridable with PORT env)
+# Expose same port as entrypoint (Cloud Run will override PORT anyway)
 EXPOSE 8080
 ENV PORT=8080
 
-CMD ["sh", "-c", "uvicorn qminesweeper.webapp:app --host 0.0.0.0 --port ${PORT} --workers 1 --proxy-headers"]
+ENTRYPOINT ["/entrypoint.sh"]
