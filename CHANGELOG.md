@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2025-09-25
+- Add analytics database
+- Add initial support for admin page
+- Make possible to change setting at runtime 
+
 ## [0.1.2] - 2025-09-23
 - Added keyboard input in the webUI
 - Add simplified setup

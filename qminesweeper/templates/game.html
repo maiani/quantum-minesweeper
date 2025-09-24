@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% set allow_reset = (FEATURES.reset_policy == 'any') or 
+                     (FEATURES.reset_policy == 'sandbox' and status == 'ONGOING' and moveset == 'SANDBOX') %}
 
 {% block content %}
 <!-- Status  -->
@@ -119,7 +121,10 @@
 <h3>Actions</h3>
 <form action="/game?game_id={{ game_id }}" method="post">
   <input type="hidden" name="game_id" value="{{ game_id }}">
+  {% if FEATURES.reset_policy == 'any' 
+      or (FEATURES.reset_policy == 'sandbox' and moveset == 'SANDBOX') %}
   <button type="submit" class="btn" name="action" value="reset">Reset Board</button>
+  {% endif %}
   <button type="submit" class="btn" name="action" value="new_same">New Game</button>
   <button type="submit" class="btn" name="action" value="new_rules">New Setup</button>
 </form>
@@ -127,16 +132,22 @@
 {% else %}
 <div class="gameover-overlay">
   <div class="gameover-box">
-    <h2>Game Over!</h2>
+    <h2>Game Over</h2>
     {% if status == "WIN" %}
-      <p class="result-msg">You win! 🎉</p>
+      <div class="result-icon">🎉</div>
+      <p class="result-msg win">You win!</p>
     {% elif status == "LOST" %}
-      <p class="result-msg">You lost! 💥</p>
+      <div class="result-icon">💥</div>
+      <p class="result-msg lost">You lost!</p>
     {% endif %}
+
     <div class="actions">
       <form action="/game?game_id={{ game_id }}" method="post">
         <input type="hidden" name="game_id" value="{{ game_id }}">
-        <button type="submit" name="action" value="reset" class="btn">Reset Board</button>
+        {% if FEATURES.reset_policy == 'any' 
+          or (FEATURES.reset_policy == 'sandbox' and moveset == 'SANDBOX') %}
+        <button type="submit" class="btn" name="action" value="reset">Reset Board</button>
+        {% endif %}
         <button type="submit" name="action" value="new_same" class="btn">New Game</button>
         <button type="submit" name="action" value="new_rules" class="btn">New Setup</button>
       </form>

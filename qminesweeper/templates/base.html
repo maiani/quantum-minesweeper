@@ -61,14 +61,15 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body>
+<body class="{% block body_class %}{% endblock %}">
   {% include "header.html" %}
 
   <div class="app-body">
-    <main>
+    <main  class="{% block main_class %}{% endblock %}">
       {% block content %}{% endblock %}
 
       <!-- Help Sidebar -->
+      {% if FEATURES.ENABLE_HELP %}
       <aside id="sidebar">
         <div id="sidebar-spacer"></div>
         <div id="sidebar-header">
@@ -81,10 +82,11 @@
           <div id="help-text" class="help-card"></div>
         </div>
       </aside>
+      {% endif %}
     </main>
 
-  <script>
-      window.QMS_ENABLE_HELP = {{ FEATURES.enable_help | tojson }};
+    <script>
+      window.QMS_ENABLE_HELP = {{ FEATURES.ENABLE_HELP | tojson }};
     </script>
     <script src="/static/scripts/help.js" defer></script>
   </div>

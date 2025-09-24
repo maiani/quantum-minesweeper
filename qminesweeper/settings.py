@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # --- Feature flags ---
     ENABLE_HELP: bool = True
     ENABLE_TUTORIAL: bool = True
+    
+    # Reset policy: "never", "sandbox", "any"
+    RESET_POLICY: str = "sandbox"
 
     # Docs links (optional)
     TUTORIAL_URL: str | None = None

@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 from uuid import uuid4
 
 import markdown
@@ -69,11 +69,11 @@ templates.env.globals["version"] = __version__
 templates.env.globals["BASE_URL"] = settings.BASE_URL
 
 templates.env.globals["FEATURES"] = {
-    "enable_help": settings.ENABLE_HELP,
-    "enable_tutorial": settings.ENABLE_TUTORIAL,
-    "tutorial_url": settings.TUTORIAL_URL,
+    "ENABLE_HELP": settings.ENABLE_HELP,
+    "ENABLE_TUTORIAL": settings.ENABLE_TUTORIAL,
+    "TUTORIAL_URL": settings.TUTORIAL_URL,
+    "RESET_POLICY": settings.RESET_POLICY,
 }
-
 templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -131,26 +131,28 @@ def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: 
 
 
 def prune_stale_games() -> None:
-    # From memory
-    cutoff = datetime.now(timezone.utc) - timedelta(settings.ABANDON_THRESHOLD_MIN)
-    stale = [gid for gid, rec in GAMES.items() if rec.get("last_seen") and rec["last_seen"] < cutoff]
-    for gid in stale:
-        try:
-            game = GAMES[gid]["game"]
-            if game.status == GameStatus.ONGOING:
-                STATS_DB.outcome(game_id=gid, ts=_now_iso(), status="ABANDONED")
-        except Exception as e:
-            log.exception(f"DB outcome(ABANDONED) failed gid={gid}: {e}")
-        finally:
-            GAMES.pop(gid, None)
+    """
+    Prune games that have been inactive longer than the abandonment threshold.
 
-    # From DB
-    try:
-        n = STATS_DB.prune_abandoned(minutes=settings.ABANDON_THRESHOLD_MIN)
-        if n:
-            log.info(f"Pruned {n} abandoned games (scheduled)")
-    except Exception as e:
-        log.exception(f"Scheduled prune failed: {e}")
+    - In-memory GAMES dict: remove stale entries, mark DB outcome if still ongoing.
+    - Database: call prune_abandoned() to mark old rows as ABANDONED.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.ABANDON_THRESHOLD_MIN)
+
+    # Clean in-memory store
+    stale_ids = [gid for gid, rec in GAMES.items()
+                 if rec.get("last_seen") and rec["last_seen"] < cutoff]
+    for gid in stale_ids:
+        game = GAMES[gid]["game"]
+        if game.status == GameStatus.ONGOING:
+            STATS_DB.outcome(game_id=gid, ts=_now_iso(), status="ABANDONED")
+        GAMES.pop(gid, None)
+
+    # Clean database store
+    n = STATS_DB.prune_abandoned(minutes=settings.ABANDON_THRESHOLD_MIN)
+    if n:
+        log.info(f"Pruned {n} abandoned games (scheduled)")
+
 
 
 # ----- Command parsing -----
@@ -258,22 +260,19 @@ async def setup_post(
 
     # Persist creation + initial heartbeat
     ts = _now_iso()
-    try:
-        STATS_DB.game_created(
-            game_id=game_id,
-            user_id=user_id,
-            ts=ts,
-            rows=rows,
-            cols=cols,
-            mines=mines,
-            ent_level=ent_level,
-            win_cond=win.name,
-            moveset=mv.name,
-            prep_circuit=board.preparation_circuit,
-        )
-        STATS_DB.heartbeat(game_id=game_id, ts=ts)
-    except Exception as e:
-        log.exception(f"DB game_created/heartbeat failed gid={game_id}: {e}")
+    STATS_DB.game_created(
+        game_id=game_id,
+        user_id=user_id,
+        ts=ts,
+        rows=rows,
+        cols=cols,
+        mines=mines,
+        ent_level=ent_level,
+        win_cond=win.name,
+        moveset=mv.name,
+        prep_circuit=board.preparation_circuit,
+    )
+    STATS_DB.heartbeat(game_id=game_id, ts=ts)
 
     log.info(
         f"SETUP user={user_id} gid={game_id} rows={rows} cols={cols} mines={mines} "
@@ -291,10 +290,8 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
 
     # Update last_seen + DB heartbeat (online)
     GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
-    try:
-        STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
-    except Exception as e:
-        log.exception(f"DB heartbeat failed gid={game_id}: {e}")
+    STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
+
 
     board: QMineSweeperBoard = GAMES[game_id]["board"]
     game: QMineSweeperGame = GAMES[game_id]["game"]
@@ -306,16 +303,12 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
     # Persist terminal outcome once it happens
     if game.status == GameStatus.WIN:
         log.info(f"WIN user={user_id} gid={game_id}")
-        try:
-            STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="WIN")
-        except Exception as e:
-            log.exception(f"DB outcome(WIN) failed gid={game_id}: {e}")
+        STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="WIN")
+
     elif game.status == GameStatus.LOST:
         log.info(f"LOST user={user_id} gid={game_id}")
-        try:
-            STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
-        except Exception as e:
-            log.exception(f"DB outcome(LOST) failed gid={game_id}: {e}")
+        STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
+
 
     return attach_user_cookie(
         templates.TemplateResponse(
@@ -338,7 +331,25 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
 
 
 @app.post("/move")
-async def move_post(cmd: str = Form(...), game_id: Optional[str] = Query(None, alias="game_id")):
+async def move_post(
+    cmd: str = Form(...),
+    game_id: Optional[str] = Query(None, alias="game_id"),
+):
+    """
+    Handle a single move command from the frontend.
+
+    Parameters
+    ----------
+    cmd : str
+        The command string submitted from the UI (e.g., "M 2,3", "X 1,1", "P 4,4").
+    game_id : Optional[str]
+        The unique identifier of the game (passed as query param).
+
+    Returns
+    -------
+    RedirectResponse
+        Redirects back to the game view after applying the move.
+    """
     if not game_id or game_id not in GAMES:
         return RedirectResponse("/setup", status_code=303)
 
@@ -346,26 +357,41 @@ async def move_post(cmd: str = Form(...), game_id: Optional[str] = Query(None, a
 
     try:
         kind, payload = parse_cmd(cmd)
+
         if kind == "M":
-            game.cmd_measure(*payload)
+            # Measurement: payload is a (row, col) tuple
+            rc = cast(Tuple[int, int], payload)
+            game.cmd_measure(*rc)
+            STATS_DB.increment_move(game_id=game_id, kind="measure")
+
         elif kind == "P":
-            game.cmd_toggle_pin(*payload)
+            # Pin toggle: payload is a (row, col) tuple
+            rc = cast(Tuple[int, int], payload)
+            game.cmd_toggle_pin(*rc)
+            # no counter: pinning is not tracked
+
         elif kind == "G1":
-            gate, rc = payload
-            game.cmd_gate(gate, [rc])
+            gate, rc = payload  # type: ignore[misc]
+            gate = cast(str, gate)  # ensure type checker sees this as str
+            game.cmd_gate(gate, [cast(Tuple[int, int], rc)])
+            STATS_DB.increment_move(game_id=game_id, kind="gate")
+
         elif kind == "G2":
-            gate, rc1, rc2 = payload
-            game.cmd_gate(gate, [rc1, rc2])
+            gate, rc1, rc2 = payload  # type: ignore[misc]
+            gate = cast(str, gate)  # ensure type checker sees this as str
+            game.cmd_gate(
+                gate,
+                [cast(Tuple[int, int], rc1), cast(Tuple[int, int], rc2)],
+            )
+            STATS_DB.increment_move(game_id=game_id, kind="gate")
+
     except Exception as e:
         log.exception(f"MOVE error gid={game_id} cmd='{cmd}' err={e}")
 
-    # Heartbeat + last_seen after any move
+    # Update heartbeat and last_seen after any move
     GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
-    try:
-        STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
-    except Exception as e:
-        log.exception(f"DB heartbeat failed gid={game_id}: {e}")
-
+    STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
+    
     return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
 
@@ -383,14 +409,20 @@ async def game_post(
     cfg = GAMES[game_id]["config"]
 
     if action == "reset":
-        board.reset()
-        game.status = GameStatus.ONGOING
-        GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
-        try:
-            STATS_DB.increment_reset(game_id=game_id)
-            STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
-        except Exception as e:
-            log.exception(f"DB reset/heartbeat failed gid={game_id}: {e}")
+        allowed = False
+        if settings.RESET_POLICY == "any":
+            allowed = True
+        elif settings.RESET_POLICY == "sandbox" and game.cfg.win_condition == WinCondition.SANDBOX:
+            allowed = True
+
+        if allowed:
+            board.reset()
+            game.status = GameStatus.ONGOING
+            GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
+            STATS_DB.reset_move_counters(game_id=game_id, ts=_now_iso())
+        else:
+            log.info(f"Reset not allowed by policy ({settings.RESET_POLICY}) for gid={game_id}")
+
 
     elif action == "new_same":
         # Fresh game_id, same rules
@@ -405,22 +437,19 @@ async def game_post(
             "last_seen": datetime.now(timezone.utc),
         }
         ts = _now_iso()
-        try:
-            STATS_DB.game_created(
-                game_id=new_game_id,
-                user_id=ensure_user_id(request),
-                ts=ts,
-                rows=cfg["rows"],
-                cols=cfg["cols"],
-                mines=cfg["mines"],
-                ent_level=cfg["ent_level"],
-                win_cond=cfg["win"].name,
-                moveset=cfg["moves"].name,
-                prep_circuit=board2.preparation_circuit,
-            )
-            STATS_DB.heartbeat(game_id=new_game_id, ts=ts)
-        except Exception as e:
-            log.exception(f"DB game_created failed gid={new_game_id}: {e}")
+        STATS_DB.game_created(
+            game_id=new_game_id,
+            user_id=ensure_user_id(request),
+            ts=ts,
+            rows=cfg["rows"],
+            cols=cfg["cols"],
+            mines=cfg["mines"],
+            ent_level=cfg["ent_level"],
+            win_cond=cfg["win"].name,
+            moveset=cfg["moves"].name,
+            prep_circuit=board2.preparation_circuit,
+        )
+        STATS_DB.heartbeat(game_id=new_game_id, ts=ts)
         return RedirectResponse(f"/game?game_id={new_game_id}", status_code=303)
 
     elif action == "new_rules":
@@ -484,6 +513,72 @@ DOCS = {
 templates.env.globals["docs"] = DOCS
 
 
+@app.get("/admin", response_class=HTMLResponse)
+def admin_home(request: Request, admin_pass: str = Query(...)):
+    if admin_pass != settings.ADMIN_PASS:
+        return PlainTextResponse("Forbidden", status_code=403)
+
+    return templates.TemplateResponse(
+        "admin_home.html",
+        {"request": request},
+    )
+
+@app.post("/admin/update_settings")
+async def update_settings(
+    request: Request,
+    admin_pass: str = Form(...),
+    ENABLE_HELP: Optional[str] = Form(None),
+    ENABLE_TUTORIAL: Optional[str] = Form(None),
+    RESET_POLICY: str = Form("sandbox"),
+):
+    if admin_pass != settings.ADMIN_PASS:
+        return PlainTextResponse("Forbidden", status_code=403)
+
+    # update settings
+    settings.ENABLE_HELP = bool(ENABLE_HELP)
+    settings.ENABLE_TUTORIAL = bool(ENABLE_TUTORIAL)
+    settings.RESET_POLICY = RESET_POLICY
+
+    # update template globals
+    templates.env.globals["FEATURES"].update(
+        ENABLE_HELP=settings.ENABLE_HELP,
+        ENABLE_TUTORIAL=settings.ENABLE_TUTORIAL,
+        RESET_POLICY=settings.RESET_POLICY,
+    )
+
+    return RedirectResponse(f"/admin?admin_pass={admin_pass}", status_code=303)
+
+
+@app.get("/admin/db_view", response_class=HTMLResponse)
+def view_db(request: Request, admin_pass: str = Query(...)):
+    if admin_pass != settings.ADMIN_PASS:
+        return PlainTextResponse("Forbidden", status_code=403)
+
+    cur = STATS_DB._db.cursor()
+    cur.execute("SELECT * FROM games ORDER BY created_at DESC LIMIT 100")
+    rows = cur.fetchall()
+
+    if not rows:
+        return HTMLResponse("<p>No games found.</p>")
+
+    # convert sqlite3.Row → dict with formatted datetimes
+    formatted_rows = []
+    for r in rows:
+        d = dict(r)
+        for k, v in d.items():
+            if isinstance(v, str) and (k.endswith("_at") or k.endswith("_time") or k == "last_seen"):
+                try:
+                    dt = datetime.fromisoformat(v)
+                    d[k] = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    pass
+        formatted_rows.append(d)
+
+    return templates.TemplateResponse(
+        "db_view.html",
+        {"request": request, "rows": formatted_rows},
+    )
+
 @app.get("/admin/db_download")
 def download_db(request: Request, admin_pass: str = Query(...)):
     if admin_pass != settings.ADMIN_PASS:
@@ -507,20 +602,3 @@ def download_db(request: Request, admin_pass: str = Query(...)):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=qms_games.csv"},
     )
-
-
-@app.get("/admin/db_view", response_class=HTMLResponse)
-def view_db(request: Request, admin_pass: str = Query(...)):
-    if admin_pass != settings.ADMIN_PASS:
-        return PlainTextResponse("Forbidden", status_code=403)
-
-    cur = STATS_DB._db.cursor()
-    cur.execute("SELECT * FROM games ORDER BY created_at DESC LIMIT 100")
-    rows = cur.fetchall()
-
-    html = "<h2>Last 100 Games</h2><table border=1>"
-    html += "<tr>" + "".join(f"<th>{k}</th>" for k in rows[0].keys()) + "</tr>"
-    for row in rows:
-        html += "<tr>" + "".join(f"<td>{row[k]}</td>" for k in row.keys()) + "</tr>"
-    html += "</table>"
-    return html

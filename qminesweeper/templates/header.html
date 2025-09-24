@@ -8,12 +8,12 @@
   </div>
 
   <div class="header-right">
-    {% if FEATURES.enable_help %}
+    {% if FEATURES.ENABLE_HELP %}
       <button id="toggle-help" class="header-action" title="Toggle Help">❓</button>
     {% endif %}
 
-    {% if FEATURES.enable_tutorial and FEATURES.tutorial_url %}
-      <a class="header-action" href="{{ FEATURES.tutorial_url }}" target="_blank" rel="noopener">📖</a>
+    {% if FEATURES.ENABLE_TUTORIAL and FEATURES.TUTORIAL_URL %}
+      <a class="header-action" href="{{ FEATURES.TUTORIAL_URL }}" target="_blank" rel="noopener">📖</a>
     {% endif %}
 
     <button id="toggle-theme" class="header-action" title="Toggle theme">🌙</button>

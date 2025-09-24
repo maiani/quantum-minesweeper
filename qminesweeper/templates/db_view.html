@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block body_class %}admin-page{% endblock %}
+{% block main_class %}admin-page{% endblock %}
+{% block title %}Admin – Database View{% endblock %}
+{% set hide_help = True %}
+
+{% block content %}
+<h2>Last {{ rows|length }} Games</h2>
+
+<div class="admin-controls">
+  <input type="text" id="table-filter" placeholder="Filter rows...">
+  <div id="column-toggles">
+    {% for col in rows[0].keys() if col != 'prep_circuit' %}
+      <label>
+        <input type="checkbox" class="col-toggle" data-col="{{ loop.index0 }}" checked>
+        {{ col }}
+      </label>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="admin-table-wrapper">
+  <table class="admin-table" id="games-table">
+    <thead>
+      <tr>
+        {% for col in rows[0].keys() if col != 'prep_circuit' %}
+          <th class="sortable" data-col="{{ loop.index0 }}">{{ col }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for col in row.keys() if col != 'prep_circuit' %}
+          <td>{{ row[col] }}</td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+// --- Filtering ---
+document.getElementById("table-filter").addEventListener("keyup", function() {
+  const filter = this.value.toLowerCase();
+  document.querySelectorAll("#games-table tbody tr").forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(filter) ? "" : "none";
+  });
+});
+
+// --- Column toggling ---
+document.querySelectorAll(".col-toggle").forEach(cb => {
+  cb.addEventListener("change", function() {
+    const colIndex = this.getAttribute("data-col");
+    document.querySelectorAll("#games-table tr").forEach(row => {
+      const cell = row.querySelectorAll("th, td")[colIndex];
+      if (cell) {
+        cell.style.display = this.checked ? "" : "none";
+      }
+    });
+  });
+});
+
+// --- Sorting ---
+document.querySelectorAll("#games-table th.sortable").forEach(th => {
+  th.addEventListener("click", function() {
+    const table = th.closest("table");
+    const tbody = table.querySelector("tbody");
+    const colIndex = parseInt(th.getAttribute("data-col"));
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    const asc = !th.classList.contains("asc");
+
+    rows.sort((a, b) => {
+      const A = a.querySelectorAll("td")[colIndex].innerText.trim();
+      const B = b.querySelectorAll("td")[colIndex].innerText.trim();
+
+      // Try numeric, then fallback to string compare
+      const numA = parseFloat(A), numB = parseFloat(B);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return asc ? numA - numB : numB - numA;
+      }
+      return asc ? A.localeCompare(B) : B.localeCompare(A);
+    });
+
+    // Update DOM
+    rows.forEach(row => tbody.appendChild(row));
+
+    // Update header classes
+    document.querySelectorAll("#games-table th").forEach(h => h.classList.remove("asc", "desc"));
+    th.classList.add(asc ? "asc" : "desc");
+  });
+});
+</script>
+{% endblock %}

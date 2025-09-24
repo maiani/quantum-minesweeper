@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block body_class %}admin-page{% endblock %}
+{% block main_class %}admin-page{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<h2>Admin Dashboard</h2>
+
+<div class="admin-links">
+  <ul>
+    <li><a href="/admin/db_view?admin_pass={{ request.query_params.admin_pass }}">📊 View Database</a></li>
+    <li><a href="/admin/db_download?admin_pass={{ request.query_params.admin_pass }}">⬇️ Download Database (CSV)</a></li>
+  </ul>
+</div>
+
+<hr>
+
+<h3>Settings</h3>
+<form method="post" action="/admin/update_settings">
+  <!-- carry admin_pass forward -->
+  <input type="hidden" name="admin_pass" value="{{ request.query_params.admin_pass }}">
+
+  <label>
+    <input type="checkbox" name="ENABLE_HELP" value="1" {% if FEATURES.ENABLE_HELP %}checked{% endif %}>
+    Enable Help
+  </label>
+  <br>
+  <label>
+    <input type="checkbox" name="ENABLE_TUTORIAL" value="1" {% if FEATURES.ENABLE_TUTORIAL %}checked{% endif %}>
+    Enable Tutorial
+  </label>
+  <br>
+  <label>
+    Reset policy:
+    <select name="RESET_POLICY">
+      <option value="never" {% if FEATURES.RESET_POLICY == 'never' %}selected{% endif %}>Never</option>
+      <option value="sandbox" {% if FEATURES.RESET_POLICY == 'sandbox' %}selected{% endif %}>Sandbox Only</option>
+      <option value="any" {% if FEATURES.RESET_POLICY == 'any' %}selected{% endif %}>Any Game</option>
+    </select>
+  </label>
+  <br><br>
+  <button type="submit">Save</button>
+</form>
+{% endblock %}
