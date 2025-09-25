@@ -52,8 +52,7 @@
 
         <td>
           {% if status == "ONGOING" %}
-            <button type="tool-btn"
-                    onclick="clickCell({{ r }},{{ c }})"
+            <button onclick="clickCell({{ r }},{{ c }})"
                     class="tile {{ cls }}"
                     {% if cls == "clue" %} data-val="{{ val }}" {% endif %}>
               {{ symbol|safe }}

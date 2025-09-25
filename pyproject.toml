@@ -9,7 +9,9 @@ description = "Quantum Minesweeper Game"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-  {name="Andrea Maiani", email="andrea.maiani@su.se"}
+  {name="Andrea Maiani", email="andrea.maiani@su.se"},
+  {name="Niklas Engelhardt Önne", email="niklas.e.onne@fysik.su.se"},
+  {name="Jason Pye", email="jason.pye@su.se"}
 ]
 maintainers = [
   {name="Andrea Maiani", email="andrea.maiani@su.se"}
@@ -37,7 +39,6 @@ dependencies = [
 qiskit = ["qiskit"]
 dev = [
   "pytest",
-  "pytest-cov",
   "qiskit",
   "ruff",
   "pre-commit"

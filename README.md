@@ -170,7 +170,9 @@ Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, etc. change clues a
 
 
 ## Authors
-- Andrea Maiani [andreamaian@su.se]
+- Andrea Maiani [andrea.maian@su.se]
+- Niklas Engelhardt Önne [niklas.e.onne@fysik.su.se]
+- Jason Pye [jason.pye@su.se]
 
 ## License
 MIT License.  

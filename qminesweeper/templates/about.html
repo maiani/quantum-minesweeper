@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body_class %}abou-page{% endblock %}
+{% block main_class %}about-page{% endblock %}
+{% block title %}Quantum Minesweeper - About {% endblock %}
+
+{% block content %}
+
+<div class="setup-expl">
+  {{ docs.about | safe }}
+</div>
+
+<div class="setup-actions">
+  <a href="/game?game_id={{ game_id }}" class="btn">Back to game</a>
+</div>
+
+{% endblock %}

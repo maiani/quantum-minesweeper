@@ -22,12 +22,17 @@
 
   <label>
     <input type="checkbox" name="ENABLE_HELP" value="1" {% if FEATURES.ENABLE_HELP %}checked{% endif %}>
-    Enable Help
+    Enable Help Sidebar
+  </label>
+  <br>
+  <label>
+    <input type="checkbox" name="ENABLE_ABOUT" value="1" {% if FEATURES.ENABLE_ABOUT %}checked{% endif %}>
+    Enable About Page
   </label>
   <br>
   <label>
     <input type="checkbox" name="ENABLE_TUTORIAL" value="1" {% if FEATURES.ENABLE_TUTORIAL %}checked{% endif %}>
-    Enable Tutorial
+    Enable Tutorial Link
   </label>
   <br>
   <label>

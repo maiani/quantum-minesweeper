@@ -72,9 +72,64 @@ templates.env.globals["FEATURES"] = {
     "ENABLE_HELP": settings.ENABLE_HELP,
     "ENABLE_TUTORIAL": settings.ENABLE_TUTORIAL,
     "TUTORIAL_URL": settings.TUTORIAL_URL,
+    "ENABLE_ABOUT": settings.ENABLE_ABOUT,
     "RESET_POLICY": settings.RESET_POLICY,
 }
 templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
+
+# --------- Markdown rendering ---------
+def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
+    """
+    Render markdown file to HTML.
+
+    Parameters
+    ----------
+    path : Path
+        File to read.
+    strip_title : bool
+        If True, extracts first heading as title and strips it from body.
+
+    Returns
+    -------
+    title : str
+        Title (from first heading, or filename stem if not found).
+    html : str
+        Rendered HTML content.
+    """
+    if not path.exists():
+        return path.stem, "<p>Not found.</p>"
+
+    text = path.read_text(encoding="utf-8")
+    title = path.stem
+
+    if strip_title:
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
+            if line.strip().startswith("#"):
+                title = line.lstrip("# ").strip()
+                lines = lines[i + 1 :]
+                break
+        text = "\n".join(lines).strip()
+
+    html = markdown.markdown(
+        text,
+        extensions=[
+            "fenced_code",
+            "tables",
+            TocExtension(),
+            "pymdownx.arithmatex",
+        ],
+        extension_configs={"pymdownx.arithmatex": {"generic": True}},
+    )
+    return title, html
+
+
+DOCS = {
+    "simple_setup": render_markdown(DOCS_DIR / "simple_setup.md")[1],
+    "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
+    "about": render_markdown(DOCS_DIR / "about.md")[1],
+}
+templates.env.globals["docs"] = DOCS
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -458,61 +513,6 @@ async def game_post(
 
     return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
-
-# --------- Markdown rendering ---------
-def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
-    """
-    Render markdown file to HTML.
-
-    Parameters
-    ----------
-    path : Path
-        File to read.
-    strip_title : bool
-        If True, extracts first heading as title and strips it from body.
-
-    Returns
-    -------
-    title : str
-        Title (from first heading, or filename stem if not found).
-    html : str
-        Rendered HTML content.
-    """
-    if not path.exists():
-        return path.stem, "<p>Not found.</p>"
-
-    text = path.read_text(encoding="utf-8")
-    title = path.stem
-
-    if strip_title:
-        lines = text.splitlines()
-        for i, line in enumerate(lines):
-            if line.strip().startswith("#"):
-                title = line.lstrip("# ").strip()
-                lines = lines[i + 1 :]
-                break
-        text = "\n".join(lines).strip()
-
-    html = markdown.markdown(
-        text,
-        extensions=[
-            "fenced_code",
-            "tables",
-            TocExtension(),
-            "pymdownx.arithmatex",
-        ],
-        extension_configs={"pymdownx.arithmatex": {"generic": True}},
-    )
-    return title, html
-
-
-DOCS = {
-    "simple_setup": render_markdown(DOCS_DIR / "simple_setup.md")[1],
-    "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
-}
-templates.env.globals["docs"] = DOCS
-
-
 @app.get("/admin", response_class=HTMLResponse)
 def admin_home(request: Request, admin_pass: str = Query(...)):
     if admin_pass != settings.ADMIN_PASS:
@@ -528,6 +528,7 @@ async def update_settings(
     request: Request,
     admin_pass: str = Form(...),
     ENABLE_HELP: Optional[str] = Form(None),
+    ENABLE_ABOUT: Optional[str] = Form(None),
     ENABLE_TUTORIAL: Optional[str] = Form(None),
     RESET_POLICY: str = Form("sandbox"),
 ):
@@ -536,12 +537,14 @@ async def update_settings(
 
     # update settings
     settings.ENABLE_HELP = bool(ENABLE_HELP)
+    settings.ENABLE_ABOUT = bool(ENABLE_ABOUT)
     settings.ENABLE_TUTORIAL = bool(ENABLE_TUTORIAL)
     settings.RESET_POLICY = RESET_POLICY
 
     # update template globals
     templates.env.globals["FEATURES"].update(
         ENABLE_HELP=settings.ENABLE_HELP,
+        ENABLE_ABOUT = settings.ENABLE_ABOUT,
         ENABLE_TUTORIAL=settings.ENABLE_TUTORIAL,
         RESET_POLICY=settings.RESET_POLICY,
     )
@@ -602,3 +605,19 @@ def download_db(request: Request, admin_pass: str = Query(...)):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=qms_games.csv"},
     )
+
+@app.get("/about", response_class=HTMLResponse)
+async def about_get(request: Request, game_id: Optional[str] = Query(None)):
+    prune_stale_games()
+
+    user_id = ensure_user_id(request)
+    game_id = game_id or str(uuid4())
+    log.info(f"User {user_id} opened about page")
+    resp = templates.TemplateResponse(
+        "about.html",
+        {
+            "request" : request,
+            "game_id" : game_id
+        },
+    )
+    return attach_user_cookie(resp, user_id, request)
