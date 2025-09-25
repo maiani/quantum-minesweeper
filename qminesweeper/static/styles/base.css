@@ -1,0 +1,379 @@
+/* static/styles/base.css */
+
+
+/* ---------- Base theme ---------- */
+:root {
+    --bg: #1a1c22;;
+    --fg: #e8e8e8;
+    --muted: #7a7f87;
+    --tile-muted: #5a6070;
+    --pin: #ffcf33;
+    --boom: #ff4d4d;
+    --zero-bg: #1a1d24;
+    --btn-bg: #202431;
+    --btn-bg-hover: #2a2f3f;
+    --accent: #6aa0ff;
+    --accent-hover: #82b4ff;
+    --box-overlay: rgba(33, 36, 60, 0.25);
+    --radius: 6px;
+
+    --header-height: 56px;
+    --header-bg: rgba(32, 36, 49, 0.95);
+
+    --tile: clamp(20px, 6vw, 40px);
+    --tile-gap: clamp(1px, 0.4vw, 3px);
+}
+
+/* ---------- Light theme: variables only ---------- */
+html.light {
+    --bg: #f7f9fc;
+    --fg: #1e1e1e;
+    --muted: #666;
+    --tile-muted: #bfc7d1;
+    --pin: #d99000;
+    --boom: #e64545;
+    --zero-bg: #eaeef5;
+    --btn-bg: #e1e7f0;
+    --btn-bg-hover: #d4deec;
+    --accent: #3f7ad6;
+    --accent-hover: #5f95ea;
+    --header-bg: rgba(255, 255, 255, 0.75);
+    --box-overlay: rgba(183, 191, 216, 0.35);
+}
+
+/* ---------- Layout ---------- */
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.app-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    padding: var(--header-height) 24px 0;
+    max-width: 1000px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* ---------- Headings ---------- */
+h1 {
+    color: var(--accent);
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+h2 {
+    font-size: clamp(1rem, 1vw, 2rem);
+    font-weight: bold;
+    opacity: 0.85;
+    margin-top: 0;
+    text-align: center;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 18px;
+    background: var(--header-bg);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 0 0 var(--radius) var(--radius);
+    z-index: 100;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: clamp(1.2rem, 3vw, 1.4rem);
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-action {
+    background: none;
+    border: none;
+    color: var(--fg);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.15s ease;
+    text-decoration: none;
+}
+
+.header-action:hover {
+    color: var(--accent);
+    transform: scale(1.15);
+}
+
+/* Light: component overrides */
+body.light .app-header {
+    background: var(--header-bg);
+    border-bottom: 1px solid rgba(180, 200, 220, 0.4);
+}
+
+body.light .app-header h1 {
+    color: var(--accent);
+}
+
+body.light .header-action:hover {
+    color: var(--accent-hover);
+}
+
+/* ---------- Help Toggle Button ---------- */
+#toggle-help {
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#toggle-help.active {
+    background-color: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 6px var(--accent);
+    border-radius: 4px;
+}
+
+/* ---------- Base Buttons ---------- */
+.btn {
+    gap: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--btn-bg);
+    color: var(--fg);
+    cursor: pointer;
+    box-shadow: var(--shadow-subtle);
+    transition: background 0.2s, transform 0.05s, color 0.2s;
+    padding: 8px 14px;
+    /* default size */
+    font-size: 0.95rem;
+    min-width: 44px;
+    text-decoration: none;
+}
+
+/* ---------- Size Modifiers ---------- */
+.btn.tool {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    min-width: 36px;
+}
+
+.btn.help {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+    min-width: 32px;
+}
+
+/* ---------- States ---------- */
+.btn:hover {
+    background: var(--btn-bg-hover);
+    color: var(--white);
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+.btn:disabled {
+    background: var(--btn-bg);
+    color: var(--muted);
+    opacity: 0.6;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.btn.active {
+    outline: 2px solid var(--accent);
+    background: var(--accent);
+    color: var(--black);
+}
+
+/* ---------- Light Theme Overrides ---------- */
+body.light .btn {
+    background: #fff;
+    border: 1px solid #dce3ec;
+    color: var(--fg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+body.light .btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+body.light .btn.active {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: #fff;
+}
+
+/* ---------- Forms ---------- */
+
+.actions form button {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 120px;
+}
+
+@media (min-width: 720px) {
+    .actions form button {
+        flex: 0 0 auto;
+    }
+}
+
+/* ---------- Header & Theme Toggle ---------- */
+.theme-button {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    background: none;
+    border: none;
+    font-size: 1.3em;
+    cursor: pointer;
+    color: var(--fg);
+    transition: transform 0.2s, color 0.2s;
+}
+
+.theme-buttonbtn:hover {
+    color: var(--accent);
+}
+
+/* ---------- Footer ---------- */
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 12px 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+    opacity: 0.8;
+}
+
+.footer-separator {
+    flex-basis: 100%;
+    border: none;
+    border-top: 1px solid var(--tile-muted);
+    margin: 0 0 8px;
+    opacity: 0.4;
+}
+
+.footer-logo {
+    height: clamp(20px, 1.25vh + 1.25vw, 28px);
+    width: auto;
+    vertical-align: middle;
+    object-fit: contain;
+    display: inline-block;
+}
+
+.footer a {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.footer a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+/* ---------- Animations ---------- */
+@keyframes pop {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.mine-icon {
+    display: inline-block;
+    animation: quantum-fade 2s ease-in-out infinite;
+}
+
+@keyframes quantum-fade {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* ---------- Responsive tweaks ---------- */
+@media (max-width: 480px) {
+    main {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .board-container {
+        margin: 0.5em 0;
+    }
+
+    .board td {
+        padding: clamp(0px, 0.2vw, 2px);
+    }
+
+    .board button {
+        border-radius: 4px;
+    }
+
+    .footer {
+        font-size: 0.8rem;
+    }
+
+    .footer-logo {
+        height: 20px;
+    }
+}
+
+@media (max-width: 360px) {
+    main {
+        padding: 4px;
+    }
+
+    .board button {
+        border-radius: 2px;
+    }
+}

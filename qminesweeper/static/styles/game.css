@@ -1,0 +1,220 @@
+/* static/styles/game.css */
+
+/* ---------- Status Bar ---------- */
+.status-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0.5em;
+  margin: 0.5em 0;
+}
+
+.status-table .mine-counter,
+.status-table .entanglement {
+  border: 1px solid var(--fg);
+  border-radius: 6px;
+  padding: 0.4em 0.8em;
+  vertical-align: middle;
+  
+  text-align: center;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.03);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.status-spacer {
+  width: 100%;
+  border-radius: 0px;
+}
+
+.status-table td[help-id]:hover {
+  border: 1px groove var(--accent);
+  background-color: rgba(106,160,255,0.1);
+}
+
+/* ---------- Shared transitions ---------- */
+.board button,
+.btn {
+  transition: background 0.2s, transform 0.05s, color 0.2s;
+}
+
+/* ---------- Board / Tile buttons ---------- */
+.board-container {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+}
+
+.board {
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.board td {
+  padding: var(--tile-gap);
+}
+
+.board button {
+  width: var(--tile);
+  height: var(--tile);
+  border: none;
+  border-radius: var(--radius);
+  background: var(--btn-bg);
+  color: var(--fg);
+  font-size: clamp(10px, 1.8vw, 15px);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.board button:hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+}
+
+.board button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.board button:disabled {
+  color: var(--muted);
+  opacity: 0.9;
+  cursor: not-allowed;
+}
+
+.board button.pick {
+  outline: 2px solid var(--accent);
+}
+
+.tile.unexplored {
+  color: var(--tile-muted);
+}
+
+.tile.pinned {
+  color: var(--pin);
+}
+
+.tile.mine {
+  font-weight: 700;
+  color: var(--boom);
+}
+
+.tile.empty {
+  background: var(--zero-bg);
+}
+
+.tile.clue {
+  color: var(--fg);
+}
+
+/* Light: board buttons */
+body.light .board button {
+  background: var(--btn-bg);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+body.light .board button:hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+}
+
+body.light .board button:disabled {
+  background: var(--zero-bg);
+  color: var(--muted);
+  opacity: 0.95;
+}
+
+/* ---------- Tool row layout ---------- */
+.tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.tools,
+.actions {
+  margin: 12px 0;
+}
+
+.tool-row,
+.actions form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- Game Over overlay ---------- */
+.gameover-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 17, 21, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  text-align: center;
+  transition: background 0.3s ease-in-out;
+}
+
+.gameover-box {
+  background: var(--header-bg);
+  border-radius: var(--radius);
+  padding: clamp(18px, 4vw, 24px) clamp(20px, 5vw, 32px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  max-width: 360px;
+  width: min(92vw, 360px);
+  animation: pop 0.25s ease;
+}
+
+.result-icon {
+  font-size: clamp(36px, 10vw, 48px);
+  margin: 8px 0;
+  text-align: center;
+}
+
+.result-msg {
+  margin: 0 0 12px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.result-msg.win {
+  color: #4caf50;
+  text-shadow: 0 0 6px rgba(76, 175, 80, 0.6), 0 0 12px rgba(76, 175, 80, 0.4);
+}
+
+.result-msg.lost {
+  color: #e64545;
+  text-shadow: 0 0 6px rgba(230, 69, 69, 0.6), 0 0 12px rgba(230, 69, 69, 0.4);
+}
+
+.gameover-box h2 {
+  color: var(--accent);
+  font-size: clamp(1.4rem, 4.8vw, 2rem);
+  margin-bottom: 12px;
+}
+
+.gameover-box .actions form {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: nowrap;
+  margin-top: 12px;
+}
+
+.gameover-box button {
+  padding: 10px 18px;
+  font-size: 15px;
+  border-radius: var(--radius);
+}
+
+.gameover-box p {
+  margin-top: -4px;
+  margin-bottom: 12px;
+  font-size: clamp(1rem, 2.8vw, 1.1rem);
+  font-weight: 500;
+  color: var(--fg);
+}

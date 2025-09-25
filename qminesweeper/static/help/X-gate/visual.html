@@ -1,18 +1,35 @@
 <div class="gate-visual">
-  <img id="gate-animation" src="/static/help/H-gate/svgs/X_0.svg" alt="X-gate animation">
+  <img id="gate-animation" src="/static/help/X-gate/svgs/X_0.svg" alt="X-gate animation">
   <div class="state-selector">
-    <button onclick="setState('0')">|0⟩</button>
-    <button onclick="setState('1')">|1⟩</button>
-    <button onclick="setState('+')">|+⟩</button>
-    <button onclick="setState('-')">|−⟩</button>
-    <button onclick="setState('i')">|i⟩</button>
-    <button onclick="setState('-i')">|−i⟩</button>
+    <button class="btn help" data-state="0">|0⟩</button>
+    <button class="btn help" data-state="1">|1⟩</button>
+    <button class="btn help" data-state="+">|+⟩</button>
+    <button class="btn help" data-state="-">|−⟩</button>
+    <button class="btn help" data-state="i">|i⟩</button>
+    <button class="btn help" data-state="-i">|−i⟩</button>
   </div>
 </div>
 
 <script>
-function setState(st) {
-  const anim = document.getElementById("gate-animation");
-  if (anim) anim.src = `/static/help/X-gate/svgs/X_{st}.svg`;
-}
+/*  window.addEventListener("load", () => {
+  const container = document.querySelector(".gate-visual");
+
+  document.querySelectorAll(".state-selector button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const st = btn.dataset.state;
+      const newImg = document.createElement("img");
+      newImg.id = "gate-animation";
+      newImg.alt = "X-gate animation";
+      newImg.src = `/static/help/X-gate/svgs/X_${encodeURIComponent(st)}.svg?cb=${Date.now()}`;
+
+      // remove the old image and insert the new one at the top of .gate-visual
+      const oldImg = document.getElementById("gate-animation");
+      if (oldImg) {
+        container.replaceChild(newImg, oldImg);
+      } else {
+        container.insertBefore(newImg, container.firstChild);
+      }
+    });
+  });
+});  */
 </script>

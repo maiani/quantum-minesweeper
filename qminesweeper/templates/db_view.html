@@ -1,7 +1,12 @@
 {% extends "base.html" %}
+
 {% block body_class %}admin-page{% endblock %}
 {% block main_class %}admin-page{% endblock %}
 {% block title %}Quantum Minesweeper - Database View{% endblock %}
+
+{% block extra_head %} 
+<link rel="stylesheet" href="/static/styles/admin.css">
+{% endblock %}
 
 {% block content %}
 <h2>Last {{ rows|length }} Games</h2>

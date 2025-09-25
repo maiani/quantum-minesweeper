@@ -26,4 +26,4 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --disable-warnings --cov=qminesweeper --cov-report=xml
+          pytest --disable-warnings

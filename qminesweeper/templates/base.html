@@ -40,7 +40,7 @@
   </script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/styles/base.css">
 
   <!-- Theme toggle -->
   <script src="/static/scripts/theme_toggle.js" defer></script>
@@ -58,7 +58,8 @@
   <script id="MathJax-script" async
           src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
-  {% block extra_head %}{% endblock %}
+  {% block extra_head %}
+  {% endblock %}
 </head>
 
 <body class="{% block body_class %}{% endblock %}">
@@ -88,7 +89,7 @@
     <script>
       window.QMS_ENABLE_HELP = {{ FEATURES.ENABLE_HELP | tojson }};
     </script>
-    <link rel="stylesheet" href="/static/help.css">
+    <link rel="stylesheet" href="/static/styles/help.css">
     <script src="/static/scripts/help.js" defer></script>
   </div>
 

@@ -1,4 +1,5 @@
 // static/scripts/tools.js
+
 const singleQ = new Set(['X','Y','Z','H','S','SDG','SX','SXDG','SY','SYDG']);
 const twoQ    = new Set(['CX','CY','CZ','SWAP']);
 const allTools = new Set(['M','P', ...singleQ, ...twoQ]);
@@ -9,9 +10,10 @@ let firstPick = null;
 function setTool(t) {
   currentTool = t;
   localStorage.setItem("qms_tool", t);
-  firstPick = null; // reset any 2-qubit selection
-  // highlight
-  document.querySelectorAll('.tool-btn').forEach(b => {
+  firstPick = null; 
+  
+  // active style
+  document.querySelectorAll('.btn.tool').forEach(b => {
     b.classList.toggle('active', b.textContent === t);
   });
   document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));

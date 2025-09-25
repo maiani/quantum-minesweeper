@@ -1,0 +1,75 @@
+/* static/styles/setup.css */
+
+/* ---------- Setup form layout ---------- */
+.setup {
+  max-width: 900px;
+  margin: 28px auto;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.setup h2 {
+  margin-top: 0;
+}
+
+.setup-form {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px 14px;
+  align-items: center;
+  max-width: 520px;
+  margin: 28px auto;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.setup-form label {
+  justify-self: end;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.setup-form input[type="number"],
+.setup-form select {
+  width: 80%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--btn-bg);
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+.setup-form input[type="number"]:focus,
+.setup-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.setup-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.setup-expl {
+  max-width: 900px;
+  margin: 28px auto;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+  backdrop-filter: blur(2px);
+}
+
+/* Light: setup panels */
+body.light .setup,
+body.light .setup-form,
+body.light .setup-expl {
+  background: var(--box-overlay);
+}

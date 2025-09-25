@@ -1,7 +1,15 @@
 {% extends "base.html" %}
+
 {% block body_class %}game-page{% endblock %}
 {% block main_class %}game-page{% endblock %}
 {% block title %}Quantum Minesweeper{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/styles/game.css">
+{% if FEATURES.ENABLE_HELP %}
+<link rel="stylesheet" href="/static/styles/help.css">
+{% endif %}
+{% endblock %}
 
 {% set allow_reset = (FEATURES.reset_policy == 'any') or 
                      (FEATURES.reset_policy == 'sandbox' and status == 'ONGOING' and moveset == 'SANDBOX') %}
@@ -75,34 +83,34 @@
 <h3>Select Move</h3>
 <div class="tools">
   <div class="tool-row">
-    <button type="button" class="tool-btn" onclick="setTool('M')" help-id="M-move">M</button>
-    <button type="button" class="tool-btn" onclick="setTool('P')" help-id="P-move">P</button>
+    <button type="button" class="btn tool" onclick="setTool('M')" help-id="M-move">M</button>
+    <button type="button" class="btn tool" onclick="setTool('P')" help-id="P-move">P</button>
   </div>
   {% if moveset in ["ONE_QUBIT", "ONE_QUBIT_COMPLETE", "TWO_QUBIT", "TWO_QUBIT_EXTENDED"] %}
   <div class="tool-row">
     {% for t in ["X","Y","Z","H","S"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
+      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
   {% if moveset in ["ONE_QUBIT_COMPLETE", "TWO_QUBIT_EXTENDED"] %}
   <div class="tool-row">
     {% for t in ["SDG","SX","SXDG","SY","SYDG"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
+      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
   {% if moveset == "TWO_QUBIT" %}
   <div class="tool-row">
     {% for t in ["CX", "SWAP"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
+      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
   {% if moveset == "TWO_QUBIT_EXTENDED" %}
   <div class="tool-row">
     {% for t in ["CX","CY","CZ","SWAP"] %}
-      <button type="button" class="tool-btn" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
+      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
     {% endfor %}
   </div>
   {% endif %}
