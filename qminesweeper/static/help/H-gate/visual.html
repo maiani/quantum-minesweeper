@@ -1,18 +1,16 @@
 <div class="gate-visual">
   <img id="gate-animation" src="/static/help/H-gate/svgs/H_0.svg" alt="Hadamard animation">
+
+  <p>
+    Press one of the button below to see the action on the corresponding state.
+  </p>
+
   <div class="state-selector">
-    <button onclick="setState('0')">|0⟩</button>
-    <button onclick="setState('1')">|1⟩</button>
-    <button onclick="setState('+')">|+⟩</button>
-    <button onclick="setState('-')">|−⟩</button>
-    <button onclick="setState('i')">|i⟩</button>
-    <button onclick="setState('-i')">|−i⟩</button>
+    <button class="btn" onclick="setState('0')">|0⟩</button>
+    <button class="btn" onclick="setState('1')">|1⟩</button>
+    <button class="btn" onclick="setState('+')">|+⟩</button>
+    <button class="btn" onclick="setState('-')">|−⟩</button>
+    <button class="btn" onclick="setState('i')">|i⟩</button>
+    <button class="btn" onclick="setState('-i')">|−i⟩</button>
   </div>
 </div>
-
-<script>
-function setState(st) {
-  const anim = document.getElementById("gate-animation");
-  if (anim) anim.src = `/static/help/H-gate/svgs/H_{st}.svg`;
-}
-</script>

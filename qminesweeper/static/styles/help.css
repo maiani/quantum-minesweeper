@@ -71,8 +71,9 @@
 }
 
 #gate-animation{
-    background: var(--fbc-white);
-    width: auto;
+    background: var(--fg);
+    width: 90%;
+    aspect-ratio: 3/2;
     padding: 0px 30px;
     border-radius: var(--radius);
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
@@ -94,11 +95,11 @@ body.light .help-card {
 }
 
 .gate-visual {
+  height: 50vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: auto;
-  height: 300px;
 }
 
 .gate-visual img {

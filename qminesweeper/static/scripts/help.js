@@ -187,21 +187,34 @@
     }
 
     // --- Attach listeners ---
+    let activeHelpId = null;
+
+    // --- Attach listeners ---
     document.querySelectorAll("[help-id]").forEach(el => {
       const id = el.getAttribute("help-id");
       if (!id) return;
 
-      if (el.classList.contains("tool-btn")) {
-        // Buttons: always hover/click trigger
-        el.addEventListener("mouseenter", () => loadHelp(id));
-        el.addEventListener("click", () => loadHelp(id));
+      const isButton = el.classList.contains("tool-btn") || el.tagName === "BUTTON";
+
+      if (isButton) {
+        // Buttons: activation only on click (no hover)
+        el.addEventListener("click", () => {
+          activeHelpId = id;
+          loadHelp(id);
+        });
       } else {
-        // Status/info (mine counter, entanglement): only when Help is toggled
+        // Non-buttons: keep hover (only when panel is active)...
         el.addEventListener("mouseenter", () => {
           if (panel.classList.contains("active")) loadHelp(id);
         });
         el.addEventListener("click", () => {
           if (panel.classList.contains("active")) loadHelp(id);
+        });
+        // ...and revert to last activated button help on mouseleave
+        el.addEventListener("mouseleave", () => {
+          if (panel.classList.contains("active") && activeHelpId) {
+            loadHelp(activeHelpId);
+          }
         });
       }
     });
