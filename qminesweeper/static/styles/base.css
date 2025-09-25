@@ -308,6 +308,31 @@ body.light .btn.active {
     text-decoration: underline;
 }
 
+/* ---------- Forms ---------- */
+
+label {
+  justify-self: end;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+input[type="number"],
+select {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--btn-bg);
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+input[type="number"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+
 /* ---------- Animations ---------- */
 @keyframes pop {
     0% {
