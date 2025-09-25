@@ -1,5 +1,5 @@
 <div class="gate-visual">
-  <img id="gate-animation" src="/static/help/H-gate/svgs/H_0.svg" alt="Hadamard animation">
+  <img id="gate-animation" src="/static/help/Z-gate/svgs/Z_0.svg" alt="Z-gate animation">
   <div class="state-selector">
     <button onclick="setState('0')">|0⟩</button>
     <button onclick="setState('1')">|1⟩</button>
@@ -13,6 +13,6 @@
 <script>
 function setState(st) {
   const anim = document.getElementById("gate-animation");
-  if (anim) anim.src = `/static/help/H-gate/svgs/H_{st}.svg`;
+  if (anim) anim.src = `/static/help/Z-gate/svgs/Z_{st}.svg`;
 }
 </script>
