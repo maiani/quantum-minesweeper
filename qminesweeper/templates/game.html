@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block body_class %}game-page{% endblock %}
+{% block main_class %}game-page{% endblock %}
+{% block title %}Quantum Minesweeper{% endblock %}
 
 {% set allow_reset = (FEATURES.reset_policy == 'any') or 
                      (FEATURES.reset_policy == 'sandbox' and status == 'ONGOING' and moveset == 'SANDBOX') %}

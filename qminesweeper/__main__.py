@@ -66,6 +66,7 @@ def webui(
         host=host_final,
         port=port_final,
         reload=reload,
+        reload_dirs=["qminesweeper"]
     )
 
 
