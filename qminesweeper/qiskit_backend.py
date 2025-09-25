@@ -144,6 +144,8 @@ class QiskitState(StabilizerQuantumState):
             cl = Clifford(SGate())
         elif gate_enum == QuantumGate.Sdg:
             cl = Clifford(SdgGate())
+        elif gate_enum == QuantumGate.SX:
+            cl = Clifford(SXGate())
         elif gate_enum == QuantumGate.SXdg:
             cl = Clifford(SXdgGate())
         elif gate_enum == QuantumGate.SY:

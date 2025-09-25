@@ -117,6 +117,10 @@ class StimState(StabilizerQuantumState):
             for t in targets:
                 self._do1("S_DAG", t)
                 return
+        if gate_enum == QuantumGate.SX:
+            for t in targets:
+                self._do1("SQRT_X", t)
+                return
         if gate_enum == QuantumGate.SXdg:
             for t in targets:
                 self._do1("SQRT_X_DAG", t)

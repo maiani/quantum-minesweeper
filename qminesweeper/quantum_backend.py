@@ -18,6 +18,7 @@ class QuantumGate(StrEnum):
     H = "H"
     S = "S"
     Sdg = "Sdg"
+    SX = "SX"
     SXdg = "SXdg"
     SY = "SY"
     SYdg = "SYdg"
