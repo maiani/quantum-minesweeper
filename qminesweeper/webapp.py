@@ -72,6 +72,8 @@ templates.env.globals["FEATURES"] = {
     "ENABLE_HELP": settings.ENABLE_HELP,
     "ENABLE_TUTORIAL": settings.ENABLE_TUTORIAL,
     "TUTORIAL_URL": settings.TUTORIAL_URL,
+    "ENABLE_SURVEY" : settings.ENABLE_SURVEY,
+    "SURVEY_URL" : settings.SURVEY_URL,
     "ENABLE_ABOUT": settings.ENABLE_ABOUT,
     "RESET_POLICY": settings.RESET_POLICY,
 }
@@ -530,6 +532,7 @@ async def update_settings(
     ENABLE_HELP: Optional[str] = Form(None),
     ENABLE_ABOUT: Optional[str] = Form(None),
     ENABLE_TUTORIAL: Optional[str] = Form(None),
+    ENABLE_SURVEY: Optional[str] = Form(None),
     RESET_POLICY: str = Form("sandbox"),
 ):
     if admin_pass != settings.ADMIN_PASS:
@@ -539,6 +542,7 @@ async def update_settings(
     settings.ENABLE_HELP = bool(ENABLE_HELP)
     settings.ENABLE_ABOUT = bool(ENABLE_ABOUT)
     settings.ENABLE_TUTORIAL = bool(ENABLE_TUTORIAL)
+    settings.ENABLE_SURVEY = bool(ENABLE_SURVEY)
     settings.RESET_POLICY = RESET_POLICY
 
     # update template globals
@@ -546,6 +550,7 @@ async def update_settings(
         ENABLE_HELP=settings.ENABLE_HELP,
         ENABLE_ABOUT = settings.ENABLE_ABOUT,
         ENABLE_TUTORIAL=settings.ENABLE_TUTORIAL,
+        ENABLE_SURVEY=settings.ENABLE_SURVEY,
         RESET_POLICY=settings.RESET_POLICY,
     )
 

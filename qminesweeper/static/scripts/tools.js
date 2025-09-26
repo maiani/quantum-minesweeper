@@ -10,13 +10,25 @@ let firstPick = null;
 function setTool(t) {
   currentTool = t;
   localStorage.setItem("qms_tool", t);
-  firstPick = null; 
-  
-  // active style
+  firstPick = null;
+
+  // Active style
   document.querySelectorAll('.btn.tool').forEach(b => {
     b.classList.toggle('active', b.textContent === t);
   });
   document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
+
+  // --- Dispatch tool:selected for help.js ---
+  const el = document.querySelector('.btn.tool.active');
+  if (el) {
+    const toolId = el.dataset.toolId || el.textContent;
+    const helpId = el.getAttribute("help-id");
+    document.dispatchEvent(
+      new CustomEvent("tool:selected", {
+        detail: { toolId, helpId }
+      })
+    );
+  }
 }
 
 function sendCmd(cmd) {

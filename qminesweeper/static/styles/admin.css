@@ -70,7 +70,8 @@ body.admin-page main {
 }
 
 /* Hide help sidebar + toggle */
-body.admin-page #sidebar {
+body.admin-page #sidebar,
+body.admin-page #toggle-help {
   display: none !important;
 }
 

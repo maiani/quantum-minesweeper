@@ -51,11 +51,13 @@ jobs:
               QMS_ENABLE_TUTORIAL=${{ vars.QMS_ENABLE_TUTORIAL }},
               QMS_TUTORIAL_URL=${{ vars.QMS_TUTORIAL_URL }},
               QMS_RESET_POLICY=${{ vars.QMS_RESET_POLICY }},
+              QMS_ENABLE_SURVEY=${{ vars.QMS_ENABLE_SURVEY }},
+              QMS_SURVEY_URL=${{ vars.QMS_SURVEY_URL }},
               QMS_DB_PATH=/tmp/qms.sqlite
             " \
             --add-volume name=games-vol,type=cloud-storage,bucket=${{ vars.QMS_BUCKET }} \
             --add-volume-mount volume=games-vol,mount-path=/data \
-            --memory=512Mi \
+            --memory=1Gi \
             --cpu=1 \
             --concurrency=200 \
             --min-instances=0 \

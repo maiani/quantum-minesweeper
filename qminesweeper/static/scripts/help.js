@@ -8,6 +8,7 @@
   const PANEL_ID = "sidebar";
   const TOGGLE_ID = "toggle-help";
   const KEY = "qms_help_open";
+  const TOOL_KEY = "qms_tool";
 
   const panel = document.getElementById(PANEL_ID);
   const toggleBtn = document.getElementById(TOGGLE_ID);
@@ -37,11 +38,11 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    const sidebar  = document.getElementById("sidebar");
-    const titleEl  = document.getElementById("help-title");
+    const sidebar = document.getElementById("sidebar");
+    const titleEl = document.getElementById("help-title");
     const visualEl = document.getElementById("help-visual");
-    const textEl   = document.getElementById("help-text");
-    const mountEl  = document.getElementById("help-mount");
+    const textEl = document.getElementById("help-text");
+    const mountEl = document.getElementById("help-mount");
 
     if (!sidebar || !titleEl || !visualEl || !textEl) {
       console.warn("Help DOM not fully present; skipping content wiring");
@@ -50,7 +51,7 @@
 
     // Preserve placement for mobile vs desktop
     const originalParent = sidebar.parentNode;
-    const originalNext   = sidebar.nextSibling;
+    const originalNext = sidebar.nextSibling;
     const mq = window.matchMedia("(max-width: 720px)");
 
     function mountInline(isInline) {
@@ -114,7 +115,7 @@
       }
 
       titleEl.textContent = HELP_CACHE[id].title;
-      textEl.innerHTML    = HELP_CACHE[id].text;
+      textEl.innerHTML = HELP_CACHE[id].text;
       visualEl.innerHTML = HELP_CACHE[id].visual;
 
       // --- wire up the injected visual (compute template and attach handlers) ---
@@ -166,24 +167,14 @@
             console.log('Requested', anim.src);
           });
         });
-
-        // expose a simple global for inline onclick handlers if any visual files still use them:
-        window.setState = function (st) {
-          const encoded = encodeURIComponent(st);
-          const newSrc = (anim.dataset.srcTemplate || '').replace('{STATE}', encoded);
-          if (!newSrc) return console.error('setState: no template');
-          anim.onerror = () => {
-            console.error('setState failed to load', newSrc);
-            if (anim.dataset.originalSrc) anim.src = anim.dataset.originalSrc;
-          };
-          anim.src = newSrc + `?t=${Date.now()}`;
-        };
       }
-
-
-
-
-      if (window.MathJax) MathJax.typesetPromise();
+      if (window.MathJax) {
+        if (typeof MathJax.typesetPromise === "function") {
+          MathJax.typesetPromise();
+        } else if (window.MathJax.Hub && typeof window.MathJax.Hub.Queue === "function") {
+          MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+        }
+      }
     }
 
     // --- Attach listeners ---
@@ -197,7 +188,7 @@
       const isButton = el.classList.contains("tool-btn") || el.tagName === "BUTTON";
 
       if (isButton) {
-        // Buttons: activation only on click (no hover)
+        // Buttons: activation only on click (redundant)
         el.addEventListener("click", () => {
           activeHelpId = id;
           loadHelp(id);
@@ -218,5 +209,21 @@
         });
       }
     });
+
+    if (wasOpen) {
+      const currentTool = (localStorage.getItem(TOOL_KEY) || "").toUpperCase();
+      if (currentTool === "M" || currentTool === "P") {
+        loadHelp(currentTool + "-move");
+      } else {
+        loadHelp(currentTool + "-gate");
+      }
+    }
+    document.addEventListener("tool:selected", (e) => {
+      const { helpId } = e.detail;
+      if (helpId) {
+        loadHelp(helpId);
+      }
+    });
   });
+
 })();

@@ -58,13 +58,21 @@
     </div>
   </form>
 
+  {% if FEATURES.ENABLE_SURVEY %}
+  <p style="text-align:center">
+  Please help our research by compiling the 
+  <a href="{{ FEATURES.SURVEY_URL }}" style="color:red">
+    Post Game Survey
+  </a> 
+  after you played some times!  
+  </p>
+  {% endif %}
+
   <div class="setup-expl">
     {{ docs.simple_setup | safe }}
   </div>
 
 </div>
-
-
 
 <!-- Advanced setup (hidden initially) -->
 <div id="advanced-setup" class="setup" style="display: none;">

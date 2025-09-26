@@ -160,6 +160,11 @@
         {% endif %}
         <button type="submit" name="action" value="new_same" class="btn">New Game</button>
         <button type="submit" name="action" value="new_rules" class="btn">New Setup</button>
+        {% if FEATURES.ENABLE_SURVEY %}
+        <a class="btn" href="{{ FEATURES.SURVEY_URL }}">
+          Compile Survey
+        </a> 
+        {% endif %}
       </form>
     </div>
   </div>

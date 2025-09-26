@@ -16,14 +16,16 @@ class Settings(BaseSettings):
 
     # --- Feature flags ---
     ENABLE_HELP: bool = True
-    ENABLE_TUTORIAL: bool = True
     ENABLE_ABOUT: bool = True    
-    
+    ENABLE_TUTORIAL: bool = False
+    ENABLE_SURVEY : bool = False
+
     # Reset policy: "never", "sandbox", "any"
     RESET_POLICY: str = "sandbox"
 
-    # Docs links (optional)
+    # External links
     TUTORIAL_URL: str | None = None
+    SURVEY_URL: str | None = None
 
     # --- Auth ---
     ENABLE_AUTH: bool = True

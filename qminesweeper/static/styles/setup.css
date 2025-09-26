@@ -10,6 +10,12 @@
   backdrop-filter: blur(2px);
 }
 
+/* Hide help sidebar + toggle */
+body.setup-page #sidebar,
+body.setup-page #toggle-help {
+  display: none !important;
+}
+
 .setup h2 {
   margin-top: 0;
 }

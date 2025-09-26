@@ -1,9 +1,3 @@
-**Please help our research by compiling the 
-  <a href="https://forms.gle/RxeVbhvDuq8vciWk9" style="color:red">
-    Post Game Survey
-  </a> 
-  after you played some times!**
-
 ## Game rules
 
 **Goal**: Defuse all mines by bringing every cell to the |0> state. If you measure a cell and observe |1>, you lose.
