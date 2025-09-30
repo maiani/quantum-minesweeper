@@ -121,53 +121,55 @@
       // --- wire up the injected visual (compute template and attach handlers) ---
       const anim = visualEl.querySelector('#gate-animation');
       if (anim) {
-        // prefer explicit template if visual.html provides it:
-        // <img id="gate-animation" data-src-template="/static/help/H-gate/svgs/H_{STATE}.svg" src="...">
-        let template = anim.getAttribute('data-src-template');
+        console.log("[help.js] Found #gate-animation:", anim);
 
-        // otherwise calculate a template from the declared src attribute (not .src)
+        let template = anim.getAttribute('data-src-template');
         if (!template) {
           const srcAttr = anim.getAttribute('src') || '';
-          // match "..._<token>.svg" (possibly followed by ?query). Capture prefix and suffix.
           const m = srcAttr.match(/^(.*_)[^_\/?]+(\.svg)(\?.*)?$/);
           if (m) {
-            // prefix includes trailing underscore, suffix is ".svg" + optional query
             template = `${m[1]}{STATE}${m[2]}${m[3] || ''}`;
           } else {
-            // fallback: replace the final ".svg" with "_{STATE}.svg"
             template = srcAttr.replace(/\.svg(\?.*)?$/, `_{STATE}.svg$1`);
           }
         }
 
-        // store for later and preserve original src to restore on error
         anim.dataset.srcTemplate = template;
         anim.dataset.originalSrc = anim.getAttribute('src') || '';
+        console.log("[help.js] Using src template:", template);
 
-        // attach button handlers (works with <button data-state="...">)
         visualEl.querySelectorAll('button[data-state]').forEach(btn => {
-          // prevent accidental form submit
           btn.type = btn.type || 'button';
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             const rawState = btn.dataset.state;
             const encoded = encodeURIComponent(rawState);
             const newSrc = (anim.dataset.srcTemplate || '').replace('{STATE}', encoded);
-            if (!newSrc) { console.error('No image template available to construct src'); return; }
+            console.log(`[help.js] Button clicked (state=${rawState}) → newSrc=${newSrc}`);
 
-            // restore original if load fails
+            if (!newSrc) {
+              console.error('[help.js] No image template available to construct src');
+              return;
+            }
+
             anim.onerror = () => {
-              console.error('Failed to load image:', newSrc);
-              // restore the original image (so UI doesn't remain blank)
-              if (anim.dataset.originalSrc) anim.src = anim.dataset.originalSrc;
+              console.error('[help.js] Failed to load image:', newSrc);
+              if (anim.dataset.originalSrc) {
+                console.log('[help.js] Restoring original src:', anim.dataset.originalSrc);
+                anim.src = anim.dataset.originalSrc;
+              }
             };
-            anim.onload = () => { console.log('Loaded image:', newSrc); };
 
-            // optional cache-bust for debugging; remove "?t=..." in production
-            anim.src = newSrc + `?t=${Date.now()}`;
-            console.log('Requested', anim.src);
+            anim.onload = () => {
+              console.log('[help.js] Loaded image:', newSrc);
+            };
+
+            const bust = `?t=${Date.now()}`;
+            anim.src = newSrc + bust;
           });
         });
       }
+
       if (window.MathJax) {
         if (typeof MathJax.typesetPromise === "function") {
           MathJax.typesetPromise();
@@ -225,5 +227,4 @@
       }
     });
   });
-
 })();

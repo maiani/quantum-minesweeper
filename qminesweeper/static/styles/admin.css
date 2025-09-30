@@ -69,12 +69,6 @@ body.admin-page main {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Hide help sidebar + toggle */
-body.admin-page #sidebar,
-body.admin-page #toggle-help {
-  display: none !important;
-}
-
 .admin-controls {
   display: flex;
   flex-wrap: wrap;

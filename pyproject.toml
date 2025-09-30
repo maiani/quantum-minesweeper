@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qminesweeper"
-version = "0.2.0"
+version = "0.2.1"
 description = "Quantum Minesweeper Game"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -70,6 +70,7 @@ qminesweeper = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-include = ["*.ipynb", "*.md", "*.toml", "*.yml", "*.yaml", "*.json"]
 
 # Enable linting + autofix
 [tool.ruff.lint]
@@ -82,3 +83,5 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = 88

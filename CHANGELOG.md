@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2025-09-30 - Firs public pre-release
+- Updated about page
+- Updated pre-commit
+- FIX: animations not working
+- FIX: url color
+
+## [0.2.0] - 2025-09-25
+- Polishing of UI and UX
+  
+## [0.1.4] - 2025-09-25
+- Implementing all the animations
+- Including survey
+
 ## [0.1.3] - 2025-09-25
 - Add analytics database
 - Add initial support for admin page

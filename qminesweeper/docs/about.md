@@ -1,9 +1,32 @@
-## About Quantum Minesweeper
+## About
 
-Quantum Minesweeper is a **quantum twist** on the classic game of Minesweeper. 
-Instead of fixed mines, the board is prepared in **quantum states**:  
-The player interacts with the board by **measuring qubits** or **applying quantum gates**, 
-and must either *identify* or *clear* the “quantum mines.”
+*Quantum Minesweeper* is a **quantum twist** on the classic game of Minesweeper.  
+Instead of fixed mines, the board is prepared in a superposition of different mine configurations.  
+You interact with the board by **measuring** one cell, or by **applying quantum gates** 
+and modify the boardto *defuse* the “quantum mines.”
 
-Quantum Minesweeper has been developed by researcher at the Nordic Institute of Theoretical Physics (Nordita) in Stockholm 
-in 2025.
+Developed at the [Nordic Institute for Theoretical Physics (Nordita)](https://www.nordita.org) in 2025, the project brings together a unified vision across gameplay, stabilizer mechanics, and the web/TUI interfaces.
+
+---
+
+### Team
+- **Andrea Maiani** · [GitHub](https://github.com/maiani)
+- **Niklas Engelhardt Önne** · [GitHub](https://github.com/niklasonne)
+- **Jason Pye** 
+
+---
+
+### Source & Issues
+- GitHub: [maiani/quantum-minesweeper](https://github.com/maiani/quantum-minesweeper)  
+- Issues & feature requests: [Open an issue](https://github.com/maiani/quantum-minesweeper/issues)
+
+---
+
+### How to Cite
+If you use *Quantum Minesweeper* in research or teaching, please cite the archived software release:
+
+**Quantum Minesweeper**. DOI: [10.5281/zenodo.XXXXXXX](https://doi.org/10.5281/zenodo.XXXXXXX)
+---
+
+## # License
+MIT License. © 2025 Andrea Maiani and contributors.

@@ -33,7 +33,7 @@ html.light {
     --pin: #d99000;
     --boom: #e64545;
     --zero-bg: #eaeef5;
-    --btn-bg: #e1e7f0;
+    --btn-bg: #eef1f5;
     --btn-bg-hover: #d4deec;
     --accent: #3f7ad6;
     --accent-hover: #5f95ea;
@@ -174,8 +174,7 @@ body.light .header-action:hover {
     cursor: pointer;
     box-shadow: var(--shadow-subtle);
     transition: background 0.2s, transform 0.05s, color 0.2s;
-    padding: 8px 14px;
-    /* default size */
+    padding: 8px 12px;
     font-size: 0.95rem;
     min-width: 44px;
     text-decoration: none;
@@ -220,16 +219,16 @@ body.light .header-action:hover {
 
 /* ---------- Light Theme Overrides ---------- */
 body.light .btn {
-    background: #fff;
+    background: var(--btn-bg);
     border: 1px solid #dce3ec;
     color: var(--fg);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 body.light .btn:hover {
-    background: var(--accent);
+    background: var(--btn-bg-hover);
     border-color: var(--accent);
-    color: #fff;
+    /* color: var(--btn-bg); */
 }
 
 body.light .btn.active {

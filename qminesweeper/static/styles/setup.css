@@ -1,6 +1,6 @@
 /* static/styles/setup.css */
 
-/* ---------- Setup form layout ---------- */
+/* ---------- Shared container ---------- */
 .setup {
   max-width: 900px;
   margin: 28px auto;
@@ -10,16 +10,11 @@
   backdrop-filter: blur(2px);
 }
 
-/* Hide help sidebar + toggle */
-body.setup-page #sidebar,
-body.setup-page #toggle-help {
-  display: none !important;
-}
-
 .setup h2 {
   margin-top: 0;
 }
 
+/* ---------- Setup form ---------- */
 .setup-form {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -31,7 +26,74 @@ body.setup-page #toggle-help {
   border-radius: var(--radius);
   background: var(--box-overlay);
   backdrop-filter: blur(2px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+body.light .setup,
+body.light .setup-form,
+body.light .setup-expl {
+  background: var(--box-overlay);
+}
+
+/* ---------- “Explainer / Card” blocks (reuse for About) ---------- */
+.setup-expl {
+  max-width: 900px;
+  margin: 28px auto;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.setup-expl h1 {
+  text-align: center;
+  margin-top: 0;
+}
+
+.setup-expl h2 {
+  font-weight: 700;
+  font-size: clamp(1.1rem, 1.5vw, 1.25rem);
+}
+
+.setup-expl p {
+  margin: 0.6rem 0;
+}
+
+.setup-expl ul {
+  margin: 0.3rem 0 0.8rem 1.2rem;
+}
+
+.setup-expl li {
+  margin: 0.25rem 0;
+}
+
+.setup a, .setup-expl a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in oklab, var(--accent), transparent 60%);
+}
+
+.setup-expl a:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Soft divider */
+.setup-expl .rule {
+  height: 1px;
+  background: linear-gradient(to right,
+      transparent,
+      color-mix(in oklab, var(--fg), transparent 80%),
+      transparent);
+  margin: 1rem 0;
+}
+
+.setup-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
 }
 
 .setup-form label {
@@ -57,27 +119,8 @@ body.setup-page #toggle-help {
   border-color: var(--accent);
 }
 
-.setup-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 6px;
-}
 
-.setup-expl {
-  max-width: 900px;
-  margin: 28px auto;
-  padding: 10px 20px;
-  border-radius: var(--radius);
-  background: var(--box-overlay);
-  backdrop-filter: blur(2px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-}
-
-/* Light: setup panels */
-body.light .setup,
-body.light .setup-form,
-body.light .setup-expl {
-  background: var(--box-overlay);
+body.light .setup-form input[type="number"],
+body.light .setup-form select {
+  background: var(--btn-bg);
 }

@@ -1,14 +1,22 @@
 /* static/styles/help.css */
 
-/* ---------- Help Sidebar ---------- */
+body.setup-page #sidebar,
+body.setup-page #toggle-help {
+  display: none !important;
+}
+
+body.admin-page #sidebar,
+body.admin-page #toggle-help {
+  display: none !important;
+}
+
 #sidebar {
   position: fixed;
   right: 0;
   bottom: 0;
   width: 400px;
   max-width: 80vw;
-  /* background: rgba(32, 36, 49, 0.9); */
-  background: var(--box-overlay);;
+  background: var(--box-overlay);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: var(--fg);
@@ -63,24 +71,25 @@
 
 .help-card {
   /* background: rgba(32, 36, 49, 0.35); */
-  background: var(--box-overlay);;
+  background: var(--box-overlay);
+  ;
   padding: 12px 14px;
   border-radius: var(--radius);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   min-height: 60px;
 }
 
-#gate-animation{
-    background: var(--fg);
-    width: 90%;
-    aspect-ratio: 3/2;
-    padding: 0px 30px;
-    border-radius: var(--radius);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+#gate-animation {
+  background: var(--fg);
+  width: 90%;
+  aspect-ratio: 3/2;
+  padding: 0px 30px;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-body.light #gate-animation{
-    background: var(--bg);
+body.light #gate-animation {
+  background: var(--bg);
 }
 
 /* Light: sidebar & help */
@@ -95,7 +104,7 @@ body.light #sidebar-header h2 {
 
 body.light .help-card {
   background: rgba(240, 243, 250, 0.9);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .gate-visual {
