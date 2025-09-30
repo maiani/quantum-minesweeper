@@ -5,7 +5,7 @@ Instead of fixed mines, the board is prepared in a superposition of different mi
 You interact with the board by **measuring** one cell, or by **applying quantum gates** 
 and modify the boardto *defuse* the “quantum mines.”
 
-Developed at the [Nordic Institute for Theoretical Physics (Nordita)](https://www.nordita.org) in 2025, the project brings together a unified vision across gameplay, stabilizer mechanics, and the web/TUI interfaces.
+Developed at the Nordic Institute for Theoretical Physics ([Nordita](https://www.nordita.org)) in 2025, the project brings together a unified vision across gameplay, stabilizer mechanics, and the web/TUI interfaces.
 
 ---
 
@@ -23,10 +23,9 @@ Developed at the [Nordic Institute for Theoretical Physics (Nordita)](https://ww
 ---
 
 ### How to Cite
-If you use *Quantum Minesweeper* in research or teaching, please cite the archived software release:
+If you use *Quantum Minesweeper* in research or teaching, please cite the archived software release: TBA
 
-**Quantum Minesweeper**. DOI: [10.5281/zenodo.XXXXXXX](https://doi.org/10.5281/zenodo.XXXXXXX)
 ---
 
-## # License
+## License
 MIT License. © 2025 Andrea Maiani and contributors.
