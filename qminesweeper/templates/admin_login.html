@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body_class %}admin-page{% endblock %}
+{% block main_class %}admin-page{% endblock %}
+
+{% block title %}Quantum Minesweeper - Admin Login{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/styles/admin.css">
+{% endblock %}
+
+{% block content %}
+<h2>Admin Login</h2>
+
+{% if error %}
+<div class="setup-error" role="alert">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/admin/login">
+  <label>
+    Password:
+    <input type="password" name="admin_pass" autocomplete="current-password" required>
+  </label>
+  <br><br>
+  <button class="btn" type="submit">Log in</button>
+</form>
+{% endblock %}

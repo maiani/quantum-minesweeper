@@ -5,6 +5,44 @@ import stim
 
 from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState
 
+# QuantumGate -> Stim op name, split by arity.
+_ONE_Q_STIM: dict[QuantumGate, str] = {
+    QuantumGate.X: "X",
+    QuantumGate.Y: "Y",
+    QuantumGate.Z: "Z",
+    QuantumGate.H: "H",
+    QuantumGate.S: "S",
+    QuantumGate.Sdg: "S_DAG",
+    QuantumGate.SX: "SQRT_X",
+    QuantumGate.SXdg: "SQRT_X_DAG",
+    QuantumGate.SY: "SQRT_Y",
+    QuantumGate.SYdg: "SQRT_Y_DAG",
+}
+_TWO_Q_STIM: dict[QuantumGate, str] = {
+    QuantumGate.CX: "CX",
+    QuantumGate.CY: "CY",
+    QuantumGate.CZ: "CZ",
+    QuantumGate.SWAP: "SWAP",
+}
+
+# Stim op name (as emitted by Tableau.to_circuit) -> (board gate name, arity).
+_STIM_TO_BOARD: dict[str, tuple[str, int]] = {
+    "H": ("H", 1),
+    "S": ("S", 1),
+    "S_DAG": ("Sdg", 1),
+    "X": ("X", 1),
+    "Y": ("Y", 1),
+    "Z": ("Z", 1),
+    "SQRT_X": ("SX", 1),
+    "SQRT_X_DAG": ("SXdg", 1),
+    "SQRT_Y": ("SY", 1),
+    "SQRT_Y_DAG": ("SYdg", 1),
+    "CX": ("CX", 2),
+    "CY": ("CY", 2),
+    "CZ": ("CZ", 2),
+    "SWAP": ("SWAP", 2),
+}
+
 
 class StimState(StabilizerQuantumState):
     """Stim-based stabilizer simulation backend."""
@@ -77,6 +115,9 @@ class StimState(StabilizerQuantumState):
         """
         Apply a supported Clifford gate.
 
+        Single-qubit gates are broadcast over every index in ``targets``;
+        two-qubit gates require exactly two targets. (See StabilizerQuantumState.)
+
         Parameters
         ----------
         gate : QuantumGate | str
@@ -92,68 +133,16 @@ class StimState(StabilizerQuantumState):
         else:
             gate_enum = gate
 
-        # one-qubit gates
-        if gate_enum == QuantumGate.X:
+        if gate_enum in _ONE_Q_STIM:
+            op = _ONE_Q_STIM[gate_enum]
             for t in targets:
-                self._do1("X", t)
-                return
-        if gate_enum == QuantumGate.Y:
-            for t in targets:
-                self._do1("Y", t)
-                return
-        if gate_enum == QuantumGate.Z:
-            for t in targets:
-                self._do1("Z", t)
-                return
-        if gate_enum == QuantumGate.H:
-            for t in targets:
-                self._do1("H", t)
-                return
-        if gate_enum == QuantumGate.S:
-            for t in targets:
-                self._do1("S", t)
-                return
-        if gate_enum == QuantumGate.Sdg:
-            for t in targets:
-                self._do1("S_DAG", t)
-                return
-        if gate_enum == QuantumGate.SX:
-            for t in targets:
-                self._do1("SQRT_X", t)
-                return
-        if gate_enum == QuantumGate.SXdg:
-            for t in targets:
-                self._do1("SQRT_X_DAG", t)
-                return
-        if gate_enum == QuantumGate.SY:
-            for t in targets:
-                self._do1("SQRT_Y", t)
-                return
-        if gate_enum == QuantumGate.SYdg:
-            for t in targets:
-                self._do1("SQRT_Y_DAG", t)
-                return
+                self._do1(op, t)
+            return
 
-        # two-qubit gates
-        if gate_enum == QuantumGate.CX:
+        if gate_enum in _TWO_Q_STIM:
             if len(targets) != 2:
-                raise ValueError("CX expects 2 targets")
-            self._do2("CX", targets[0], targets[1])
-            return
-        if gate_enum == QuantumGate.CY:
-            if len(targets) != 2:
-                raise ValueError("CY expects 2 targets")
-            self._do2("CY", targets[0], targets[1])
-            return
-        if gate_enum == QuantumGate.CZ:
-            if len(targets) != 2:
-                raise ValueError("CZ expects 2 targets")
-            self._do2("CZ", targets[0], targets[1])
-            return
-        if gate_enum == QuantumGate.SWAP:
-            if len(targets) != 2:
-                raise ValueError("SWAP expects 2 targets")
-            self._do2("SWAP", targets[0], targets[1])
+                raise ValueError(f"{gate_enum.value} expects 2 targets, got {len(targets)}")
+            self._do2(_TWO_Q_STIM[gate_enum], targets[0], targets[1])
             return
 
         raise ValueError(f"Unsupported gate for Stim: {gate_enum}")
@@ -170,38 +159,28 @@ class StimBackend(QuantumBackend):
         Generate a random stabilizer circuit of size n using Stim.
         Returns a list of (gate, [qubit indices]) tuples compatible
         with QMineSweeperBoard.
+
+        Uses the explicit "elimination" decomposition and **raises** on any op
+        outside the known vocabulary, so an unmapped gate can never be silently
+        dropped (which would yield a state that is not the sampled Clifford).
         """
         tableau = stim.Tableau.random(n)
-        circuit = tableau.to_circuit()
-
-        ARITY = {
-            "H": 1,
-            "S": 1,
-            "S_DAG": 1,
-            "X": 1,
-            "Y": 1,
-            "Z": 1,
-            "CX": 2,
-            "CY": 2,
-            "CZ": 2,
-            "SWAP": 2,
-        }
-        name_map = {"S_DAG": "Sdg"}  # map Stim to your board conventions
+        circuit = tableau.to_circuit(method="elimination")
 
         out: list[tuple[str, list[int]]] = []
         for inst in circuit:
             name = inst.name.upper()
-            if name not in ARITY:
-                continue
-
-            name = name_map.get(name, name)
-            arity = ARITY[name]  # 1 or 2
+            if name not in _STIM_TO_BOARD:
+                raise ValueError(
+                    f"Stim emitted unsupported gate {name!r} in random Clifford decomposition; extend _STIM_TO_BOARD."
+                )
+            board_name, arity = _STIM_TO_BOARD[name]
 
             qubits = [t.value for t in inst.targets_copy() if t.is_qubit_target]
             if len(qubits) % arity != 0:
-                raise ValueError(f"Unexpected arity for {name}: {qubits}")
+                raise ValueError(f"Unexpected target count for {name}: {qubits}")
 
             for i in range(0, len(qubits), arity):
-                out.append((name, qubits[i : i + arity]))
+                out.append((board_name, qubits[i : i + arity]))
 
         return out

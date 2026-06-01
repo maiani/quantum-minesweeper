@@ -13,18 +13,18 @@
 
 <div class="admin-links">
   <ul>
-    <li><a href="/admin/db_view?admin_pass={{ request.query_params.admin_pass }}">📊 View Database</a></li>
-    <li><a href="/admin/db_download?admin_pass={{ request.query_params.admin_pass }}">⬇️ Download Database (CSV)</a></li>
+    <li><a href="/admin/db_view">📊 View Database</a></li>
+    <li><a href="/admin/db_download">⬇️ Download Database (CSV)</a></li>
   </ul>
+  <form method="post" action="/admin/logout" style="margin-top:0.5rem">
+    <button class="btn" type="submit">Log out</button>
+  </form>
 </div>
 
 <hr>
 
 <h3>Settings</h3>
 <form method="post" action="/admin/update_settings">
-  <!-- carry admin_pass forward -->
-  <input type="hidden" name="admin_pass" value="{{ request.query_params.admin_pass }}">
-
   <label>
     <input type="checkbox" name="ENABLE_HELP" value="1" {% if FEATURES.ENABLE_HELP %}checked{% endif %}>
     Enable Help Sidebar

@@ -33,7 +33,14 @@ class MoveSet(Enum):
     ONE_QUBIT = auto()  # + single-qubit gates
     ONE_QUBIT_COMPLETE = auto()  # + single-qubit gates (all)
     TWO_QUBIT = auto()  # + two-qubit gates
-    TWO_QUBIT_EXTENDED = ()  # + two-qubit + all 1-qubit
+    TWO_QUBIT_EXTENDED = auto()  # + two-qubit + all 1-qubit
+
+
+# Case-insensitive lookup from a gate token (name or value, any case) to QuantumGate.
+# QuantumGate is a StrEnum where each member's name equals its value, so the value
+# (upper-cased) is a stable key. This must tolerate the upper-cased tokens the web
+# layer emits (e.g. "SDG", "SXDG", "SYDG") as well as canonical mixed case ("Sdg").
+_GATE_BY_UPPER: dict[str, QuantumGate] = {g.value.upper(): g for g in QuantumGate}
 
 
 # Allowed moves: mix of Action and QuantumGate enums
@@ -167,13 +174,13 @@ class QMineSweeperGame:
         targets : list[tuple[int, int]]
             List of (row, col) targets.
         """
-        # Normalize to QuantumGate
+        # Normalize to QuantumGate (case-insensitive on the gate token)
         if isinstance(gate, QuantumGate):
             gate_enum = gate
         else:
             try:
-                gate_enum = QuantumGate[gate] if gate.isupper() else QuantumGate(gate.upper())
-            except Exception:
+                gate_enum = _GATE_BY_UPPER[gate.upper()]
+            except KeyError:
                 raise ValueError(f"Unsupported gate: {gate}")
 
         if not self._allowed(gate_enum):

@@ -47,6 +47,11 @@ class StabilizerQuantumState(ABC):
     def apply_gate(self, gate: str, targets: List[int]) -> None:
         """
         Apply a named gate to the specified targets.
+
+        Contract (all backends must agree):
+        - Single-qubit gates are **broadcast** over every index in ``targets``.
+        - Two-qubit gates require **exactly two** targets and raise otherwise.
+
         Gate vocabulary must match what backends emit in random_clifford_circuit.
         """
         ...

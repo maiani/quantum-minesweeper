@@ -10,6 +10,10 @@
 
 {% block content %}
 
+{% if error %}
+<div class="setup-error" role="alert">{{ error }}</div>
+{% endif %}
+
 <!-- Simplified setup (shown by default) -->
 <div id="simple-setup" class="setup">
   <h2>Game Setup</h2>

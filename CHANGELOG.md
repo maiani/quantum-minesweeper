@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.1] - 2025-09-30 - Firs public pre-release
+## [0.2.2] - 2026-06-01
+- Hardened the codebase ahead of the browser-backend refactor.
+- Fixed dagger-gate command normalization so `Sdg`, `SXdg`, and `SYdg` moves work from the web UI.
+- Fixed Stim/Qiskit parity for `SY` and `SYdg`, and added per-gate backend parity tests.
+- Fixed Stim single-qubit multi-target gate application and made random Clifford decomposition fail loudly on unknown gates.
+- Restored reset-button rendering and aligned sandbox reset policy with the win condition.
+- Added setup validation and coordinate bounds checks to avoid invalid boards and wrapped negative indexes.
+- Moved admin authentication off URL query parameters and onto a signed session cookie.
+- Pinned dependency version ranges and fixed deployment/admin environment variables.
+- Added regression coverage for command parsing, flood fill, backend parity, golden grid exports, setup validation, and admin sessions.
+- Updated installation and launch instructions.
+
+## [0.2.1] - 2025-09-30 - First public pre-release
 - Updated about page
 - Updated pre-commit
 - FIX: animations not working
@@ -43,4 +55,3 @@ All notable changes to this project will be documented in this file.
   
 ## [0.1.0] - 2025-09-15
 - First private release
-

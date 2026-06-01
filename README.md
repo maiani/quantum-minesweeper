@@ -42,6 +42,7 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 # Install the package
 python -m pip install -U pip
+python -m pip install .
 ```
 ---
 
@@ -54,11 +55,11 @@ Configuration is centralized with Pydantic Settings and loaded from environment 
 Common flags:
 - `QMS_ENABLE_AUTH`  - enable HTTP basic auth
 - `QMS_USER` / `QMS_PASS` - credentials for basic auth
-- `QMS_ADMIN_PASS` - admin password
+- `QMS_ADMIN_PASS` - admin dashboard password; leave unset to disable admin routes
 - `QMS_ENABLE_HELP` - render the in-app Help sidebar toggle
 - `QMS_ENABLE_TUTORIAL` / `QMS_TUTORIAL_URL` - show a Tutorial link
-- `QMS_ENABLE_SURVEY` / `QMS_SURVEY_URL` - show a Tutorial link
-- `QMS_BASE_URL` can be set for absolute pahts.
+- `QMS_ENABLE_SURVEY` / `QMS_SURVEY_URL` - show a Survey link
+- `QMS_BASE_URL` can be set for absolute paths.
   
 Create a `.env` (or use `.env.example`) in local dev.
 
@@ -77,7 +78,7 @@ python -m qminesweeper tui --backend qiskit
 ### Web Interface
 Launch the web interface with:
 ```bash
-python -m qminesweeper web --port 8080
+python -m qminesweeper webui --port 8080
 ```
 
 Then open your browser at: [http://127.0.0.1:8080](http://127.0.0.1:8080)
@@ -131,4 +132,4 @@ Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, etc. change clues a
 
 ## License
 MIT License.  
-(c) 2025 Andrea Maiani and contributors.
+(c) 2025-2026 Andrea Maiani and contributors.

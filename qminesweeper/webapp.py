@@ -5,6 +5,7 @@ import csv
 import io
 import logging
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Tuple, cast
@@ -21,6 +22,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from markdown.extensions.toc import TocExtension
 
 from qminesweeper import __version__
@@ -72,12 +74,13 @@ templates.env.globals["FEATURES"] = {
     "ENABLE_HELP": settings.ENABLE_HELP,
     "ENABLE_TUTORIAL": settings.ENABLE_TUTORIAL,
     "TUTORIAL_URL": settings.TUTORIAL_URL,
-    "ENABLE_SURVEY" : settings.ENABLE_SURVEY,
-    "SURVEY_URL" : settings.SURVEY_URL,
+    "ENABLE_SURVEY": settings.ENABLE_SURVEY,
+    "SURVEY_URL": settings.SURVEY_URL,
     "ENABLE_ABOUT": settings.ENABLE_ABOUT,
     "RESET_POLICY": settings.RESET_POLICY,
 }
 templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
+
 
 # --------- Markdown rendering ---------
 def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
@@ -159,6 +162,37 @@ def attach_user_cookie(resp: Response, user_id: str, request: Request) -> Respon
     return resp
 
 
+# --------- Admin session (signed cookie) ---------
+# Admin is gated by a short-lived signed cookie issued on a POST login, rather
+# than a password echoed through URL query strings (which leak into access logs,
+# proxies, browser history and Referer headers). The signing secret is derived
+# from ADMIN_PASS, so a cookie cannot be forged without knowing the password.
+ADMIN_COOKIE = "qms_admin"
+ADMIN_SESSION_MAX_AGE = 8 * 3600  # seconds
+
+
+def _admin_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.ADMIN_PASS or "", salt="qms-admin-session")
+
+
+def admin_enabled() -> bool:
+    return bool(settings.ADMIN_PASS)
+
+
+def admin_authed(request: Request) -> bool:
+    """True if the request carries a valid, unexpired admin session cookie."""
+    if not admin_enabled():
+        return False
+    token = request.cookies.get(ADMIN_COOKIE)
+    if not token:
+        return False
+    try:
+        _admin_serializer().loads(token, max_age=ADMIN_SESSION_MAX_AGE)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+
+
 # --------- In-memory game store ---------
 # game_id -> {board, game, config}
 GAMES: dict[str, dict] = {}
@@ -176,7 +210,28 @@ def clue_color(val: float) -> str:
     return f"rgb({r},{g},0)"
 
 
+# Bounds for setup parameters. The UI presets stay well within these; the caps
+# exist so a hostile or fat-fingered POST cannot request, e.g., a 10^5 x 10^5
+# board and OOM the process before any response is sent.
+MAX_DIM = 40
+MAX_QUBITS = 1024
+MAX_ENT_LEVEL = 10
+
+
+def validate_setup_params(rows: int, cols: int, mines: int, ent_level: int) -> None:
+    """Validate setup parameters, raising ValueError with a user-facing message."""
+    if not (1 <= rows <= MAX_DIM) or not (1 <= cols <= MAX_DIM):
+        raise ValueError(f"Board dimensions must be between 1 and {MAX_DIM} (got {rows}x{cols}).")
+    if rows * cols > MAX_QUBITS:
+        raise ValueError(f"Board too large: {rows}x{cols} exceeds {MAX_QUBITS} cells.")
+    if not (0 <= ent_level <= MAX_ENT_LEVEL):
+        raise ValueError(f"Entanglement level must be between 0 and {MAX_ENT_LEVEL} (got {ent_level}).")
+    if not (0 <= mines <= rows * cols):
+        raise ValueError(f"Mines must be between 0 and {rows * cols} (got {mines}).")
+
+
 def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: WinCondition, moves: MoveSet):
+    validate_setup_params(rows, cols, mines, ent_level)
     board = QMineSweeperBoard(rows, cols, backend=StimBackend(), flood_fill=True)
     if ent_level == 0:
         board.span_classical_mines(mines)
@@ -197,8 +252,7 @@ def prune_stale_games() -> None:
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.ABANDON_THRESHOLD_MIN)
 
     # Clean in-memory store
-    stale_ids = [gid for gid, rec in GAMES.items()
-                 if rec.get("last_seen") and rec["last_seen"] < cutoff]
+    stale_ids = [gid for gid, rec in GAMES.items() if rec.get("last_seen") and rec["last_seen"] < cutoff]
     for gid in stale_ids:
         game = GAMES[gid]["game"]
         if game.status == GameStatus.ONGOING:
@@ -209,7 +263,6 @@ def prune_stale_games() -> None:
     n = STATS_DB.prune_abandoned(minutes=settings.ABANDON_THRESHOLD_MIN)
     if n:
         log.info(f"Pruned {n} abandoned games (scheduled)")
-
 
 
 # ----- Command parsing -----
@@ -268,11 +321,22 @@ async def setup_get(request: Request, game_id: Optional[str] = Query(None)):
     game_id = game_id or str(uuid4())
     log.info(f"User {user_id} -> setup gid={game_id}")
     resp = templates.TemplateResponse(
+        request,
         "setup.html",
         {
-            "request": request,
             "game_id": game_id,
+            "error": None,
         },
+    )
+    return attach_user_cookie(resp, user_id, request)
+
+
+def _render_setup_error(request: Request, user_id: str, game_id: str, error: str) -> Response:
+    resp = templates.TemplateResponse(
+        request,
+        "setup.html",
+        {"game_id": game_id, "error": error},
+        status_code=400,
     )
     return attach_user_cookie(resp, user_id, request)
 
@@ -307,7 +371,11 @@ async def setup_post(
         "two_extended": MoveSet.TWO_QUBIT_EXTENDED,
     }.get(move_set.lower(), MoveSet.CLASSIC)
 
-    board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)
+    try:
+        board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)
+    except ValueError as e:
+        log.info(f"SETUP rejected user={user_id} rows={rows} cols={cols} mines={mines} ent={ent_level}: {e}")
+        return _render_setup_error(request, user_id, game_id, str(e))
     GAMES[game_id] = {
         "board": board,
         "game": game,
@@ -349,7 +417,6 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
     GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
     STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
 
-
     board: QMineSweeperBoard = GAMES[game_id]["board"]
     game: QMineSweeperGame = GAMES[game_id]["game"]
 
@@ -366,17 +433,17 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
         log.info(f"LOST user={user_id} gid={game_id}")
         STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
 
-
     return attach_user_cookie(
         templates.TemplateResponse(
+            request,
             "game.html",
             {
-                "request": request,
                 "grid": grid,
                 "rows": board.rows,
                 "cols": board.cols,
                 "status": game.status.name,
                 "moveset": game.cfg.move_set.name,
+                "win_condition": game.cfg.win_condition.name,
                 "game_id": game_id,
                 "mines_exp": mines_exp,
                 "ent_measure": ent_score,
@@ -448,7 +515,7 @@ async def move_post(
     # Update heartbeat and last_seen after any move
     GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
     STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
-    
+
     return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
 
@@ -479,7 +546,6 @@ async def game_post(
             STATS_DB.reset_move_counters(game_id=game_id, ts=_now_iso())
         else:
             log.info(f"Reset not allowed by policy ({settings.RESET_POLICY}) for gid={game_id}")
-
 
     elif action == "new_same":
         # Fresh game_id, same rules
@@ -515,28 +581,72 @@ async def game_post(
 
     return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
+
+@app.get("/admin/login", response_class=HTMLResponse)
+def admin_login_form(request: Request, error: Optional[str] = Query(None)):
+    if not admin_enabled():
+        return PlainTextResponse("Admin is disabled (QMS_ADMIN_PASS is not set).", status_code=404)
+    return templates.TemplateResponse(
+        request,
+        "admin_login.html",
+        {"error": error},
+    )
+
+
+@app.post("/admin/login")
+def admin_login(request: Request, admin_pass: str = Form(...)):
+    if not admin_enabled():
+        return PlainTextResponse("Admin is disabled (QMS_ADMIN_PASS is not set).", status_code=404)
+    if not secrets.compare_digest(admin_pass, settings.ADMIN_PASS or ""):
+        return templates.TemplateResponse(
+            request,
+            "admin_login.html",
+            {"error": "Incorrect password."},
+            status_code=403,
+        )
+    resp = RedirectResponse("/admin", status_code=303)
+    resp.set_cookie(
+        key=ADMIN_COOKIE,
+        value=_admin_serializer().dumps("ok"),
+        path="/admin",
+        httponly=True,
+        samesite="lax",
+        secure=(request.url.scheme == "https"),
+        max_age=ADMIN_SESSION_MAX_AGE,
+    )
+    return resp
+
+
+@app.post("/admin/logout")
+def admin_logout(request: Request):
+    resp = RedirectResponse("/admin/login", status_code=303)
+    resp.delete_cookie(ADMIN_COOKIE, path="/admin")
+    return resp
+
+
 @app.get("/admin", response_class=HTMLResponse)
-def admin_home(request: Request, admin_pass: str = Query(...)):
-    if admin_pass != settings.ADMIN_PASS:
-        return PlainTextResponse("Forbidden", status_code=403)
+def admin_home(request: Request):
+    if not admin_authed(request):
+        return RedirectResponse("/admin/login", status_code=303)
 
     return templates.TemplateResponse(
+        request,
         "admin_home.html",
-        {"request": request},
+        {},
     )
+
 
 @app.post("/admin/update_settings")
 async def update_settings(
     request: Request,
-    admin_pass: str = Form(...),
     ENABLE_HELP: Optional[str] = Form(None),
     ENABLE_ABOUT: Optional[str] = Form(None),
     ENABLE_TUTORIAL: Optional[str] = Form(None),
     ENABLE_SURVEY: Optional[str] = Form(None),
     RESET_POLICY: str = Form("sandbox"),
 ):
-    if admin_pass != settings.ADMIN_PASS:
-        return PlainTextResponse("Forbidden", status_code=403)
+    if not admin_authed(request):
+        return RedirectResponse("/admin/login", status_code=303)
 
     # update settings
     settings.ENABLE_HELP = bool(ENABLE_HELP)
@@ -548,19 +658,19 @@ async def update_settings(
     # update template globals
     templates.env.globals["FEATURES"].update(
         ENABLE_HELP=settings.ENABLE_HELP,
-        ENABLE_ABOUT = settings.ENABLE_ABOUT,
+        ENABLE_ABOUT=settings.ENABLE_ABOUT,
         ENABLE_TUTORIAL=settings.ENABLE_TUTORIAL,
         ENABLE_SURVEY=settings.ENABLE_SURVEY,
         RESET_POLICY=settings.RESET_POLICY,
     )
 
-    return RedirectResponse(f"/admin?admin_pass={admin_pass}", status_code=303)
+    return RedirectResponse("/admin", status_code=303)
 
 
 @app.get("/admin/db_view", response_class=HTMLResponse)
-def view_db(request: Request, admin_pass: str = Query(...)):
-    if admin_pass != settings.ADMIN_PASS:
-        return PlainTextResponse("Forbidden", status_code=403)
+def view_db(request: Request):
+    if not admin_authed(request):
+        return RedirectResponse("/admin/login", status_code=303)
 
     cur = STATS_DB._db.cursor()
     cur.execute("SELECT * FROM games ORDER BY created_at DESC LIMIT 100")
@@ -583,14 +693,16 @@ def view_db(request: Request, admin_pass: str = Query(...)):
         formatted_rows.append(d)
 
     return templates.TemplateResponse(
+        request,
         "db_view.html",
-        {"request": request, "rows": formatted_rows},
+        {"rows": formatted_rows},
     )
 
+
 @app.get("/admin/db_download")
-def download_db(request: Request, admin_pass: str = Query(...)):
-    if admin_pass != settings.ADMIN_PASS:
-        return PlainTextResponse("Forbidden", status_code=403)
+def download_db(request: Request):
+    if not admin_authed(request):
+        return RedirectResponse("/admin/login", status_code=303)
 
     # fetch rows
     cur = STATS_DB._db.cursor()
@@ -611,6 +723,7 @@ def download_db(request: Request, admin_pass: str = Query(...)):
         headers={"Content-Disposition": "attachment; filename=qms_games.csv"},
     )
 
+
 @app.get("/about", response_class=HTMLResponse)
 async def about_get(request: Request, game_id: Optional[str] = Query(None)):
     prune_stale_games()
@@ -619,10 +732,8 @@ async def about_get(request: Request, game_id: Optional[str] = Query(None)):
     game_id = game_id or str(uuid4())
     log.info(f"User {user_id} opened about page")
     resp = templates.TemplateResponse(
+        request,
         "about.html",
-        {
-            "request" : request,
-            "game_id" : game_id
-        },
+        {"game_id": game_id},
     )
     return attach_user_cookie(resp, user_id, request)

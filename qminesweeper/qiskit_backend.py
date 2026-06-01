@@ -149,15 +149,17 @@ class QiskitState(StabilizerQuantumState):
         elif gate_enum == QuantumGate.SXdg:
             cl = Clifford(SXdgGate())
         elif gate_enum == QuantumGate.SY:
-            for t in targets:
-                self.state = self.state.evolve(Clifford(SGate()), [t])
-                self.state = self.state.evolve(Clifford(SXGate()), [t])
-                self.state = self.state.evolve(Clifford(SdgGate()), [t])
-            return
-        elif gate_enum == QuantumGate.SYdg:
+            # √Y = S · √X† · S†  (matches Stim's SQRT_Y)
             for t in targets:
                 self.state = self.state.evolve(Clifford(SGate()), [t])
                 self.state = self.state.evolve(Clifford(SXdgGate()), [t])
+                self.state = self.state.evolve(Clifford(SdgGate()), [t])
+            return
+        elif gate_enum == QuantumGate.SYdg:
+            # √Y† = S · √X · S†  (matches Stim's SQRT_Y_DAG)
+            for t in targets:
+                self.state = self.state.evolve(Clifford(SGate()), [t])
+                self.state = self.state.evolve(Clifford(SXGate()), [t])
                 self.state = self.state.evolve(Clifford(SdgGate()), [t])
             return
 
@@ -173,9 +175,15 @@ class QiskitState(StabilizerQuantumState):
         else:
             raise ValueError(f"Unsupported gate: {gate_enum}")
 
-        if cl.num_qubits != len(targets):
-            raise ValueError(f"Gate {gate_enum} expects {cl.num_qubits} qubits, got {len(targets)}")
-        self.state = self.state.evolve(cl, targets)
+        # Single-qubit gates broadcast over every target; multi-qubit gates
+        # require exactly that many targets. (See StabilizerQuantumState.)
+        if cl.num_qubits == 1:
+            for t in targets:
+                self.state = self.state.evolve(cl, [t])
+        else:
+            if cl.num_qubits != len(targets):
+                raise ValueError(f"Gate {gate_enum} expects {cl.num_qubits} qubits, got {len(targets)}")
+            self.state = self.state.evolve(cl, targets)
 
 
 class QiskitBackend(QuantumBackend):

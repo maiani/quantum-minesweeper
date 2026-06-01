@@ -95,7 +95,9 @@ class QMineSweeperBoard:
 
     # ---------- geometry ----------
     def index(self, r: int, c: int) -> int:
-        """Convert (row, col) -> flat index."""
+        """Convert (row, col) -> flat index. Raises IndexError if out of bounds."""
+        if not (0 <= r < self.rows and 0 <= c < self.cols):
+            raise IndexError(f"cell ({r},{c}) out of bounds for {self.rows}x{self.cols} board")
         return r * self.cols + c
 
     def coords(self, idx: int) -> tuple[int, int]:
@@ -254,7 +256,9 @@ class QMineSweeperBoard:
         definite mine.
         """
         idx = self.index(r, c)
-        if self.expectation(idx, self._clue_basis) == -1.0:
+        # Definite mine: ⟨basis⟩ == -1. Use a tolerance because backends that return
+        # a real part of a complex expectation (e.g. Qiskit) can be off by round-off.
+        if self.expectation(idx, self._clue_basis) <= -1.0 + 1e-9:
             return 9.0
         return self.clue_value(r, c, self._clue_basis)
 
@@ -270,6 +274,7 @@ class QMineSweeperBoard:
     # ---------- mechanics: pins & measurement & gates ----------
     def toggle_pin(self, r: int, c: int) -> None:
         """Toggle pin on cell (r, c)."""
+        self.index(r, c)  # bounds check (numpy would silently wrap negatives)
         st = self._exploration[r, c]
         if st == CellState.PINNED:
             self._exploration[r, c] = CellState.UNEXPLORED
