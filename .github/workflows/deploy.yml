@@ -6,60 +6,95 @@ on:
       - 'v*.*.*'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Check release metadata
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          PYPROJECT_VERSION="$(python - <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              print(tomllib.load(f)["project"]["version"])
+          PY
+          )"
+          test "$PYPROJECT_VERSION" = "$VERSION"
+          grep -F "## [$VERSION]" CHANGELOG.md
+
+      - name: Install package + test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run lint
+        run: |
+          python -m ruff check qminesweeper tests
+
+      - name: Run tests
+        run: |
+          pytest -q --disable-warnings
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      GCP_PROJECT: ${{ vars.GCP_PROJECT || 'qminesweeper' }}
+      REGION: ${{ vars.GCP_REGION || 'europe-west1' }}
+      REPO: ${{ vars.GCP_ARTIFACT_REPOSITORY || 'qms' }}
+      SERVICE: ${{ vars.CLOUD_RUN_SERVICE || 'quantum-minesweeper' }}
+      IMAGE_TAG: ${{ github.ref_name }}
+      QMS_ENABLE_AUTH: ${{ vars.QMS_ENABLE_AUTH || '1' }}
+      QMS_USER: ${{ secrets.QMS_USER }}
+      QMS_PASS: ${{ secrets.QMS_PASS }}
+      QMS_ADMIN_PASS: ${{ secrets.QMS_ADMIN_PASS }}
+      QMS_BACKEND: ${{ vars.QMS_BACKEND || 'stim' }}
+      QMS_ENABLE_HELP: ${{ vars.QMS_ENABLE_HELP || '1' }}
+      QMS_ENABLE_ABOUT: ${{ vars.QMS_ENABLE_ABOUT || '1' }}
+      QMS_ENABLE_TUTORIAL: ${{ vars.QMS_ENABLE_TUTORIAL || '0' }}
+      QMS_TUTORIAL_URL: ${{ vars.QMS_TUTORIAL_URL }}
+      QMS_RESET_POLICY: ${{ vars.QMS_RESET_POLICY || 'sandbox' }}
+      QMS_ENABLE_SURVEY: ${{ vars.QMS_ENABLE_SURVEY || '0' }}
+      QMS_SURVEY_URL: ${{ vars.QMS_SURVEY_URL }}
+      QMS_BASE_URL: ${{ vars.QMS_BASE_URL }}
+      QMS_BUCKET: ${{ vars.QMS_BUCKET }}
+      CLOUD_RUN_MEMORY: ${{ vars.CLOUD_RUN_MEMORY || '512Mi' }}
+      CLOUD_RUN_CPU: ${{ vars.CLOUD_RUN_CPU || '1' }}
+      CLOUD_RUN_CONCURRENCY: ${{ vars.CLOUD_RUN_CONCURRENCY || '200' }}
+      CLOUD_RUN_MIN_INSTANCES: ${{ vars.CLOUD_RUN_MIN_INSTANCES || '0' }}
+      CLOUD_RUN_MAX_INSTANCES: ${{ vars.CLOUD_RUN_MAX_INSTANCES || '1' }}
+      CLOUD_RUN_TIMEOUT: ${{ vars.CLOUD_RUN_TIMEOUT || '300' }}
+
+    steps:
+      - uses: actions/checkout@v6
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker europe-west1-docker.pkg.dev -q
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" -q
 
-      - name: Build and Push Image
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME:-manual}"
-          IMAGE="europe-west1-docker.pkg.dev/qminesweeper/qms/qminesweeper:${TAG}"
-          echo "Using image: $IMAGE"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
-          docker buildx build \
-            --platform linux/amd64 \
-            -t "$IMAGE" \
-            --push .
-
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-      
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy quantum-minesweeper \
-            --image "$IMAGE" \
-            --region europe-west1 \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars "
-              QMS_USER=${{ secrets.QMS_USER }},
-              QMS_PASS=${{ secrets.QMS_PASS }},
-              QMS_ADMIN_PASS=${{ secrets.QMS_ADMIN_PASS }},
-              QMS_ENABLE_AUTH=${{ vars.QMS_ENABLE_AUTH }},
-              QMS_ENABLE_HELP=${{ vars.QMS_ENABLE_HELP }},
-              QMS_ENABLE_TUTORIAL=${{ vars.QMS_ENABLE_TUTORIAL }},
-              QMS_TUTORIAL_URL=${{ vars.QMS_TUTORIAL_URL }},
-              QMS_RESET_POLICY=${{ vars.QMS_RESET_POLICY }},
-              QMS_ENABLE_SURVEY=${{ vars.QMS_ENABLE_SURVEY }},
-              QMS_SURVEY_URL=${{ vars.QMS_SURVEY_URL }},
-              QMS_DB_PATH=/tmp/qms.sqlite
-            " \
-            --add-volume name=games-vol,type=cloud-storage,bucket=${{ vars.QMS_BUCKET }} \
-            --add-volume-mount volume=games-vol,mount-path=/data \
-            --memory=1Gi \
-            --cpu=1 \
-            --concurrency=200 \
-            --min-instances=0 \
-            --max-instances=1 \
-            --timeout=300
+      - name: Build, push, and deploy
+        run: bash ./scripts/deploy.sh
