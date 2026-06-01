@@ -20,3 +20,20 @@ def test_measure_and_explore(Backend: type[QuantumBackend]):
     game.cmd_measure(r, c)
     state = board.exploration_state()
     assert state[r, c] == CellState.EXPLORED
+
+
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+def test_gate_rejects_explored_cell_without_hiding_it(Backend: type[QuantumBackend]):
+    board = QMineSweeperBoard(2, 2, Backend(), flood_fill=False)
+    board.span_classical_mines(0)
+    game = QMineSweeperGame(board, GameConfig(WinCondition.SANDBOX, MoveSet.ONE_QUBIT))
+
+    game.cmd_measure(0, 0)
+    assert board.exploration_state()[0, 0] == CellState.EXPLORED
+    assert board.export_numeric_grid()[0, 0] == 0.0
+
+    with pytest.raises(ValueError, match="Cannot apply gates to explored cells"):
+        game.cmd_gate("X", [(0, 0)])
+
+    assert board.exploration_state()[0, 0] == CellState.EXPLORED
+    assert board.export_numeric_grid()[0, 0] == 0.0

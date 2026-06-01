@@ -282,15 +282,21 @@ class QMineSweeperBoard:
             self._exploration[r, c] = CellState.PINNED
 
     def apply_gate(self, gate: QuantumGate | str, targets: list[tuple[int, int]]) -> None:
-        """Apply quantum gate to given cells (row,col)."""
-        idxs = [self.index(r, c) for (r, c) in targets]
-        gate_name = gate.value if isinstance(gate, QuantumGate) else gate
-        self.state.apply_gate(gate_name, idxs)
+        """
+        Apply quantum gate to given unexplored/pinned cells.
 
-        # Gates invalidate exploration
+        Rule intent: once a cell is explored, it is part of the player's
+        revealed classical information. Gates must not target it. Otherwise a
+        player could accidentally turn a revealed safe cell into a mine, while
+        re-hiding the cell after the gate creates confusing pending cells.
+        """
+        idxs = [self.index(r, c) for (r, c) in targets]
         for r, c in targets:
             if self._exploration[r, c] == CellState.EXPLORED:
-                self._exploration[r, c] = CellState.UNEXPLORED
+                raise ValueError("Cannot apply gates to explored cells")
+
+        gate_name = gate.value if isinstance(gate, QuantumGate) else gate
+        self.state.apply_gate(gate_name, idxs)
 
     def measure_cell(self, r: int, c: int) -> MeasureMoveResult:
         """
