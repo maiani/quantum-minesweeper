@@ -52,7 +52,7 @@ enable_basic_auth(
     app,
     username=settings.USER,
     password=settings.PASS,
-    exclude_paths=["/health", "/static/*"],
+    exclude_paths=["/health", "/robots.txt", "/sitemap.xml", "/static/*"],
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
@@ -281,19 +281,51 @@ def prune_stale_games() -> None:
 
 
 # --------- Routes ---------
+def _absolute_site_url(path: str) -> str:
+    """Build an absolute public URL for crawler-facing metadata."""
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    return f"{settings.BASE_URL.rstrip('/')}{normalized_path}"
+
+
 @app.get("/health")
 def health():
     return PlainTextResponse("ok")
+
+
+@app.get("/robots.txt")
+def robots_txt():
+    body = templates.env.get_template("robots.txt").render(
+        disallow_paths=[
+            "/move",
+            "/admin/db_download",
+            "/admin/update_settings",
+            "/admin/logout",
+        ],
+        sitemap_url=_absolute_site_url("/sitemap.xml"),
+    )
+    return PlainTextResponse(body)
+
+
+@app.get("/sitemap.xml")
+def sitemap_xml():
+    paths = ["/setup"]
+    if settings.ENABLE_ABOUT:
+        paths.append("/about")
+
+    body = templates.env.get_template("sitemap.xml").render(
+        urls=[_absolute_site_url(path) for path in paths],
+    )
+    return Response(content=body, media_type="application/xml")
 
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     prune_stale_games()
 
-    # Stateless: always go to setup with a fresh game_id in URL
+    # Stateless: expose setup at a stable URL instead of minting crawlable
+    # session IDs before a game exists.
     user_id = ensure_user_id(request)
-    game_id = str(uuid4())
-    resp = RedirectResponse(f"/setup?game_id={game_id}")
+    resp = RedirectResponse("/setup")
     return attach_user_cookie(resp, user_id, request)
 
 
@@ -302,8 +334,7 @@ async def setup_get(request: Request, game_id: Optional[str] = Query(None)):
     prune_stale_games()
 
     user_id = ensure_user_id(request)
-    game_id = game_id or str(uuid4())
-    log.info(f"User {user_id} -> setup gid={game_id}")
+    log.info(f"User {user_id} -> setup")
     resp = templates.TemplateResponse(
         request,
         "setup.html",
@@ -529,8 +560,8 @@ async def game_post(
         return RedirectResponse(f"/game?game_id={new_game_id}", status_code=303)
 
     elif action == "new_rules":
-        # new setup flow (new game_id will be created during POST /setup)
-        return RedirectResponse(f"/setup?game_id={str(uuid4())}", status_code=303)
+        # New setup flow; the next POST /setup creates the fresh game_id.
+        return RedirectResponse("/setup", status_code=303)
 
     return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
 
@@ -682,7 +713,6 @@ async def about_get(request: Request, game_id: Optional[str] = Query(None)):
     prune_stale_games()
 
     user_id = ensure_user_id(request)
-    game_id = game_id or str(uuid4())
     log.info(f"User {user_id} opened about page")
     resp = templates.TemplateResponse(
         request,

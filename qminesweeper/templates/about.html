@@ -3,7 +3,9 @@
 {% block body_class %}setup-page{% endblock %}
 {% block main_class %}setup-page{% endblock %}
 
-{% block title %}Quantum Minesweeper - About {% endblock %}
+{% block title %}About Quantum Minesweeper | Superposition, Gates, and Entanglement{% endblock %}
+{% block meta_description %}Quantum Minesweeper teaches quantum mechanics through play: each cell is a qubit, mines are measurement outcomes, and gates change the board state.{% endblock %}
+{% block canonical_path %}/about{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="/static/styles/setup.css">
@@ -16,7 +18,11 @@
 </div>
 
 <div class="setup-actions">
+  {% if game_id %}
   <a href="/game?game_id={{ game_id }}" class="btn">Back to game</a>
+  {% else %}
+  <a href="/setup" class="btn">Start game</a>
+  {% endif %}
 </div>
 
 {% endblock %}

@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% block robots_meta %}{% endblock %}
+  <meta name="description" content="{% block meta_description %}Learn quantum mechanics through Quantum Minesweeper, a playable puzzle about measurement, gates, superposition, and entanglement.{% endblock %}">
   
   {% if BASE_URL %}
+  <link rel="canonical" href="{{ BASE_URL.rstrip('/') }}{% block canonical_path %}/{% endblock %}">
   <meta property="og:url" content="{{ BASE_URL }}">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Quantum Minesweeper">

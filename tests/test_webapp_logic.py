@@ -8,6 +8,7 @@ setup-parameter validation and the signed admin-session cookie.
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -19,6 +20,10 @@ from qminesweeper.webapp import (
     _admin_serializer,
     admin_authed,
     admin_enabled,
+    home,
+    robots_txt,
+    sitemap_xml,
+    templates,
     validate_setup_params,
 )
 
@@ -78,3 +83,71 @@ def test_admin_authed_rejects_token_signed_with_other_secret():
 
     forged = URLSafeTimedSerializer("a-different-secret", salt="qms-admin-session").dumps("ok")
     assert admin_authed(_req({ADMIN_COOKIE: forged})) is False
+
+
+# ---------- public SEO URL shape ----------
+def test_home_redirects_to_stable_setup_url():
+    request = SimpleNamespace(cookies={}, url=SimpleNamespace(scheme="http"))
+
+    resp = asyncio.run(home(request))
+
+    assert resp.status_code == 307
+    assert resp.headers["location"] == "/setup"
+
+
+def test_setup_uses_stable_public_links():
+    html = templates.env.get_template("setup.html").render(game_id=None, error=None)
+
+    assert 'action="/setup"' in html
+    assert "/setup?game_id" not in html
+    assert 'href="/about"' in html
+    assert "/about?game_id" not in html
+
+
+def test_about_without_game_id_links_to_setup():
+    html = templates.env.get_template("about.html").render(game_id=None)
+
+    assert 'href="/setup"' in html
+    assert "/game?game_id" not in html
+
+
+def test_about_with_game_id_can_return_to_game():
+    html = templates.env.get_template("about.html").render(game_id="gid-1")
+
+    assert 'href="/game?game_id=gid-1"' in html
+
+
+def test_robots_txt_points_to_sitemap_and_skips_action_endpoints():
+    resp = robots_txt()
+    text = resp.body.decode()
+
+    assert resp.media_type == "text/plain"
+    assert "User-agent: *" in text
+    assert "Disallow: /move" in text
+    assert "Disallow: /admin/db_download" in text
+    assert "Sitemap: http://127.0.0.1:8080/sitemap.xml" in text
+
+
+def test_sitemap_lists_only_stable_public_pages():
+    resp = sitemap_xml()
+    text = resp.body.decode()
+
+    assert resp.media_type == "application/xml"
+    assert "<loc>http://127.0.0.1:8080/setup</loc>" in text
+    assert "<loc>http://127.0.0.1:8080/about</loc>" in text
+    assert "game_id" not in text
+    assert "/admin" not in text
+
+
+@pytest.mark.parametrize(
+    ("template_name", "context"),
+    [
+        ("admin_login.html", {"error": None}),
+        ("admin_home.html", {}),
+        ("db_view.html", {"rows": [{"game_id": "gid-1", "status": "WIN", "prep_circuit": ""}]}),
+    ],
+)
+def test_admin_pages_emit_noindex(template_name, context):
+    html = templates.env.get_template(template_name).render(**context)
+
+    assert '<meta name="robots" content="noindex, nofollow">' in html
