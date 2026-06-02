@@ -70,7 +70,7 @@ templates.env.globals["now"] = datetime.now
 templates.env.globals["version"] = __version__
 templates.env.globals["BASE_URL"] = settings.BASE_URL
 
-templates.env.globals["FEATURES"] = {
+FEATURES = {
     "ENABLE_HELP": settings.ENABLE_HELP,
     "ENABLE_TUTORIAL": settings.ENABLE_TUTORIAL,
     "TUTORIAL_URL": settings.TUTORIAL_URL,
@@ -79,6 +79,7 @@ templates.env.globals["FEATURES"] = {
     "ENABLE_ABOUT": settings.ENABLE_ABOUT,
     "RESET_POLICY": settings.RESET_POLICY,
 }
+templates.env.globals["FEATURES"] = FEATURES
 templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
 
 
@@ -201,13 +202,6 @@ GAMES: dict[str, dict] = {}
 # --------- Helpers ---------
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
-
-def clue_color(val: float) -> str:
-    v = max(0.0, min(val / 8.0, 1.0))
-    r = int(255 * v)
-    g = int(255 * (1.0 - v))
-    return f"rgb({r},{g},0)"
 
 
 # Bounds for setup parameters. The UI presets stay well within these; the caps
@@ -420,10 +414,6 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
     board: QMineSweeperBoard = GAMES[game_id]["board"]
     game: QMineSweeperGame = GAMES[game_id]["game"]
 
-    grid = board.export_numeric_grid().tolist()
-    mines_exp = board.expected_mines()
-    ent_score = board.entanglement_score("mean") * board.n
-
     # Persist terminal outcome once it happens
     if game.status == GameStatus.WIN:
         log.info(f"WIN user={user_id} gid={game_id}")
@@ -438,15 +428,15 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
             request,
             "game.html",
             {
-                "grid": grid,
+                "grid": board.export_numeric_grid().tolist(),
                 "rows": board.rows,
                 "cols": board.cols,
                 "status": game.status.name,
                 "moveset": game.cfg.move_set.name,
                 "win_condition": game.cfg.win_condition.name,
                 "game_id": game_id,
-                "mines_exp": mines_exp,
-                "ent_measure": ent_score,
+                "mines_exp": board.expected_mines(),
+                "ent_measure": board.entanglement_score("mean") * board.n,
             },
         ),
         user_id,

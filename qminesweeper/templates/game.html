@@ -12,21 +12,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- Status  -->
+<!-- Status (server emits raw values; render.js formats the labels/numbers) -->
 <table class="status-table">
   <tr>
-    <!-- Left: expected mines -->
-    <td class="mine-counter" help-id="mine-counter">
-      ⟨Mines⟩ = {{ "%.1f"|format(mines_exp) }}
-    </td>
-
-    <!-- Middle: empty for now -->
+    <td class="mine-counter" help-id="mine-counter" data-mines-exp="{{ mines_exp }}"></td>
     <td class="status-spacer"></td>
-
-    <!-- Right: entanglement -->
-    <td class="entanglement" help-id="entanglement">
-      Entanglement = {{ "%d"|format(ent_measure) }} bits
-    </td>
+    <td class="entanglement" help-id="entanglement" data-ent-measure="{{ ent_measure }}"></td>
   </tr>
 </table>
 
@@ -36,37 +27,12 @@
     {% for r in range(rows) %}
     <tr>
       {% for c in range(cols) %}
-        {% set val = grid[r][c] %}
-
-        {% if val == -1 %}
-          {% set symbol = "■" %}
-          {% set cls = "unexplored" %}
-        {% elif val == -2 %}
-          {% set symbol = "⚑" %}
-          {% set cls = "pinned" %}
-        {% elif val == 9.0 %}
-          {% set symbol = "💥" %}
-          {% set cls = "mine" %}
-        {% elif val == 0.0 %}
-          {% set symbol = "&nbsp;" %}
-          {% set cls = "empty" %}
-        {% else %}
-          {% set symbol = "%.1f"|format(val) %}
-          {% set cls = "clue" %}
-        {% endif %}
-
+        {# Server emits only the raw grid value; render.js decodes symbol/class/colour. #}
         <td>
           {% if status == "ONGOING" %}
-            <button onclick="clickCell({{ r }},{{ c }})"
-                    class="tile {{ cls }}"
-                    {% if cls == "clue" %} data-val="{{ val }}" {% endif %}>
-              {{ symbol|safe }}
-            </button>
+            <button onclick="clickCell({{ r }},{{ c }})" class="tile" data-val="{{ grid[r][c] }}"></button>
           {% else %}
-            <button disabled class="tile {{ cls }}"
-                    {% if cls == "clue" %} data-val="{{ val }}" {% endif %}>
-              {{ symbol|safe }}
-            </button>
+            <button disabled class="tile" data-val="{{ grid[r][c] }}"></button>
           {% endif %}
         </td>
       {% endfor %}
@@ -168,7 +134,7 @@
 </div>
 {% endif %}
 
-<script src="/static/scripts/clue_style.js"></script>
+<script src="/static/scripts/render.js"></script>
 <script src="/static/scripts/tools.js"></script>
 
 {% endblock %}
