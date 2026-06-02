@@ -34,7 +34,8 @@ WORKDIR /app
 # Install app + deps from wheel
 COPY --from=builder /wheels /wheels
 RUN python -m pip install --upgrade pip \
- && pip install --no-cache-dir /wheels/*.whl \
+ && wheel="$(ls /wheels/*.whl)" \
+ && pip install --no-cache-dir "${wheel}[stim]" \
  && rm -rf /wheels
 
 # Create /data with proper ownership for SQLite DB

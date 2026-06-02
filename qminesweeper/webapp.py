@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-import markdown
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import (
     HTMLResponse,
@@ -23,15 +22,23 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from markdown.extensions.toc import TocExtension
 
 from qminesweeper import __version__
 from qminesweeper.auth import enable_basic_auth
+from qminesweeper.backends import make_backend as make_simulator_backend
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.database import get_store
-from qminesweeper.engine import Command, apply_command, parse_command, serialize_game
+from qminesweeper.docs_render import load_docs
+from qminesweeper.engine import (
+    MOVE_SETS,
+    WIN_CONDITIONS,
+    Command,
+    apply_command,
+    build_game,
+    parse_command,
+    serialize_game,
+)
 from qminesweeper.game import (
-    GameConfig,
     GameStatus,
     MoveSet,
     QMineSweeperGame,
@@ -39,7 +46,6 @@ from qminesweeper.game import (
 )
 from qminesweeper.logging_config import setup_logging
 from qminesweeper.settings import get_settings
-from qminesweeper.stim_backend import StimBackend
 
 # --------- Logging ---------
 logger = setup_logging()
@@ -84,58 +90,7 @@ templates.env.globals["FEATURES"] = FEATURES
 templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
 
 
-# --------- Markdown rendering ---------
-def render_markdown(path: Path, strip_title: bool = False) -> tuple[str, str]:
-    """
-    Render markdown file to HTML.
-
-    Parameters
-    ----------
-    path : Path
-        File to read.
-    strip_title : bool
-        If True, extracts first heading as title and strips it from body.
-
-    Returns
-    -------
-    title : str
-        Title (from first heading, or filename stem if not found).
-    html : str
-        Rendered HTML content.
-    """
-    if not path.exists():
-        return path.stem, "<p>Not found.</p>"
-
-    text = path.read_text(encoding="utf-8")
-    title = path.stem
-
-    if strip_title:
-        lines = text.splitlines()
-        for i, line in enumerate(lines):
-            if line.strip().startswith("#"):
-                title = line.lstrip("# ").strip()
-                lines = lines[i + 1 :]
-                break
-        text = "\n".join(lines).strip()
-
-    html = markdown.markdown(
-        text,
-        extensions=[
-            "fenced_code",
-            "tables",
-            TocExtension(),
-            "pymdownx.arithmatex",
-        ],
-        extension_configs={"pymdownx.arithmatex": {"generic": True}},
-    )
-    return title, html
-
-
-DOCS = {
-    "simple_setup": render_markdown(DOCS_DIR / "simple_setup.md")[1],
-    "advanced_setup": render_markdown(DOCS_DIR / "advanced_setup.md")[1],
-    "about": render_markdown(DOCS_DIR / "about.md")[1],
-}
+DOCS = load_docs(DOCS_DIR)
 templates.env.globals["docs"] = DOCS
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -219,57 +174,9 @@ def _record_outcome(game_id: str, game: QMineSweeperGame, user_id: str) -> None:
         STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
 
 
-# Bounds for setup parameters. The UI presets stay well within these; the caps
-# exist so a hostile or fat-fingered POST cannot request, e.g., a 10^5 x 10^5
-# board and OOM the process before any response is sent.
-MAX_DIM = 40
-MAX_QUBITS = 1024
-MAX_ENT_LEVEL = 10
-
-
-def validate_setup_params(rows: int, cols: int, mines: int, ent_level: int) -> None:
-    """Validate setup parameters, raising ValueError with a user-facing message."""
-    if not (1 <= rows <= MAX_DIM) or not (1 <= cols <= MAX_DIM):
-        raise ValueError(f"Board dimensions must be between 1 and {MAX_DIM} (got {rows}x{cols}).")
-    if rows * cols > MAX_QUBITS:
-        raise ValueError(f"Board too large: {rows}x{cols} exceeds {MAX_QUBITS} cells.")
-    if not (0 <= ent_level <= MAX_ENT_LEVEL):
-        raise ValueError(f"Entanglement level must be between 0 and {MAX_ENT_LEVEL} (got {ent_level}).")
-    if not (0 <= mines <= rows * cols):
-        raise ValueError(f"Mines must be between 0 and {rows * cols} (got {mines}).")
-
-
-def make_backend():
-    """Construct the simulator backend selected by settings.BACKEND.
-
-    Stim (default) is imported at module load; the others are imported lazily so
-    a browser/Pyodide build using 'purepy' never pulls in Stim or Qiskit, and the
-    server never pays the Qiskit import cost unless asked for.
-    """
-    name = (settings.BACKEND or "stim").strip().lower()
-    if name == "stim":
-        return StimBackend()
-    if name == "purepy":
-        from qminesweeper.purepy_backend import PurePyBackend
-
-        return PurePyBackend()
-    if name == "qiskit":
-        from qminesweeper.qiskit_backend import QiskitBackend
-
-        return QiskitBackend()
-    raise ValueError(f"Unknown backend {settings.BACKEND!r} (use 'stim', 'qiskit', or 'purepy')")
-
-
 def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: WinCondition, moves: MoveSet):
-    validate_setup_params(rows, cols, mines, ent_level)
-    board = QMineSweeperBoard(rows, cols, backend=make_backend(), flood_fill=True)
-    if ent_level == 0:
-        board.span_classical_mines(mines)
-    else:
-        board.span_random_stabilizer_mines(mines, level=ent_level)
-    board.set_clue_basis("Z")
-    game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
-    return board, game
+    # Construction (and validation) is shared with the browser session via engine.build_game.
+    return build_game(make_simulator_backend(settings.BACKEND), rows, cols, mines, ent_level, win, moves)
 
 
 def prune_stale_games() -> None:
@@ -386,20 +293,8 @@ async def setup_post(
     # Always generate a fresh game_id for a new game
     game_id = str(uuid4())
 
-    wc = {
-        "clear": WinCondition.CLEAR,
-        "identify": WinCondition.IDENTIFY,
-        "sandbox": WinCondition.SANDBOX,
-    }
-    win = wc.get(win_condition.lower(), WinCondition.IDENTIFY)
-
-    mv = {
-        "classic": MoveSet.CLASSIC,
-        "one": MoveSet.ONE_QUBIT,
-        "one_complete": MoveSet.ONE_QUBIT_COMPLETE,
-        "two": MoveSet.TWO_QUBIT,
-        "two_extended": MoveSet.TWO_QUBIT_EXTENDED,
-    }.get(move_set.lower(), MoveSet.CLASSIC)
+    win = WIN_CONDITIONS.get(win_condition.lower(), WinCondition.IDENTIFY)
+    mv = MOVE_SETS.get(move_set.lower(), MoveSet.CLASSIC)
 
     try:
         board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)

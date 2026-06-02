@@ -1,7 +1,7 @@
 <footer class="footer">
   <hr class="footer-separator">
       <a href="https://nordita.org/" target="_blank" rel="noopener noreferrer" aria-label="Nordita website">
-      <img src="/static/nordita.svg" alt="Nordita" class="footer-logo" decoding="async">
+      <img src="{{ STATIC_BASE | default('/static') }}/nordita.svg" alt="Nordita" class="footer-logo" decoding="async">
       </a> 
     · <a href="https://github.com/maiani/quantum-minesweeper/releases/tag/v{{ version }}" target="_blank" rel="noopener noreferrer">v{{ version }}</a>
    

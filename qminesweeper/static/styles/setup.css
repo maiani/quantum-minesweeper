@@ -1,5 +1,11 @@
 /* static/styles/setup.css */
 
+/* Author-level display rules below would otherwise override the browser's
+   default [hidden] behavior for .setup-form. */
+[hidden] {
+  display: none !important;
+}
+
 /* ---------- Shared container ---------- */
 .setup {
   max-width: 900px;

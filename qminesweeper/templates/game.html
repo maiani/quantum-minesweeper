@@ -7,9 +7,9 @@
 {% block canonical_path %}/setup{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="/static/styles/game.css">
+<link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/game.css">
 {% if FEATURES.ENABLE_HELP %}
-<link rel="stylesheet" href="/static/styles/help.css">
+<link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/help.css">
 {% endif %}
 {% endblock %}
 
@@ -27,8 +27,8 @@
 
 <div id="actions-container"></div>
 
-<script src="/static/scripts/engine.js"></script>
-<script src="/static/scripts/render.js"></script>
-<script src="/static/scripts/tools.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/engine.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/render.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/tools.js"></script>
 
 {% endblock %}

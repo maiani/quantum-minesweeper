@@ -12,9 +12,9 @@ You interact with the board by **measuring qubits** or **applying quantum gates*
   - **TUI** (Text UI) powered by `rich`
   - **Web UI** powered by **FastAPI** + **Uvicorn**
 - **Multiple backends** (selected with `--backend` or `QMS_BACKEND`)
-  - **Stim** — fast C++ stabilizer simulator (default)
-  - **Qiskit** — stabilizer simulator via Qiskit
-  - **PurePy** — pure-Python stabilizer tableau, no native deps (runs anywhere, incl. WebAssembly/Pyodide)
+  - **PurePy** — pure-Python stabilizer tableau, no native deps (default for local/static browser runs; runs anywhere, incl. Pyodide)
+  - **Stim** — optional fast C++ stabilizer simulator (default for deployed server runs)
+  - **Qiskit** — optional stabilizer simulator via Qiskit
 - **Game modes**
   - **Classical** - standard Minesweeper rules with |1⟩ mines
   - **Identify** - identify deterministic mines and explore all safe regions
@@ -54,7 +54,7 @@ python -m pip install .
 Configuration is centralized with Pydantic Settings and loaded from environment variables (and .env in dev).
 
 Common flags:
-- `QMS_BACKEND` - simulator backend: `stim` (default), `qiskit`, or `purepy`
+- `QMS_BACKEND` - simulator backend: `purepy`, `stim`, or `qiskit`. Local config defaults to `purepy`; `scripts/deploy.sh` defaults deployed server runs to `stim`.
 - `QMS_ENABLE_AUTH`  - enable HTTP basic auth
 - `QMS_USER` / `QMS_PASS` - credentials for basic auth
 - `QMS_ADMIN_PASS` - admin dashboard password; leave unset to disable admin routes
@@ -69,13 +69,16 @@ Create a `.env` (or use `.env.example`) in local dev.
 ### Textual Interface (TUI)
 Launch the text UI:
 ```bash
-python -m qminesweeper tui --backend stim
+python -m qminesweeper tui
 ```
 
-Default backend is **Stim** (fast).  You can also use Qiskit or the pure-Python backend:
+Default backend is **PurePy**. You can also install and select Stim or Qiskit:
 ```bash
-python -m qminesweeper tui --backend qiskit
 python -m qminesweeper tui --backend purepy
+python -m pip install ".[stim]"
+python -m qminesweeper tui --backend stim
+python -m pip install ".[qiskit]"
+python -m qminesweeper tui --backend qiskit
 ```
 
 ### Web Interface
@@ -85,6 +88,23 @@ python -m qminesweeper webui --port 8080
 ```
 
 Then open your browser at: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+
+Local web UI runs use the configured backend, which defaults to **PurePy** for a
+plain install. The Docker/Cloud Run deployment installs the Stim extra and
+defaults `QMS_BACKEND` to **Stim** unless you override it.
+
+### Browser-only build
+Build a static version that runs the game in the page with Pyodide and the
+pure-Python backend:
+
+```bash
+make browser
+make browser-serve
+```
+
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The static build does
+not need FastAPI, a database, or Cloud Run while you play. It saves the current
+browser game in `localStorage`, so a reload restores the in-progress board.
 
 ### Docker
 Build and run locally with

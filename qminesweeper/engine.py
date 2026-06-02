@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from qminesweeper.board import QMineSweeperBoard
-from qminesweeper.game import GameStatus, QMineSweeperGame
-from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES
+from qminesweeper.game import GameConfig, GameStatus, MoveSet, QMineSweeperGame, WinCondition
+from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES, QuantumBackend
 
 # Upper-cased move tokens, derived from the shared arity sets.
 _SINGLE_Q = {g.value.upper() for g in ONE_QUBIT_GATES}
@@ -101,3 +101,62 @@ def apply_command(board: QMineSweeperBoard, game: QMineSweeperGame, cmd: Command
         game.status = GameStatus.ONGOING
     else:
         raise ValueError(f"Unknown command kind: {cmd.kind!r}")
+
+
+# ---------- setup validation + game construction (framework-free) ----------
+# Bounds for setup parameters. UI presets stay well within these; the caps exist
+# so a hostile or fat-fingered request can't allocate, e.g., a 10^5 x 10^5 board.
+MAX_DIM = 40
+MAX_QUBITS = 1024
+MAX_ENT_LEVEL = 10
+
+# String (form/UI) values -> enums, shared by the server route and the browser.
+WIN_CONDITIONS = {
+    "clear": WinCondition.CLEAR,
+    "identify": WinCondition.IDENTIFY,
+    "sandbox": WinCondition.SANDBOX,
+}
+MOVE_SETS = {
+    "classic": MoveSet.CLASSIC,
+    "one": MoveSet.ONE_QUBIT,
+    "one_complete": MoveSet.ONE_QUBIT_COMPLETE,
+    "two": MoveSet.TWO_QUBIT,
+    "two_extended": MoveSet.TWO_QUBIT_EXTENDED,
+}
+
+
+def validate_setup_params(rows: int, cols: int, mines: int, ent_level: int) -> None:
+    """Validate setup parameters, raising ValueError with a user-facing message."""
+    if not (1 <= rows <= MAX_DIM) or not (1 <= cols <= MAX_DIM):
+        raise ValueError(f"Board dimensions must be between 1 and {MAX_DIM} (got {rows}x{cols}).")
+    if rows * cols > MAX_QUBITS:
+        raise ValueError(f"Board too large: {rows}x{cols} exceeds {MAX_QUBITS} cells.")
+    if not (0 <= ent_level <= MAX_ENT_LEVEL):
+        raise ValueError(f"Entanglement level must be between 0 and {MAX_ENT_LEVEL} (got {ent_level}).")
+    if not (0 <= mines <= rows * cols):
+        raise ValueError(f"Mines must be between 0 and {rows * cols} (got {mines}).")
+
+
+def build_game(
+    backend: QuantumBackend,
+    rows: int,
+    cols: int,
+    mines: int,
+    ent_level: int,
+    win: WinCondition,
+    moves: MoveSet,
+) -> tuple[QMineSweeperBoard, QMineSweeperGame]:
+    """Construct (board, game) on the given backend. Validates params first.
+
+    Used by the server (with its configured backend) and by the browser session
+    (with PurePyBackend) — single source of game construction.
+    """
+    validate_setup_params(rows, cols, mines, ent_level)
+    board = QMineSweeperBoard(rows, cols, backend=backend, flood_fill=True)
+    if ent_level == 0:
+        board.span_classical_mines(mines)
+    else:
+        board.span_random_stabilizer_mines(mines, level=ent_level)
+    board.set_clue_basis("Z")
+    game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
+    return board, game

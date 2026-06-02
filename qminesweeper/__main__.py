@@ -6,11 +6,9 @@ import os
 import typer
 import uvicorn
 
+from qminesweeper.backends import make_backend, normalize_backend
 from qminesweeper.logging_config import setup_logging
-from qminesweeper.purepy_backend import PurePyBackend
-from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.settings import get_settings
-from qminesweeper.stim_backend import StimBackend
 from qminesweeper.textUI import run_tui
 
 # Initialize logging once (uvicorn still prints its own access logs)
@@ -20,25 +18,17 @@ app = typer.Typer(help="Quantum Minesweeper CLI")
 
 
 @app.command()
-def tui(backend: str | None = typer.Option(None, help="Backend: stim, qiskit, or purepy")):
+def tui(backend: str | None = typer.Option(None, help="Backend: purepy, stim, or qiskit")):
     """
     Run the Text User Interface (TUI).
     Uses settings.BACKEND by default; --backend overrides for this run.
     """
     settings = get_settings()
     chosen = (backend or settings.BACKEND).strip().lower()
-
-    if chosen == "stim":
-        run_tui(StimBackend())
-        return
-    if chosen == "qiskit":
-        run_tui(QiskitBackend())
-        return
-    if chosen == "purepy":
-        run_tui(PurePyBackend())
-        return
-
-    raise typer.BadParameter("Invalid backend, choose 'stim', 'qiskit', or 'purepy'")
+    try:
+        run_tui(make_backend(chosen))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @app.command()
@@ -46,7 +36,7 @@ def webui(
     host: str | None = typer.Option(None, help="Bind host (default: 0.0.0.0)"),
     port: int | None = typer.Option(None, help="Port (default: $PORT or 8080)"),
     reload: bool = typer.Option(False, help="Auto-reload (default: False)"),
-    backend: str | None = typer.Option(None, help="Backend: stim, qiskit, or purepy (default: settings.BACKEND)"),
+    backend: str | None = typer.Option(None, help="Backend: purepy, stim, or qiskit (default: settings.BACKEND)"),
 ):
     """
     Run the FastAPI web interface.
@@ -56,10 +46,10 @@ def webui(
 
     # Backend override
     if backend is not None:
-        chosen = backend.strip().lower()
-        if chosen not in {"stim", "qiskit", "purepy"}:
-            raise typer.BadParameter("Invalid backend, choose 'stim', 'qiskit', or 'purepy'")
-        settings.BACKEND = chosen
+        try:
+            settings.BACKEND = normalize_backend(backend)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
 
     # Host/port resolution
     host_final = host or "0.0.0.0"
@@ -70,7 +60,7 @@ def webui(
         host=host_final,
         port=port_final,
         reload=reload,
-        reload_dirs=["qminesweeper"]
+        reload_dirs=["qminesweeper"],
     )
 
 

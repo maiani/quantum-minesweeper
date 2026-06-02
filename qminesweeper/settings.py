@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     ADMIN_PASS: str | None = None
 
     # --- Runtime ---
-    BACKEND: str = "stim"  # "stim" | "qiskit"
+    BACKEND: str = "purepy"  # "purepy" | "stim" | "qiskit"
     BASE_URL: str = "http://127.0.0.1:8080"
     model_config = SettingsConfigDict(
         env_prefix="QMS_",

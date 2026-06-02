@@ -322,12 +322,13 @@ window.GameRenderer = {
   gameId: () => _gameId,
 };
 
-// Top-level on load: read the two JSON blobs and build the initial view.
+// Top-level on load: cache config, and build the initial view if state was
+// inlined (server mode). In browser mode there is no inlined #game-state — the
+// PyodideEngine produces the first state and browser-main.js calls applyState.
 function render() {
-  const state = readJson("game-state");
-  if (!state) return; // not on the game page (or no state inlined)
   _config = readJson("app-config") || {};
-  applyState(state);
+  const state = readJson("game-state");
+  if (state) applyState(state);
 }
 
 // Run as soon as the page's HTML is parsed. This <script> sits at the end of

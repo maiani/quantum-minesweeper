@@ -1,0 +1,176 @@
+{% set is_browser_setup = browser_setup | default(false) %}
+
+<!-- Simplified setup (shown by default) -->
+<div id="simple-setup" class="setup">
+  <h2>Game Setup</h2>
+  <form {% if not is_browser_setup %}action="/setup" method="post"{% endif %} class="setup-form">
+    <!-- Board size -->
+    <label for="board-size">Board size:</label>
+    <select id="board-size" name="board-size">
+      <option value="8x8">8 x 8</option>
+      <option value="10x10" selected>10 x 10</option>
+      <option value="15x15">15 x 15</option>
+      <option value="25x15">25 x 15</option>
+    </select>
+
+    <!-- Bombs -->
+    <label for="mines-choice">Mines:</label>
+    <select id="mines-choice" name="mines-choice">
+      <option value="5">5</option>
+      <option value="10" selected>10</option>
+      <option value="15">15</option>
+      <option value="30">30</option>
+      <option value="60">60</option>
+    </select>
+
+    <!-- Difficulty (now includes Sandbox as Lv S) -->
+    <label for="difficulty">Difficulty:</label>
+    <select id="difficulty" name="difficulty">
+      <option value="S">Sandbox mode</option>
+      <option value="0">Lv. 0 - Classical Minesweeper</option>
+      <option value="1" selected>Lv. 1 - Defuse Quantum Mines</option>
+      <option value="2">Lv. 2 - Defuse Entangled Quantum Mines (pairs)</option>
+      <option value="3">Lv. 3 - Defuse Entangled Quantum Mines (3-body entanglement)</option>
+      <option value="4">Lv. 4 - Defuse Entangled Quantum Mines (4-body entanglement)</option>
+    </select>
+
+    <!-- Hidden real inputs -->
+    <input type="hidden" id="rows" name="rows" value="10">
+    <input type="hidden" id="cols" name="cols" value="10">
+    <input type="hidden" id="mines" name="mines" value="10">
+    <input type="hidden" id="ent" name="ent_level" value="1">
+    <input type="hidden" id="win" name="win_condition" value="clear">
+    <input type="hidden" id="moves" name="move_set" value="one">
+
+    <div class="setup-actions">
+      <button type="submit" class="btn">Start Game</button>
+      <button id="show-advanced" type="button" class="btn">Go to Advanced Setup</button>
+    </div>
+  </form>
+
+  {% if not is_browser_setup and FEATURES.ENABLE_SURVEY %}
+  <p style="text-align:center">
+  Please help our research by compiling the
+  <a href="{{ FEATURES.SURVEY_URL }}">
+    Post Game Survey
+  </a>
+  after you played some times!
+  </p>
+  {% endif %}
+
+  {% if docs is defined and docs %}
+  <div class="setup-expl">
+    {{ docs.simple_setup | safe }}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Advanced setup (hidden initially) -->
+<div id="advanced-setup" class="setup" style="display: none;">
+  <h2>Game Setup - Advanced</h2>
+  <form {% if not is_browser_setup %}action="/setup" method="post"{% endif %} class="setup-form">
+    <label for="rows">Rows:</label>
+    <input id="rows" name="rows" type="number" min="2" value="10" required>
+
+    <label for="cols">Cols:</label>
+    <input id="cols" name="cols" type="number" min="2" value="10" required>
+
+    <label for="mines">Mines:</label>
+    <input id="mines" name="mines" type="number" min="0" value="10" required>
+
+    <label for="ent">Entanglement level:</label>
+    <input id="ent" name="ent_level" type="number" min="0" max="10" value="1" required>
+
+    <label for="win">Win Condition:</label>
+    <select id="win" name="win_condition">
+      <option value="identify">Identify mines</option>
+      <option value="clear" selected>Clear mines</option>
+      <option value="sandbox">Sandbox</option>
+    </select>
+
+    <label for="moves">Move Set:</label>
+    <select id="moves" name="move_set">
+      <option value="classic">Classic (M, P)</option>
+      <option value="one" selected>One-qubit gates (core set)</option>
+      <option value="one_complete">One-qubit gates (full set)</option>
+      <option value="two">Two-qubit gates (core set)</option>
+      <option value="two_extended">Two-qubit gates (extended)</option>
+    </select>
+
+    <div class="setup-actions">
+      <button type="submit" class="btn">Start Game</button>
+      <button id="back-to-simple" type="button" class="btn">Go to Simple Setup</button>
+    </div>
+  </form>
+
+  {% if docs is defined and docs %}
+  <div class="setup-expl">
+    {{ docs.advanced_setup | safe }}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  function resetToolSelection() {
+    localStorage.setItem("qms_tool", "M");
+  }
+
+  function applySelections() {
+    const size = document.getElementById("board-size").value.split("x");
+    const mines = document.getElementById("mines-choice").value;
+    const diff = document.getElementById("difficulty").value;
+
+    let rows = parseInt(size[0]);
+    let cols = parseInt(size[1]);
+    let ent = 0;
+    let win = "identify";
+    let moves = "classic";
+    let minesFinal = mines;
+
+    // Difficulty mapping
+    switch (diff) {
+      case "S": // Sandbox
+        ent = 0; win = "sandbox"; moves = "two";
+        break;
+      case "0":
+        ent = 0; win = "identify"; moves = "classic"; break;
+      case "1":
+        ent = 1; win = "clear"; moves = "one"; break;
+      case "2":
+        ent = 2; win = "clear"; moves = "two"; break;
+      case "3":
+        ent = 3; win = "clear"; moves = "two"; break;
+      case "4":
+        ent = 4; win = "clear"; moves = "two"; break;
+    }
+
+    // Push values into hidden inputs
+    document.getElementById("rows").value = rows;
+    document.getElementById("cols").value = cols;
+    document.getElementById("mines").value = minesFinal;
+    document.getElementById("ent").value = ent;
+    document.getElementById("win").value = win;
+    document.getElementById("moves").value = moves;
+  }
+
+  // Ensure hidden inputs are updated before submission
+  document.querySelector("#simple-setup form").addEventListener("submit", () => {
+    applySelections();
+    resetToolSelection();
+  });
+  document.querySelector("#advanced-setup form").addEventListener("submit", resetToolSelection);
+</script>
+
+<script>
+  // Toggle advanced setup visibility
+  document.getElementById("show-advanced").addEventListener("click", () => {
+    document.getElementById("simple-setup").style.display = "none";
+    document.getElementById("advanced-setup").style.display = "block";
+  });
+
+  // Back to simple setup
+  document.getElementById("back-to-simple").addEventListener("click", () => {
+    document.getElementById("advanced-setup").style.display = "none";
+    document.getElementById("simple-setup").style.display = "block";
+  });
+</script>

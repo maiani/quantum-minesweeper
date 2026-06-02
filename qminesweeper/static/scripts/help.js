@@ -9,6 +9,7 @@
   const TOGGLE_ID = "toggle-help";
   const KEY = "qms_help_open";
   const TOOL_KEY = "qms_tool";
+  const STATIC_BASE = (window.QMS_STATIC_BASE || "/static").replace(/\/$/, "");
 
   const panel = document.getElementById(PANEL_ID);
   const toggleBtn = document.getElementById(TOGGLE_ID);
@@ -78,7 +79,7 @@
     // --- Cache + loader ---
     const HELP_CACHE = {};
     async function loadHelp(id) {
-      const base = `/static/help/${id}/`;
+      const base = `${STATIC_BASE}/help/${id}/`;
 
       if (!HELP_CACHE[id]) {
         try {
@@ -117,6 +118,9 @@
       titleEl.textContent = HELP_CACHE[id].title;
       textEl.innerHTML = HELP_CACHE[id].text;
       visualEl.innerHTML = HELP_CACHE[id].visual;
+      visualEl.querySelectorAll('img[src^="/static/"]').forEach((img) => {
+        img.src = img.getAttribute("src").replace(/^\/static/, STATIC_BASE);
+      });
 
       // --- wire up the injected visual (compute template and attach handlers) ---
       const anim = visualEl.querySelector('#gate-animation');

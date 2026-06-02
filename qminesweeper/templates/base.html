@@ -18,7 +18,7 @@
   <title>{% block title %}Quantum Minesweeper{% endblock %}</title>
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="{{ STATIC_BASE | default('/static') }}/favicon.svg">
 
   <style>
     html { background: #17191e; }
@@ -43,10 +43,10 @@
   </script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/static/styles/base.css">
+  <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/base.css">
 
   <!-- Theme toggle -->
-  <script src="/static/scripts/theme_toggle.js" defer></script>
+  <script src="{{ STATIC_BASE | default('/static') }}/scripts/theme_toggle.js" defer></script>
 
   <!-- MathJax -->
   <script>
@@ -95,10 +95,11 @@
     </main>
 
     <script>
+      window.QMS_STATIC_BASE = {{ (STATIC_BASE | default('/static')) | tojson }};
       window.QMS_ENABLE_HELP = {{ FEATURES.ENABLE_HELP | tojson }};
     </script>
-    <link rel="stylesheet" href="/static/styles/help.css">
-    <script src="/static/scripts/help.js" defer></script>
+    <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/help.css">
+    <script src="{{ STATIC_BASE | default('/static') }}/scripts/help.js" defer></script>
   </div>
 
   {% include "footer.html" %}

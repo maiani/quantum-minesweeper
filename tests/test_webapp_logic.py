@@ -13,10 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from qminesweeper.engine import MAX_DIM, MAX_QUBITS, validate_setup_params
 from qminesweeper.webapp import (
     ADMIN_COOKIE,
-    MAX_DIM,
-    MAX_QUBITS,
     _admin_serializer,
     admin_authed,
     admin_enabled,
@@ -24,7 +23,6 @@ from qminesweeper.webapp import (
     robots_txt,
     sitemap_xml,
     templates,
-    validate_setup_params,
 )
 
 

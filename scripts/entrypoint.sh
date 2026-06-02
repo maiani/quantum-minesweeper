@@ -35,6 +35,7 @@ fi
 
 # --- Launch app using runtime DB
 export QMS_DB_PATH="${RUNTIME_DB}"
+export QMS_BACKEND="${QMS_BACKEND:-stim}"
 echo "[entrypoint] Starting uvicorn on port ${PORT:-8080}..."
 uvicorn qminesweeper.webapp:app \
   --host 0.0.0.0 \

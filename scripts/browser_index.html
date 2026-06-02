@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block body_class %}setup-page{% endblock %}
+{% block main_class %}setup-page{% endblock %}
+{% block title %}Play Quantum Minesweeper | Quantum Logic Puzzle Game{% endblock %}
+{% block meta_description %}Learn quantum mechanics by playing Quantum Minesweeper. Explore measurement, superposition, entanglement, and gates in a hands-on puzzle game.{% endblock %}
+{% block canonical_path %}/{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/setup.css">
+<link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/game.css">
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
+{% endblock %}
+
+{% block content %}
+{# Browser mode has no server route. The setup UI is the same partial as /setup,
+   and browser-main.js intercepts form submit to call PyodideEngine.setup(). #}
+<script id="app-config" type="application/json">{{ config | tojson }}</script>
+
+<p id="loading" role="status"></p>
+
+<div id="browser-setup">
+  {% set browser_setup = true %}
+  {% include "_setup_content.html" %}
+</div>
+
+<div id="status-bar" hidden></div>
+<div id="board-container" class="board-container" hidden></div>
+<div id="tools-container" hidden></div>
+<div id="help-mount" hidden></div>
+<div id="actions-container" hidden></div>
+
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/render.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/tools.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/pyodide-engine.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/browser-main.js"></script>
+{% endblock %}

@@ -8,7 +8,7 @@
 {% block canonical_path %}/about{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="/static/styles/setup.css">
+<link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/setup.css">
 {% endblock %}
 
 {% block content %}
@@ -21,7 +21,7 @@
   {% if game_id %}
   <a href="/game?game_id={{ game_id }}" class="btn">Back to game</a>
   {% else %}
-  <a href="/setup" class="btn">Start game</a>
+  <a href="{{ SETUP_HREF | default('/setup') }}" class="btn">Start game</a>
   {% endif %}
 </div>
 
