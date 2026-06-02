@@ -3,7 +3,8 @@
 Quantum Minesweeper is a **quantum twist** on the classic game of Minesweeper. 
 Instead of fixed mines, the board is prepared in **quantum states**:  
 The player interacts with the board by **measuring qubits** or **applying quantum gates**, 
-and must either *identify* or *clear* the “quantum mines.”
+and must either *identify* or *clear* the "quantum mines." In Clear mode, clearing
+means driving the board to a state where no cell can produce a mine outcome.
 
 ### Options in the Advanced Setup
 
@@ -23,7 +24,7 @@ The **expected number of mines** during play can be estimated as
 $$
 \langle \text{Mines} \rangle = \sum_i p_i,
 $$  
-where $p_i = \tfrac{1}{2}(1 + \langle Z_i \rangle)$ is the probability that qubit $i$ contains a mine.
+where $p_i = \tfrac{1}{2}(1 - \langle Z_i \rangle)$ is the probability that qubit $i$ contains a mine.
 
 The **entanglement level** controls the size of stabilizer groups used to place mines:  
 
@@ -32,8 +33,8 @@ The **entanglement level** controls the size of stabilizer groups used to place 
 - **Level $k$** — mines are prepared as random stabilizer states over groups of $k$ qubits. At Level 2 may produce Bell pairs, Level 3 GHZ-type states, etc.
   
 #### 3. Win condition
-- **Identify**: you win by correctly identifying all mines by measuring all the empy sites.  
-- **Clear**: you win by applying gates and measurements to drive the system back to the trivial product state $|0\ldots 0\rangle$.  
+- **Identify**: you win by measuring all currently safe sites without triggering a mine outcome.  
+- **Clear**: you win by applying gates and measurements until every cell has mine probability zero.  
 - **Sandbox**: free exploration — no win/lose condition.
 
 #### 4. Move set

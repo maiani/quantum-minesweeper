@@ -2,7 +2,7 @@
 
 Quantum Minesweeper is a quantum twist on the classic game of Minesweeper.  
 Instead of fixed mines, the board is prepared in **quantum states** (classical mines, product stabilizers, or entangled stabilizers).  
-You interact with the board by **measuring qubits** or **applying quantum gates**, and you must **identify** or **clear** the “quantum mines.”
+You interact with the board by **measuring qubits** or **applying quantum gates**, and you must **identify** or **clear** the "quantum mines." In Clear mode, clearing means making every mine outcome impossible.
 
 ---
 
@@ -115,7 +115,7 @@ pytest tests/
 - Classical mode matches standard Minesweeper: mines are fixed |1⟩ states; clues sum over neighbors.
 - Quantum modes use stabilizer states:
   - Identify: measure to reveal deterministically safe cells 
-  - Clear: apply gates (and measurements) to drive each cell’s Z-bomb probability to ~0.
+  - Clear: apply gates (and measurements) to drive each cell's Z-basis mine probability to ~0.
 
 The status bar shows the expected number of mines:
 
@@ -123,7 +123,7 @@ $$
 \langle Mines \rangle=\sum_i p_i 
 $$
 
-where $p_i$ is the current Z-basis bomb probability of cell $i$.
+where $p_i$ is the current Z-basis mine probability of cell $i$.
 
 Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, etc. change clues and probabilities without a win condition
 

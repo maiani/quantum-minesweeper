@@ -12,127 +12,17 @@
 {% endblock %}
 
 {% block content %}
-<!-- Status (server emits raw values; render.js formats the labels/numbers) -->
-<table class="status-table">
-  <tr>
-    <td class="mine-counter" help-id="mine-counter" data-mines-exp="{{ mines_exp }}"></td>
-    <td class="status-spacer"></td>
-    <td class="entanglement" help-id="entanglement" data-ent-measure="{{ ent_measure }}"></td>
-  </tr>
-</table>
+{# Static shell: render.js builds status/board/tools/actions from this state. #}
+<script id="game-state" type="application/json">{{ state | tojson }}</script>
 
-<!-- Board -->
-<div class="board-container">
-  <table class="board">
-    {% for r in range(rows) %}
-    <tr>
-      {% for c in range(cols) %}
-        {# Server emits only the raw grid value; render.js decodes symbol/class/colour. #}
-        <td>
-          {% if status == "ONGOING" %}
-            <button onclick="clickCell({{ r }},{{ c }})" class="tile" data-val="{{ grid[r][c] }}"></button>
-          {% else %}
-            <button disabled class="tile" data-val="{{ grid[r][c] }}"></button>
-          {% endif %}
-        </td>
-      {% endfor %}
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-
-<!-- Tools -->
-{% if status == "ONGOING" %}
-<h3>Select Move</h3>
-<div class="tools">
-  <div class="tool-row">
-    <button type="button" class="btn tool" onclick="setTool('M')" help-id="M-move">M</button>
-    <button type="button" class="btn tool" onclick="setTool('P')" help-id="P-move">P</button>
-  </div>
-  {% if moveset in ["ONE_QUBIT", "ONE_QUBIT_COMPLETE", "TWO_QUBIT", "TWO_QUBIT_EXTENDED"] %}
-  <div class="tool-row">
-    {% for t in ["X","Y","Z","H","S"] %}
-      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% if moveset in ["ONE_QUBIT_COMPLETE", "TWO_QUBIT_EXTENDED"] %}
-  <div class="tool-row">
-    {% for t in ["SDG","SX","SXDG","SY","SYDG"] %}
-      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% if moveset == "TWO_QUBIT" %}
-  <div class="tool-row">
-    {% for t in ["CX", "SWAP"] %}
-      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% if moveset == "TWO_QUBIT_EXTENDED" %}
-  <div class="tool-row">
-    {% for t in ["CX","CY","CZ","SWAP"] %}
-      <button type="button" class="btn tool" onclick="setTool('{{t}}')" help-id="{{t}}-gate">{{t}}</button>
-    {% endfor %}
-  </div>
-  {% endif %}
-</div>
-{% endif %}
-
-<!-- Hidden form used for all moves -->
-<form id="move-form" action="/move?game_id={{ game_id }}" method="post" style="display:none">
-  <input type="hidden" name="game_id" value="{{ game_id }}">
-  <input type="hidden" id="cmd-input" name="cmd" value="">
-</form>
+<div id="status-bar"></div>
+<div id="board-container" class="board-container"></div>
+<div id="tools-container"></div>
 
 <!-- Inline Help mount (mobile only) -->
 <div id="help-mount"></div>
 
-<!-- Actions -->
-{% if status == "ONGOING" %}
-<h3>Actions</h3>
-<form action="/game?game_id={{ game_id }}" method="post">
-  <input type="hidden" name="game_id" value="{{ game_id }}">
-  {% if FEATURES.RESET_POLICY == 'any'
-      or (FEATURES.RESET_POLICY == 'sandbox' and win_condition == 'SANDBOX') %}
-  <button type="submit" class="btn" name="action" value="reset">Reset Board</button>
-  {% endif %}
-  <button type="submit" class="btn" name="action" value="new_same">New Game</button>
-  <button type="submit" class="btn" name="action" value="new_rules">New Setup</button>
-</form>
-
-{% else %}
-<div class="gameover-overlay">
-  <div class="gameover-box">
-    <h2>Game Over</h2>
-    {% if status == "WIN" %}
-      <div class="result-icon">🎉</div>
-      <p class="result-msg win">You win!</p>
-    {% elif status == "LOST" %}
-      <div class="result-icon">💥</div>
-      <p class="result-msg lost">You lost!</p>
-    {% endif %}
-
-    <div class="actions">
-      <form action="/game?game_id={{ game_id }}" method="post">
-        <input type="hidden" name="game_id" value="{{ game_id }}">
-        {% if FEATURES.RESET_POLICY == 'any'
-          or (FEATURES.RESET_POLICY == 'sandbox' and win_condition == 'SANDBOX') %}
-        <button type="submit" class="btn" name="action" value="reset">Reset Board</button>
-        {% endif %}
-        <button type="submit" name="action" value="new_same" class="btn">New Game</button>
-        <button type="submit" name="action" value="new_rules" class="btn">New Setup</button>
-        {% if FEATURES.ENABLE_SURVEY %}
-        <a class="btn" href="{{ FEATURES.SURVEY_URL }}">
-          Compile Survey
-        </a> 
-        {% endif %}
-      </form>
-    </div>
-  </div>
-</div>
-{% endif %}
+<div id="actions-container"></div>
 
 <script src="/static/scripts/render.js"></script>
 <script src="/static/scripts/tools.js"></script>

@@ -447,22 +447,25 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
         log.info(f"LOST user={user_id} gid={game_id}")
         STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
 
+    # Game state inlined into the shell; render.js builds the whole view from it.
+    state = {
+        "game_id": game_id,
+        "rows": board.rows,
+        "cols": board.cols,
+        "grid": board.export_numeric_grid().tolist(),
+        "status": game.status.name,
+        "win_condition": game.cfg.win_condition.name,
+        "moveset": game.cfg.move_set.name,
+        "mines_exp": board.expected_mines(),
+        "ent_measure": board.entanglement_score("mean") * board.n,
+        "features": {
+            "reset_policy": settings.RESET_POLICY,
+            "enable_survey": bool(settings.ENABLE_SURVEY),
+            "survey_url": settings.SURVEY_URL,
+        },
+    }
     return attach_user_cookie(
-        templates.TemplateResponse(
-            request,
-            "game.html",
-            {
-                "grid": board.export_numeric_grid().tolist(),
-                "rows": board.rows,
-                "cols": board.cols,
-                "status": game.status.name,
-                "moveset": game.cfg.move_set.name,
-                "win_condition": game.cfg.win_condition.name,
-                "game_id": game_id,
-                "mines_exp": board.expected_mines(),
-                "ent_measure": board.entanglement_score("mean") * board.n,
-            },
-        ),
+        templates.TemplateResponse(request, "game.html", {"state": state}),
         user_id,
         request,
     )
