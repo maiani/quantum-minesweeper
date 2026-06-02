@@ -1,12 +1,13 @@
 # tests/test_backends.py
 import pytest
 
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_random_clifford_circuit_nonempty(Backend: type[QuantumBackend]):
     """Every backend must return a nonempty circuit for n>0."""
     backend = Backend()
@@ -15,7 +16,7 @@ def test_random_clifford_circuit_nonempty(Backend: type[QuantumBackend]):
     assert len(circ) > 0, f"{Backend.__name__} produced an empty circuit!"
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_random_clifford_circuit_gate_format(Backend: type[QuantumBackend]):
     """Gate format must be (str, list[int]) with valid indices."""
     backend = Backend()
@@ -28,7 +29,7 @@ def test_random_clifford_circuit_gate_format(Backend: type[QuantumBackend]):
         assert all(0 <= t < n for t in targets)
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_random_clifford_circuit_varies(Backend: type[QuantumBackend]):
     """Two random circuits should differ with high probability."""
     backend = Backend()
@@ -37,7 +38,7 @@ def test_random_clifford_circuit_varies(Backend: type[QuantumBackend]):
     assert circ1 != circ2, f"{Backend.__name__} returned identical random circuits (unlikely)."
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 @pytest.mark.parametrize("n", [1, 2, 5, 10])
 def test_random_clifford_circuit_scaling(Backend: type[QuantumBackend], n: int):
     """Backend must work across different qubit counts."""

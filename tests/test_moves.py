@@ -3,12 +3,13 @@ import pytest
 
 from qminesweeper.board import CellState, QMineSweeperBoard
 from qminesweeper.game import GameConfig, MoveSet, QMineSweeperGame, WinCondition
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_measure_and_explore(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(3, 3, Backend())
     board.span_classical_mines(1)
@@ -22,7 +23,7 @@ def test_measure_and_explore(Backend: type[QuantumBackend]):
     assert state[r, c] == CellState.EXPLORED
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_gate_rejects_explored_cell_without_hiding_it(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend(), flood_fill=False)
     board.span_classical_mines(0)

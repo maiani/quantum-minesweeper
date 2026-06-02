@@ -3,12 +3,13 @@ import pytest
 
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.game import GameConfig, MoveSet, QMineSweeperGame, WinCondition
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_export_grid_values(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)

@@ -10,12 +10,13 @@ from qminesweeper.game import (
     QMineSweeperGame,
     WinCondition,
 )
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_loss_on_mine(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(3, 3, Backend())
     board.span_classical_mines(1)
@@ -28,7 +29,7 @@ def test_loss_on_mine(Backend: type[QuantumBackend]):
     assert game.status == GameStatus.LOST
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_win_classic_by_exploring_all_safe(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)
@@ -43,7 +44,7 @@ def test_win_classic_by_exploring_all_safe(Backend: type[QuantumBackend]):
     assert game.status == GameStatus.WIN
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_clear_condition_win(Backend: type[QuantumBackend]):
     # Board with 1 mine → clear it manually
     board = QMineSweeperBoard(1, 1, Backend())
@@ -62,7 +63,7 @@ def test_clear_condition_win(Backend: type[QuantumBackend]):
         assert game.status in (GameStatus.ONGOING, GameStatus.LOST)
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_sandbox_never_finishes(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)

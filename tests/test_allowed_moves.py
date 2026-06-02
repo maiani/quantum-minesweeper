@@ -9,12 +9,13 @@ from qminesweeper.game import (
     QMineSweeperGame,
     WinCondition,
 )
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_pin_toggle_allowed(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)
@@ -28,7 +29,7 @@ def test_pin_toggle_allowed(Backend: type[QuantumBackend]):
             assert board.exploration_state()[0, 0] == CellState.UNEXPLORED
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_one_qubit_gate_allowed(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(1)
@@ -39,7 +40,7 @@ def test_one_qubit_gate_allowed(Backend: type[QuantumBackend]):
     assert game.status in (GameStatus.ONGOING, GameStatus.WIN)
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_two_qubit_gate_allowed_only_in_two_qubit(Backend: type[QuantumBackend]):
     board = QMineSweeperBoard(2, 2, Backend())
     board.span_classical_mines(2)

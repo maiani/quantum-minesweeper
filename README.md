@@ -11,9 +11,10 @@ You interact with the board by **measuring qubits** or **applying quantum gates*
 - **Two interfaces**
   - **TUI** (Text UI) powered by `rich`
   - **Web UI** powered by **FastAPI** + **Uvicorn**
-- **Multiple backends**
-  - **Stim**
-  - **Qiskit**
+- **Multiple backends** (selected with `--backend` or `QMS_BACKEND`)
+  - **Stim** — fast C++ stabilizer simulator (default)
+  - **Qiskit** — stabilizer simulator via Qiskit
+  - **PurePy** — pure-Python stabilizer tableau, no native deps (runs anywhere, incl. WebAssembly/Pyodide)
 - **Game modes**
   - **Classical** - standard Minesweeper rules with |1⟩ mines
   - **Identify** - identify deterministic mines and explore all safe regions
@@ -53,6 +54,7 @@ python -m pip install .
 Configuration is centralized with Pydantic Settings and loaded from environment variables (and .env in dev).
 
 Common flags:
+- `QMS_BACKEND` - simulator backend: `stim` (default), `qiskit`, or `purepy`
 - `QMS_ENABLE_AUTH`  - enable HTTP basic auth
 - `QMS_USER` / `QMS_PASS` - credentials for basic auth
 - `QMS_ADMIN_PASS` - admin dashboard password; leave unset to disable admin routes
@@ -70,9 +72,10 @@ Launch the text UI:
 python -m qminesweeper tui --backend stim
 ```
 
-Default backend is **Stim** (fast).  You can also use Qiskit:  
+Default backend is **Stim** (fast).  You can also use Qiskit or the pure-Python backend:
 ```bash
 python -m qminesweeper tui --backend qiskit
+python -m qminesweeper tui --backend purepy
 ```
 
 ### Web Interface

@@ -37,6 +37,7 @@ from qminesweeper.game import (
     WinCondition,
 )
 from qminesweeper.logging_config import setup_logging
+from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES
 from qminesweeper.settings import get_settings
 from qminesweeper.stim_backend import StimBackend
 
@@ -224,9 +225,30 @@ def validate_setup_params(rows: int, cols: int, mines: int, ent_level: int) -> N
         raise ValueError(f"Mines must be between 0 and {rows * cols} (got {mines}).")
 
 
+def make_backend():
+    """Construct the simulator backend selected by settings.BACKEND.
+
+    Stim (default) is imported at module load; the others are imported lazily so
+    a browser/Pyodide build using 'purepy' never pulls in Stim or Qiskit, and the
+    server never pays the Qiskit import cost unless asked for.
+    """
+    name = (settings.BACKEND or "stim").strip().lower()
+    if name == "stim":
+        return StimBackend()
+    if name == "purepy":
+        from qminesweeper.purepy_backend import PurePyBackend
+
+        return PurePyBackend()
+    if name == "qiskit":
+        from qminesweeper.qiskit_backend import QiskitBackend
+
+        return QiskitBackend()
+    raise ValueError(f"Unknown backend {settings.BACKEND!r} (use 'stim', 'qiskit', or 'purepy')")
+
+
 def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: WinCondition, moves: MoveSet):
     validate_setup_params(rows, cols, mines, ent_level)
-    board = QMineSweeperBoard(rows, cols, backend=StimBackend(), flood_fill=True)
+    board = QMineSweeperBoard(rows, cols, backend=make_backend(), flood_fill=True)
     if ent_level == 0:
         board.span_classical_mines(mines)
     else:
@@ -260,8 +282,10 @@ def prune_stale_games() -> None:
 
 
 # ----- Command parsing -----
-_SINGLE_Q = {"X", "Y", "Z", "H", "S", "SDG", "SX", "SXDG", "SY", "SYDG"}
-_TWO_Q = {"CX", "CY", "CZ", "SWAP"}
+# Move tokens are upper-cased on the wire (e.g. "SDG", "SXDG"); derive from the
+# shared arity sets so this never drifts from the gate vocabulary.
+_SINGLE_Q = {g.value.upper() for g in ONE_QUBIT_GATES}
+_TWO_Q = {g.value.upper() for g in TWO_QUBIT_GATES}
 
 
 def _parse_rc(token: str) -> Tuple[int, int]:

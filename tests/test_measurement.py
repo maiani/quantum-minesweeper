@@ -1,12 +1,13 @@
 # tests/test_measures.py
 import pytest
 
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_measure_z_eigenstates(Backend: type[QuantumBackend]):
     """
     |0> measured in Z -> 0 deterministically, <Z>=+1
@@ -27,7 +28,7 @@ def test_measure_z_eigenstates(Backend: type[QuantumBackend]):
     assert pytest.approx(st.expectation_pauli(0, "Z"), abs=1e-9) == -1.0
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_measure_x_on_plus_collapse(Backend: type[QuantumBackend]):
     """
     H|0> = |+> is +1 eigenstate of X, so:
@@ -48,7 +49,7 @@ def test_measure_x_on_plus_collapse(Backend: type[QuantumBackend]):
     assert out2 == 0
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_measure_y_on_plus_i_collapse(Backend: type[QuantumBackend]):
     """
     S H |0> = |+i> is +1 eigenstate of Y, so:

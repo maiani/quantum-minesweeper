@@ -7,6 +7,7 @@ import typer
 import uvicorn
 
 from qminesweeper.logging_config import setup_logging
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.settings import get_settings
 from qminesweeper.stim_backend import StimBackend
@@ -19,7 +20,7 @@ app = typer.Typer(help="Quantum Minesweeper CLI")
 
 
 @app.command()
-def tui(backend: str | None = typer.Option(None, help="Backend: stim or qiskit")):
+def tui(backend: str | None = typer.Option(None, help="Backend: stim, qiskit, or purepy")):
     """
     Run the Text User Interface (TUI).
     Uses settings.BACKEND by default; --backend overrides for this run.
@@ -33,8 +34,11 @@ def tui(backend: str | None = typer.Option(None, help="Backend: stim or qiskit")
     if chosen == "qiskit":
         run_tui(QiskitBackend())
         return
+    if chosen == "purepy":
+        run_tui(PurePyBackend())
+        return
 
-    raise typer.BadParameter("Invalid backend, choose 'stim' or 'qiskit'")
+    raise typer.BadParameter("Invalid backend, choose 'stim', 'qiskit', or 'purepy'")
 
 
 @app.command()
@@ -42,7 +46,7 @@ def webui(
     host: str | None = typer.Option(None, help="Bind host (default: 0.0.0.0)"),
     port: int | None = typer.Option(None, help="Port (default: $PORT or 8080)"),
     reload: bool = typer.Option(False, help="Auto-reload (default: False)"),
-    backend: str | None = typer.Option(None, help="Backend: stim or qiskit (default: settings.BACKEND)"),
+    backend: str | None = typer.Option(None, help="Backend: stim, qiskit, or purepy (default: settings.BACKEND)"),
 ):
     """
     Run the FastAPI web interface.
@@ -53,8 +57,8 @@ def webui(
     # Backend override
     if backend is not None:
         chosen = backend.strip().lower()
-        if chosen not in {"stim", "qiskit"}:
-            raise typer.BadParameter("Invalid backend, choose 'stim' or 'qiskit'")
+        if chosen not in {"stim", "qiskit", "purepy"}:
+            raise typer.BadParameter("Invalid backend, choose 'stim', 'qiskit', or 'purepy'")
         settings.BACKEND = chosen
 
     # Host/port resolution

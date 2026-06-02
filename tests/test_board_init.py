@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from qminesweeper.board import QMineSweeperBoard
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
@@ -46,7 +47,7 @@ def test_classical_mine_count_still_exact() -> None:
     assert len(idxs) == 5
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_no_trivial_product_mines_level1(Backend: type[QuantumBackend]):
     """
     Level=1 stabilizer 'mines' are single-qubit stabilizers.
@@ -67,7 +68,7 @@ def test_no_trivial_product_mines_level1(Backend: type[QuantumBackend]):
     )
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 @pytest.mark.parametrize("level", [1, 2, 3])
 @pytest.mark.parametrize("seed", list(range(32)))
 def test_group_levels_cover_indices(Backend: type[QuantumBackend], level: int, seed: int):
@@ -98,7 +99,7 @@ def test_group_levels_cover_indices(Backend: type[QuantumBackend], level: int, s
         assert abs(float(expZ[i]) - 1.0) > 1e-9, f"Qubit {i} left trivial (⟨Z⟩=+1)"
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 @pytest.mark.parametrize("seed", list(range(32)))
 def test_remainder_smaller_groups_still_exact_coverage(Backend: type[QuantumBackend], seed: int):
     """
@@ -123,7 +124,7 @@ def test_remainder_smaller_groups_still_exact_coverage(Backend: type[QuantumBack
     assert len(idxs) == nb, f"{Backend.__name__}, seed={seed}, got {len(idxs)}"
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_randomness_varies(Backend: type[QuantumBackend]):
     """
     Sanity check that the sampler produces different states across runs.

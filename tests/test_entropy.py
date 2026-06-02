@@ -2,12 +2,13 @@
 import pytest
 
 from qminesweeper.board import QMineSweeperBoard
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_single_qubit_entropy_bounds(Backend: type[QuantumBackend]):
     b = QMineSweeperBoard(1, 1, Backend())
     b.span_classical_mines(0)  # |0>
@@ -19,7 +20,7 @@ def test_single_qubit_entropy_bounds(Backend: type[QuantumBackend]):
     assert e1 < 1e-9
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_entropy_map_shape_and_aggregate(Backend: type[QuantumBackend]):
     b = QMineSweeperBoard(2, 3, Backend())
     b.span_random_stabilizer_mines(nmines=2, level=2)

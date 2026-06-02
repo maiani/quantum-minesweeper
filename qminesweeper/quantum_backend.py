@@ -30,6 +30,33 @@ class QuantumGate(StrEnum):
     SWAP = "SWAP"
 
 
+# Gate arity, declared once so backends, the command parser, and tests don't each
+# re-list the 1Q/2Q split. Per-backend *native* gate maps still differ; only the
+# membership/arity is shared from here.
+ONE_QUBIT_GATES: frozenset[QuantumGate] = frozenset(
+    {
+        QuantumGate.X,
+        QuantumGate.Y,
+        QuantumGate.Z,
+        QuantumGate.H,
+        QuantumGate.S,
+        QuantumGate.Sdg,
+        QuantumGate.SX,
+        QuantumGate.SXdg,
+        QuantumGate.SY,
+        QuantumGate.SYdg,
+    }
+)
+TWO_QUBIT_GATES: frozenset[QuantumGate] = frozenset(
+    {
+        QuantumGate.CX,
+        QuantumGate.CY,
+        QuantumGate.CZ,
+        QuantumGate.SWAP,
+    }
+)
+
+
 class StabilizerQuantumState(ABC):
     """Runtime quantum state handle used by the board."""
 

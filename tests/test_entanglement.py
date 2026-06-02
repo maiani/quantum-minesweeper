@@ -1,6 +1,7 @@
 # tests/test_entanglement.py
 import pytest
 
+from qminesweeper.purepy_backend import PurePyBackend
 from qminesweeper.qiskit_backend import QiskitBackend
 from qminesweeper.quantum_backend import QuantumBackend
 from qminesweeper.stim_backend import StimBackend
@@ -12,7 +13,7 @@ def _prepare_bell_phi_plus(st):
     st.apply_gate("CX", [0, 1])
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_bell_correlations_z(Backend: type[QuantumBackend]):
     """
     For |Φ+>, Z⊗Z has expectation +1 → Z outcomes are *equal* every time.
@@ -26,7 +27,7 @@ def test_bell_correlations_z(Backend: type[QuantumBackend]):
         assert a == b
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_bell_correlations_x(Backend: type[QuantumBackend]):
     """
     For |Φ+>, X⊗X has expectation +1 → X outcomes are *equal* every time.
@@ -40,7 +41,7 @@ def test_bell_correlations_x(Backend: type[QuantumBackend]):
         assert a == b
 
 
-@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend])
+@pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, PurePyBackend])
 def test_bell_correlations_y(Backend: type[QuantumBackend]):
     """
     For |Φ+>, Y⊗Y has expectation -1 → Y outcomes are *opposite* every time.
