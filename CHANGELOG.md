@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-06-02
+- Added a static browser-only build that runs Quantum Minesweeper in Pyodide on the PurePy backend.
+- Added `BrowserSession`, `PyodideEngine`, and browser game persistence through versioned `localStorage` snapshots.
+- Shared setup/about/base templates between server and browser builds so the visible pages stay aligned.
+- Centralized framework-free setup validation and game construction for server and browser sessions.
+- Made PurePy the local/default backend while Docker/server deployments install and default to Stim.
+- Moved Stim to an optional dependency extra for local installs.
+- Added browser-session tests and Makefile targets for building and serving the static browser bundle.
+
 ## [0.2.2] - 2026-06-01
 - Hardened the codebase ahead of the browser-backend refactor.
 - Fixed dagger-gate command normalization so `Sdg`, `SXdg`, and `SYdg` moves work from the web UI.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qminesweeper"
-version = "0.2.2"
+version = "0.3.0"
 description = "Quantum Minesweeper Game"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,8 +37,13 @@ dependencies = [
 [project.optional-dependencies]
 stim = ["stim>=1.13,<2"]
 qiskit = ["qiskit>=1.2,<3"]
+rl = [
+  "gymnasium>=0.29,<2",
+  "stim>=1.13,<2",
+]
 dev = [
   "pytest>=8,<10",
+  "gymnasium>=0.29,<2",
   "stim>=1.13,<2",
   "qiskit>=1.2,<3",
   "ruff>=0.6",

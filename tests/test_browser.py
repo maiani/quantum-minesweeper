@@ -104,6 +104,13 @@ def test_import_save_rejects_unknown_version():
         s.import_save({"version": 999})
 
 
+def test_import_save_rejects_missing_keys():
+    s = BrowserSession()
+
+    with pytest.raises(ValueError, match="malformed browser save"):
+        s.import_save({"version": 1})
+
+
 def test_export_save_before_setup_raises():
     with pytest.raises(RuntimeError):
         BrowserSession().export_save()

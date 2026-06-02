@@ -133,34 +133,44 @@ class BrowserSession:
         """Restore a save snapshot and return the restored game state."""
         if not isinstance(snapshot, dict) or snapshot.get("version") != SAVE_VERSION:
             raise ValueError("unsupported browser save format")
-        params = snapshot["params"]
-        rows = int(params["rows"])
-        cols = int(params["cols"])
-        mines = int(params["mines"])
-        ent_level = int(params["ent_level"])
-        win = str(params["win"])
-        moves = str(params["moves"])
-        self._params = (rows, cols, mines, ent_level, win, moves)
+        try:
+            params = snapshot["params"]
+            rows = int(params["rows"])
+            cols = int(params["cols"])
+            mines = int(params["mines"])
+            ent_level = int(params["ent_level"])
+            win = str(params["win"])
+            moves = str(params["moves"])
+            self._params = (rows, cols, mines, ent_level, win, moves)
 
-        win_enum = WIN_CONDITIONS.get(win.lower(), WIN_CONDITIONS["identify"])
-        move_enum = MOVE_SETS.get(moves.lower(), MOVE_SETS["classic"])
-        board = QMineSweeperBoard(rows, cols, backend=self._backend, flood_fill=bool(snapshot["board"]["flood_fill"]))
-        board.set_preparation([(str(gate), [int(t) for t in targets]) for gate, targets in snapshot["board"]["prep"]])
-        board.set_clue_basis(str(snapshot["board"]["clue_basis"]))
+            win_enum = WIN_CONDITIONS.get(win.lower(), WIN_CONDITIONS["identify"])
+            move_enum = MOVE_SETS.get(moves.lower(), MOVE_SETS["classic"])
+            board = QMineSweeperBoard(
+                rows,
+                cols,
+                backend=self._backend,
+                flood_fill=bool(snapshot["board"]["flood_fill"]),
+            )
+            board.set_preparation(
+                [(str(gate), [int(t) for t in targets]) for gate, targets in snapshot["board"]["prep"]]
+            )
+            board.set_clue_basis(str(snapshot["board"]["clue_basis"]))
 
-        tableau = snapshot["tableau"]
-        state = board.state
-        if not isinstance(state, PurePyState) or int(tableau["n"]) != state.n:
-            raise ValueError("save does not match board size")
-        state.x[:, :] = np.array(tableau["x"], dtype=np.uint8)
-        state.z[:, :] = np.array(tableau["z"], dtype=np.uint8)
-        state.r[:] = np.array(tableau["r"], dtype=np.uint8)
+            tableau = snapshot["tableau"]
+            state = board.state
+            if not isinstance(state, PurePyState) or int(tableau["n"]) != state.n:
+                raise ValueError("save does not match board size")
+            state.x[:, :] = np.array(tableau["x"], dtype=np.uint8)
+            state.z[:, :] = np.array(tableau["z"], dtype=np.uint8)
+            state.r[:] = np.array(tableau["r"], dtype=np.uint8)
 
-        board._exploration[:, :] = np.array(snapshot["board"]["exploration"], dtype=np.int8)
-        board._measured = {int(idx): int(outcome) for idx, outcome in snapshot["board"]["measured"]}
+            board._exploration[:, :] = np.array(snapshot["board"]["exploration"], dtype=np.int8)
+            board._measured = {int(idx): int(outcome) for idx, outcome in snapshot["board"]["measured"]}
 
-        game = QMineSweeperGame(board, GameConfig(win_condition=win_enum, move_set=move_enum))
-        game.status = GameStatus[str(snapshot["status"])]
+            game = QMineSweeperGame(board, GameConfig(win_condition=win_enum, move_set=move_enum))
+            game.status = GameStatus[str(snapshot["status"])]
+        except (KeyError, TypeError, IndexError) as e:
+            raise ValueError(f"malformed browser save: {e}") from e
         self._board = board
         self._game = game
         return self.state()
