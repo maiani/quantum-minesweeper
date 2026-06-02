@@ -14,6 +14,7 @@ import markdown
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import (
     HTMLResponse,
+    JSONResponse,
     PlainTextResponse,
     RedirectResponse,
     Response,
@@ -202,6 +203,20 @@ GAMES: dict[str, dict] = {}
 # --------- Helpers ---------
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _record_outcome(game_id: str, game: QMineSweeperGame, user_id: str) -> None:
+    """Persist a terminal WIN/LOST to analytics (idempotent UPDATE).
+
+    Called from both /move (moves no longer reload, so the move that ends the
+    game is where the outcome is observed) and /game (a later refresh).
+    """
+    if game.status == GameStatus.WIN:
+        log.info(f"WIN user={user_id} gid={game_id}")
+        STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="WIN")
+    elif game.status == GameStatus.LOST:
+        log.info(f"LOST user={user_id} gid={game_id}")
+        STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
 
 
 # Bounds for setup parameters. The UI presets stay well within these; the caps
@@ -436,13 +451,7 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
     game: QMineSweeperGame = GAMES[game_id]["game"]
 
     # Persist terminal outcome once it happens
-    if game.status == GameStatus.WIN:
-        log.info(f"WIN user={user_id} gid={game_id}")
-        STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="WIN")
-
-    elif game.status == GameStatus.LOST:
-        log.info(f"LOST user={user_id} gid={game_id}")
-        STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
+    _record_outcome(game_id, game, user_id)
 
     # Game state (the shared contract) + app config (server-only feature flags),
     # inlined separately into the shell. render.js builds the view from both.
@@ -461,26 +470,21 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
 
 @app.post("/move")
 async def move_post(
+    request: Request,
     cmd: str = Form(...),
     game_id: Optional[str] = Query(None, alias="game_id"),
 ):
     """
-    Handle a single move command from the frontend.
+    Apply one move command and return the new game state as JSON.
 
-    Parameters
-    ----------
-    cmd : str
-        The command string submitted from the UI (e.g., "M 2,3", "X 1,1", "P 4,4").
-    game_id : Optional[str]
-        The unique identifier of the game (passed as query param).
-
-    Returns
-    -------
-    RedirectResponse
-        Redirects back to the game view after applying the move.
+    The frontend (render.js via the JS Engine) fetches this and re-renders in
+    place — no page reload. `cmd` is a move string ("M 2,3", "X 1,1", "P 4,4");
+    parsing/dispatch goes through the shared engine (parse_command/apply_command).
     """
+    user_id = ensure_user_id(request)
     if not game_id or game_id not in GAMES:
-        return RedirectResponse("/setup", status_code=303)
+        # Game expired/pruned: tell the client to fall back to setup.
+        return JSONResponse({"error": "game_not_found", "redirect": "/setup"}, status_code=404)
 
     board: QMineSweeperBoard = GAMES[game_id]["board"]
     game: QMineSweeperGame = GAMES[game_id]["game"]
@@ -493,15 +497,16 @@ async def move_post(
         elif command.kind == "gate":
             STATS_DB.increment_move(game_id=game_id, kind="gate")
         # pin is not counted
-
     except Exception as e:
+        # Invalid/illegal command: log and return the unchanged state so the UI
+        # stays consistent (the move is simply a no-op).
         log.exception(f"MOVE error gid={game_id} cmd='{cmd}' err={e}")
 
-    # Update heartbeat and last_seen after any move
+    _record_outcome(game_id, game, user_id)
     GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
     STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
 
-    return RedirectResponse(f"/game?game_id={game_id}", status_code=303)
+    return serialize_game(board, game, game_id)
 
 
 @app.post("/game")

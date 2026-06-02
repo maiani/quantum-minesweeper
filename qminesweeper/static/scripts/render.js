@@ -24,14 +24,23 @@
 // kept separate on purpose: in the future browser build, the in-browser engine
 // produces `state`, while `config` comes from the build.
 //
-// MOVES (for now): clicking a cell still submits a hidden <form> which reloads
-// the whole page; the server then re-inlines fresh state and this script rebuilds
-// the view. (Phase 2D will make moves update in place with no reload.)
+// MOVES: clicking a cell calls the engine (engine.js), which POSTs /move and
+// returns the new state; applyState() re-renders in place — no page reload.
+// (The reset / new-game / new-setup actions are still plain form POSTs that
+// reload the page; those are rare and change the game/URL anyway.)
 //
 // `clickCell` and `setTool` used below are defined in tools.js. They are only
 // *called* later when the user clicks, by which time tools.js has loaded — so it
 // is fine to reference them here.
 // =============================================================================
+
+// --- Module state -----------------------------------------------------------
+// `config` (feature flags) is read once on load and never changes. `gameId` is
+// the current game's id, updated on every applyState. `toolsSig` lets us skip
+// rebuilding the tool buttons when they wouldn't change (see renderTools).
+let _config = {};
+let _gameId = null;
+let _toolsSig = null;
 
 // Read and parse a <script type="application/json"> blob by its id.
 // Returns the parsed object, or null if the element is missing / not valid JSON.
@@ -105,21 +114,24 @@ function cellAriaLabel(r, c, val, decoded) {
 function renderStatus(state) {
   const host = document.getElementById("status-bar");
   if (!host) return;
-  // replaceChildren(...) clears the slot and inserts the new content in one step.
+  const mineText = `⟨Mines⟩ = ${state.mines_exp.toFixed(1)}`;
+  const entText = `Entanglement = ${Math.trunc(state.ent_measure)} bits`; // trunc matches the old "%d"
+  // If the bar already exists, just update the numbers in place. That keeps the
+  // existing <td> elements (and the help-id listeners help.js attached to them on
+  // load) alive across a no-reload re-render. Otherwise build it from scratch.
+  const mineCell = host.querySelector(".mine-counter");
+  const entCell = host.querySelector(".entanglement");
+  if (mineCell && entCell) {
+    mineCell.textContent = mineText;
+    entCell.textContent = entText;
+    return;
+  }
   host.replaceChildren(
     el("table", { class: "status-table" }, [
       el("tr", {}, [
-        el("td", {
-          class: "mine-counter",
-          "help-id": "mine-counter",
-          text: `⟨Mines⟩ = ${state.mines_exp.toFixed(1)}`,
-        }),
+        el("td", { class: "mine-counter", "help-id": "mine-counter", text: mineText }),
         el("td", { class: "status-spacer" }),
-        el("td", {
-          class: "entanglement",
-          "help-id": "entanglement",
-          text: `Entanglement = ${Math.trunc(state.ent_measure)} bits`, // trunc matches the old "%d"
-        }),
+        el("td", { class: "entanglement", "help-id": "entanglement", text: entText }),
       ]),
     ])
   );
@@ -152,17 +164,8 @@ function renderBoard(state) {
     }
     table.appendChild(tr);
   }
-  // Hidden form that tools.js's sendCmd() fills in and submits to POST /move.
-  // (This is the current submit mechanism; it triggers a full page reload.)
-  const form = el(
-    "form",
-    { id: "move-form", action: `/move?game_id=${state.game_id}`, method: "post", style: "display:none" },
-    [
-      el("input", { type: "hidden", name: "game_id", value: state.game_id }),
-      el("input", { type: "hidden", id: "cmd-input", name: "cmd", value: "" }),
-    ]
-  );
-  host.replaceChildren(table, form);
+  // Moves now go through the JS engine (fetch), so no hidden form is needed.
+  host.replaceChildren(table);
 }
 
 // Which gate buttons appear, grouped into rows for layout. This is a *curated*
@@ -213,6 +216,13 @@ function toolButton(token, helpId) {
 function renderTools(state) {
   const host = document.getElementById("tools-container");
   if (!host) return;
+  // The tool set only changes when the game ends or the move set changes — never
+  // on an ordinary move. Skip rebuilding when it's unchanged so the existing
+  // buttons keep their active highlight (set by tools.js) and their help-id
+  // listeners (attached by help.js on load).
+  const sig = state.status === "ONGOING" ? state.moveset : "OVER";
+  if (sig === _toolsSig) return;
+  _toolsSig = sig;
   if (state.status !== "ONGOING") {
     host.replaceChildren(); // game over -> no tools
     return;
@@ -294,15 +304,30 @@ function renderActions(state, config) {
   host.replaceChildren(el("div", { class: "gameover-overlay" }, [box]));
 }
 
-// Top-level: read the two JSON blobs and (re)build every slot of the view.
-function render() {
-  const state = readJson("game-state");
-  if (!state) return; // not on the game page (or no state inlined)
-  const config = readJson("app-config") || {};
+// (Re)build every slot from a game-state object, using the cached config.
+// Called once on load and again after each no-reload move (with fresh state).
+function applyState(state) {
+  _gameId = state.game_id;
   renderStatus(state);
   renderBoard(state);
   renderTools(state);
-  renderActions(state, config);
+  renderActions(state, _config);
+}
+
+// Exposed so the move flow (tools.js) can re-render after the engine returns new
+// state, and so it knows which game to send moves for. The browser-mode engine
+// (Phase 2E) drives this exactly the same way.
+window.GameRenderer = {
+  applyState,
+  gameId: () => _gameId,
+};
+
+// Top-level on load: read the two JSON blobs and build the initial view.
+function render() {
+  const state = readJson("game-state");
+  if (!state) return; // not on the game page (or no state inlined)
+  _config = readJson("app-config") || {};
+  applyState(state);
 }
 
 // Run as soon as the page's HTML is parsed. This <script> sits at the end of

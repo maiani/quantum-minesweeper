@@ -52,9 +52,28 @@ function setTool(t) {
   updateToolHint();
 }
 
+// Submit a move command through the engine and re-render in place (no reload).
+// engine.move() returns the new game state; GameRenderer.applyState() rebuilds
+// the view from it. If the game has expired the server returns {redirect}; on a
+// network error we fall back to a full reload (which lands back on a valid page).
 function sendCmd(cmd) {
-  document.getElementById("cmd-input").value = cmd;
-  document.getElementById("move-form").submit();
+  const engine = window.GameEngine;
+  const renderer = window.GameRenderer;
+  if (!engine || !renderer) return; // engine.js / render.js not loaded
+  engine
+    .move(renderer.gameId(), cmd)
+    .then((state) => {
+      if (!state) return;
+      if (state.redirect) {
+        window.location.href = state.redirect;
+        return;
+      }
+      renderer.applyState(state);
+    })
+    .catch((err) => {
+      console.error("move failed", err);
+      window.location.reload();
+    });
 }
 
 function clickCell(r, c) {
