@@ -124,6 +124,10 @@
 </div>
 
 <script>
+  function resetToolSelection() {
+    localStorage.setItem("qms_tool", "M");
+  }
+
   function applySelections() {
     const size = document.getElementById("board-size").value.split("x");
     const mines = document.getElementById("mines-choice").value;
@@ -163,7 +167,11 @@
   }
 
   // Ensure hidden inputs are updated before submission
-  document.querySelector("#simple-setup form").addEventListener("submit", applySelections);
+  document.querySelector("#simple-setup form").addEventListener("submit", () => {
+    applySelections();
+    resetToolSelection();
+  });
+  document.querySelector("#advanced-setup form").addEventListener("submit", resetToolSelection);
 </script>
 
 <script>

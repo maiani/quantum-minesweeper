@@ -14,6 +14,7 @@
 {% block content %}
 {# Static shell: render.js builds status/board/tools/actions from this state. #}
 <script id="game-state" type="application/json">{{ state | tojson }}</script>
+<script id="app-config" type="application/json">{{ config | tojson }}</script>
 
 <div id="status-bar"></div>
 <div id="board-container" class="board-container"></div>

@@ -4,11 +4,10 @@ from __future__ import annotations
 import csv
 import io
 import logging
-import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Tuple, cast
+from typing import Optional
 from uuid import uuid4
 
 import markdown
@@ -29,6 +28,7 @@ from qminesweeper import __version__
 from qminesweeper.auth import enable_basic_auth
 from qminesweeper.board import QMineSweeperBoard
 from qminesweeper.database import get_store
+from qminesweeper.engine import Command, apply_command, parse_command, serialize_game
 from qminesweeper.game import (
     GameConfig,
     GameStatus,
@@ -37,7 +37,6 @@ from qminesweeper.game import (
     WinCondition,
 )
 from qminesweeper.logging_config import setup_logging
-from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES
 from qminesweeper.settings import get_settings
 from qminesweeper.stim_backend import StimBackend
 
@@ -281,39 +280,6 @@ def prune_stale_games() -> None:
         log.info(f"Pruned {n} abandoned games (scheduled)")
 
 
-# ----- Command parsing -----
-# Move tokens are upper-cased on the wire (e.g. "SDG", "SXDG"); derive from the
-# shared arity sets so this never drifts from the gate vocabulary.
-_SINGLE_Q = {g.value.upper() for g in ONE_QUBIT_GATES}
-_TWO_Q = {g.value.upper() for g in TWO_QUBIT_GATES}
-
-
-def _parse_rc(token: str) -> Tuple[int, int]:
-    m = re.match(r"^\s*(\d+)\s*,\s*(\d+)\s*$", token)
-    if not m:
-        raise ValueError(f"Bad coord '{token}' (expected 'r,c')")
-    return int(m.group(1)) - 1, int(m.group(2)) - 1
-
-
-def parse_cmd(cmd: str):
-    if not cmd or not cmd.strip():
-        raise ValueError("Empty command")
-    s = cmd.strip()
-    if re.match(r"^\s*\d+\s*,\s*\d+\s*$", s):
-        return ("M", _parse_rc(s))
-    parts = s.split()
-    op = parts[0].upper()
-    if op == "M" and len(parts) == 2:
-        return ("M", _parse_rc(parts[1]))
-    if op == "P" and len(parts) == 2:
-        return ("P", _parse_rc(parts[1]))
-    if op in _SINGLE_Q and len(parts) == 2:
-        return ("G1", (op, _parse_rc(parts[1])))
-    if op in _TWO_Q and len(parts) == 3:
-        return ("G2", (op, _parse_rc(parts[1]), _parse_rc(parts[2])))
-    raise ValueError(f"Unrecognized command: '{cmd}'")
-
-
 # --------- Routes ---------
 @app.get("/health")
 def health():
@@ -447,25 +413,16 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
         log.info(f"LOST user={user_id} gid={game_id}")
         STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
 
-    # Game state inlined into the shell; render.js builds the whole view from it.
-    state = {
-        "game_id": game_id,
-        "rows": board.rows,
-        "cols": board.cols,
-        "grid": board.export_numeric_grid().tolist(),
-        "status": game.status.name,
-        "win_condition": game.cfg.win_condition.name,
-        "moveset": game.cfg.move_set.name,
-        "mines_exp": board.expected_mines(),
-        "ent_measure": board.entanglement_score("mean") * board.n,
-        "features": {
-            "reset_policy": settings.RESET_POLICY,
-            "enable_survey": bool(settings.ENABLE_SURVEY),
-            "survey_url": settings.SURVEY_URL,
-        },
+    # Game state (the shared contract) + app config (server-only feature flags),
+    # inlined separately into the shell. render.js builds the view from both.
+    state = serialize_game(board, game, game_id)
+    config = {
+        "reset_policy": settings.RESET_POLICY,
+        "enable_survey": bool(settings.ENABLE_SURVEY),
+        "survey_url": settings.SURVEY_URL,
     }
     return attach_user_cookie(
-        templates.TemplateResponse(request, "game.html", {"state": state}),
+        templates.TemplateResponse(request, "game.html", {"state": state, "config": config}),
         user_id,
         request,
     )
@@ -494,37 +451,17 @@ async def move_post(
     if not game_id or game_id not in GAMES:
         return RedirectResponse("/setup", status_code=303)
 
+    board: QMineSweeperBoard = GAMES[game_id]["board"]
     game: QMineSweeperGame = GAMES[game_id]["game"]
 
     try:
-        kind, payload = parse_cmd(cmd)
-
-        if kind == "M":
-            # Measurement: payload is a (row, col) tuple
-            rc = cast(Tuple[int, int], payload)
-            game.cmd_measure(*rc)
+        command = parse_command(cmd)
+        apply_command(board, game, command)
+        if command.kind == "measure":
             STATS_DB.increment_move(game_id=game_id, kind="measure")
-
-        elif kind == "P":
-            # Pin toggle: payload is a (row, col) tuple
-            rc = cast(Tuple[int, int], payload)
-            game.cmd_toggle_pin(*rc)
-            # no counter: pinning is not tracked
-
-        elif kind == "G1":
-            gate, rc = payload  # type: ignore[misc]
-            gate = cast(str, gate)  # ensure type checker sees this as str
-            game.cmd_gate(gate, [cast(Tuple[int, int], rc)])
+        elif command.kind == "gate":
             STATS_DB.increment_move(game_id=game_id, kind="gate")
-
-        elif kind == "G2":
-            gate, rc1, rc2 = payload  # type: ignore[misc]
-            gate = cast(str, gate)  # ensure type checker sees this as str
-            game.cmd_gate(
-                gate,
-                [cast(Tuple[int, int], rc1), cast(Tuple[int, int], rc2)],
-            )
-            STATS_DB.increment_move(game_id=game_id, kind="gate")
+        # pin is not counted
 
     except Exception as e:
         log.exception(f"MOVE error gid={game_id} cmd='{cmd}' err={e}")
@@ -557,8 +494,7 @@ async def game_post(
             allowed = True
 
         if allowed:
-            board.reset()
-            game.status = GameStatus.ONGOING
+            apply_command(board, game, Command("reset"))
             GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
             STATS_DB.reset_move_counters(game_id=game_id, ts=_now_iso())
         else:
