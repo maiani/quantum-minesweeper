@@ -134,8 +134,16 @@ body.light .board button:disabled {
   margin: 12px 0;
 }
 
+.tool-hint {
+  min-height: 1.2em;
+  margin: 6px 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .tool-row,
-.actions form {
+.actions-form {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

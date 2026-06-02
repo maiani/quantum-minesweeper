@@ -7,6 +7,25 @@ const allTools = new Set(['M','P', ...singleQ, ...twoQ]);
 let currentTool = localStorage.getItem("qms_tool") || "M";
 let firstPick = null;
 
+function updateToolHint() {
+  const hint = document.getElementById("tool-hint");
+  if (!hint) return;
+
+  if (currentTool === "M") {
+    hint.textContent = "Measure selected: choose a cell.";
+  } else if (currentTool === "P") {
+    hint.textContent = "Pin selected: choose a cell to mark.";
+  } else if (singleQ.has(currentTool)) {
+    hint.textContent = `${currentTool} selected: choose one unexplored cell.`;
+  } else if (twoQ.has(currentTool) && firstPick) {
+    hint.textContent = `${currentTool} selected: choose the target cell.`;
+  } else if (twoQ.has(currentTool)) {
+    hint.textContent = `${currentTool} selected: choose the first cell.`;
+  } else {
+    hint.textContent = "Choose a tool, then choose a cell.";
+  }
+}
+
 function setTool(t) {
   currentTool = t;
   localStorage.setItem("qms_tool", t);
@@ -29,6 +48,8 @@ function setTool(t) {
       })
     );
   }
+
+  updateToolHint();
 }
 
 function sendCmd(cmd) {
@@ -48,12 +69,14 @@ function clickCell(r, c) {
       const row = document.querySelectorAll('.board tr')[r];
       const btn = row.querySelectorAll('button')[c];
       btn.classList.add('pick');
+      updateToolHint();
       return;
     } else {
       const [r1,c1] = firstPick;
       firstPick = null;
       // clear highlight from all buttons
       document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
+      updateToolHint();
       const rc1 = `${r1+1},${c1+1}`;
       sendCmd(`${currentTool} ${rc1} ${rc}`);
     }
@@ -64,6 +87,9 @@ function clickCell(r, c) {
 document.addEventListener("DOMContentLoaded", () => {
   setTool(currentTool);
 });
+if (document.readyState !== "loading") {
+  setTool(currentTool);
+}
 
 // keyboard shortcuts
 document.addEventListener("keydown", (event) => {

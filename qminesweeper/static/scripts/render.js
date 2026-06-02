@@ -89,6 +89,17 @@ function decodeCell(val) {
   return { text: val.toFixed(1), cls: "clue", color }; // one decimal place, e.g. "2.5"
 }
 
+// Human-readable labels for screen readers. The board is visually dense, so
+// each button names its row/column and the current visible cell state.
+function cellAriaLabel(r, c, val, decoded) {
+  const prefix = `Row ${r + 1}, column ${c + 1}`;
+  if (decoded.cls === "unexplored") return `${prefix}: unexplored cell`;
+  if (decoded.cls === "pinned") return `${prefix}: pinned cell`;
+  if (decoded.cls === "mine") return `${prefix}: mine outcome`;
+  if (decoded.cls === "empty") return `${prefix}: revealed safe cell`;
+  return `${prefix}: clue ${val.toFixed(1)}`;
+}
+
 // --- Status bar: "⟨Mines⟩ = X.X" on the left, "Entanglement = N bits" on the right.
 // help-id attributes are picked up by help.js to show contextual help.
 function renderStatus(state) {
@@ -123,8 +134,14 @@ function renderBoard(state) {
   for (let r = 0; r < state.rows; r++) {
     const tr = el("tr");
     for (let c = 0; c < state.cols; c++) {
-      const { text, cls, color } = decodeCell(state.grid[r][c]);
-      const btn = el("button", { class: "tile " + cls, text });
+      const val = state.grid[r][c];
+      const decoded = decodeCell(val);
+      const { text, cls, color } = decoded;
+      const btn = el("button", {
+        class: "tile " + cls,
+        text,
+        "aria-label": cellAriaLabel(r, c, val, decoded),
+      });
       if (color) btn.style.color = color;
       // While the game is running, clicking a cell runs clickCell(r, c) (tools.js),
       // which turns the current tool + this cell into a move and submits it.
@@ -159,12 +176,34 @@ const TOOL_ROWS = {
   twoext: ["CX", "CY", "CZ", "SWAP"],
 };
 
+const TOOL_LABELS = {
+  M: "Measure cell",
+  P: "Pin cell",
+  X: "Apply X gate",
+  Y: "Apply Y gate",
+  Z: "Apply Z gate",
+  H: "Apply H gate",
+  S: "Apply S gate",
+  SDG: "Apply S dagger gate",
+  SX: "Apply square-root X gate",
+  SXDG: "Apply square-root X dagger gate",
+  SY: "Apply square-root Y gate",
+  SYDG: "Apply square-root Y dagger gate",
+  CX: "Apply controlled X gate",
+  CY: "Apply controlled Y gate",
+  CZ: "Apply controlled Z gate",
+  SWAP: "Apply SWAP gate",
+};
+
 // One tool button. Clicking it selects that tool (setTool, in tools.js).
 function toolButton(token, helpId) {
+  const label = TOOL_LABELS[token] || `Select ${token}`;
   return el("button", {
     type: "button",
     class: "btn tool",
     "help-id": helpId,
+    "aria-label": label,
+    title: label,
     text: token,
     onclick: () => setTool(token),
   });
@@ -188,7 +227,16 @@ function renderTools(state) {
   if (["ONE_QUBIT_COMPLETE", "TWO_QUBIT_EXTENDED"].includes(ms)) tools.appendChild(row(TOOL_ROWS.full1));
   if (ms === "TWO_QUBIT") tools.appendChild(row(TOOL_ROWS.two));
   if (ms === "TWO_QUBIT_EXTENDED") tools.appendChild(row(TOOL_ROWS.twoext));
-  host.replaceChildren(el("h3", { text: "Select Move" }), tools);
+  host.replaceChildren(
+    el("h3", { text: "Select Move" }),
+    tools,
+    el("p", {
+      id: "tool-hint",
+      class: "tool-hint",
+      "aria-live": "polite",
+      text: "Measure selected: choose a cell.",
+    })
+  );
 }
 
 // Whether to show the "Reset Board" button, per the server's reset policy
@@ -215,7 +263,7 @@ function actionForm(state, config) {
   if (state.status !== "ONGOING" && config.enable_survey && config.survey_url) {
     buttons.push(el("a", { class: "btn", href: config.survey_url, text: "Compile Survey" }));
   }
-  return el("form", { action: `/game?game_id=${state.game_id}`, method: "post" }, [
+  return el("form", { class: "actions-form", action: `/game?game_id=${state.game_id}`, method: "post" }, [
     el("input", { type: "hidden", name: "game_id", value: state.game_id }),
     ...buttons, // spread the buttons array in as individual children
   ]);

@@ -10,17 +10,17 @@
   <div class="header-right">
 
     {% if FEATURES.ENABLE_TUTORIAL and FEATURES.TUTORIAL_URL %}
-      <a class="header-action" href="{{ FEATURES.TUTORIAL_URL }}" target="_blank" rel="noopener">📖</a>
+      <a class="header-action" href="{{ FEATURES.TUTORIAL_URL }}" target="_blank" rel="noopener" title="Open tutorial" aria-label="Open tutorial">📖</a>
     {% endif %}
 
     {% if FEATURES.ENABLE_ABOUT %}
-    <a href="/about" class="header-action">ℹ️</a>
+    <a href="/about" class="header-action" title="About Quantum Minesweeper" aria-label="About Quantum Minesweeper">ℹ️</a>
     {% endif %}
 
     {% if FEATURES.ENABLE_HELP %}
-      <button id="toggle-help" class="header-action" title="Toggle Help">❓</button>
+      <button id="toggle-help" class="header-action" type="button" title="Toggle Help" aria-label="Toggle Help">❓</button>
     {% endif %}
 
-    <button id="toggle-theme" class="header-action" title="Toggle theme">🌙</button>
+    <button id="toggle-theme" class="header-action" type="button" title="Toggle theme" aria-label="Toggle theme">🌙</button>
   </div>
 </header>
