@@ -5,6 +5,7 @@
 {% block title %}Play Quantum Minesweeper | Quantum Logic Puzzle Game{% endblock %}
 {% block meta_description %}Learn quantum mechanics by playing Quantum Minesweeper. Explore measurement, superposition, entanglement, and gates in a hands-on puzzle game.{% endblock %}
 {% block canonical_path %}/setup{% endblock %}
+{% block robots_meta %}{% if game_id %}<meta name="robots" content="noindex, nofollow">{% endif %}{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/setup.css">

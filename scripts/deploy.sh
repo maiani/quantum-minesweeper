@@ -11,7 +11,10 @@ TAG="${IMAGE_TAG:-${GITHUB_REF_NAME:-$(git describe --tags --always || echo 'man
 REMOTE_IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT}/${REPO}/${IMAGE_NAME}:${TAG}"
 
 echo ">>> Building and pushing $REMOTE_IMAGE"
-docker buildx build --platform linux/amd64 -t "$REMOTE_IMAGE" --push .
+# --provenance/--sbom=false: skip the attestation manifests buildx would otherwise
+# push as extra untagged versions. They inflate the repo and would consume slots in
+# the "keep most recent 3" cleanup policy, so each deploy stays exactly one version.
+docker buildx build --platform linux/amd64 --provenance=false --sbom=false -t "$REMOTE_IMAGE" --push .
 
 echo ">>> Deploying to Cloud Run: $SERVICE"
 # Cloud Run injects $PORT; we don't pass it.

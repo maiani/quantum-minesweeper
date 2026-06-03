@@ -62,6 +62,31 @@ enable_basic_auth(
     exclude_paths=["/health", "/robots.txt", "/sitemap.xml", "/static/*"],
 )
 
+# --------- Abusive-bot blocklist ---------
+BLOCKED_BOT_AGENTS = (
+    "tiktokspider",
+    "bytespider",  
+    "mj12bot",
+    "ahrefsbot",
+    "semrushbot",
+    "dotbot",
+    "petalbot",
+    "dataforseobot",
+    "blexbot",
+    "mauibot",
+    "serpstatbot",
+    "seekportbot",
+)
+
+
+@app.middleware("http")
+async def block_abusive_bots(request: Request, call_next):
+    ua = request.headers.get("user-agent", "").lower()
+    if ua and any(bot in ua for bot in BLOCKED_BOT_AGENTS):
+        return PlainTextResponse("Forbidden", status_code=403)
+    return await call_next(request)
+
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
 log = logging.getLogger("qminesweeper.web")
 
@@ -219,6 +244,10 @@ def robots_txt():
     body = templates.env.get_template("robots.txt").render(
         disallow_paths=[
             "/move",
+            # Crawl trap: every game mints a unique game_id, so these query URLs are
+            # infinite. Keep the canonical /setup and /about indexable, but tell
+            # well-behaved bots not to enumerate the game_id variants.
+            "/*?game_id=",
             "/admin/db_download",
             "/admin/update_settings",
             "/admin/logout",

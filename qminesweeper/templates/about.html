@@ -6,6 +6,7 @@
 {% block title %}About Quantum Minesweeper | Superposition, Gates, and Entanglement{% endblock %}
 {% block meta_description %}Quantum Minesweeper teaches quantum mechanics through play: each cell is a qubit, mines are measurement outcomes, and gates change the board state.{% endblock %}
 {% block canonical_path %}/about{% endblock %}
+{% block robots_meta %}{% if game_id %}<meta name="robots" content="noindex, nofollow">{% endif %}{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/setup.css">
