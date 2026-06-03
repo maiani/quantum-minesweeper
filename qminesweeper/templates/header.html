@@ -1,6 +1,8 @@
 <header class="app-header">
   <div class="header-left">
-    Online players: {{ online_count() }}
+    {# Online player count is a server-side analytics feature; the browser-only
+       build has no server tracking it, so hide it there (keep the slot for layout). #}
+    {% if not browser_build %}Online players: {{ online_count() }}{% endif %}
   </div>
 
   <div class="header-center">

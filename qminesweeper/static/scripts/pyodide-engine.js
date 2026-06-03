@@ -15,24 +15,23 @@
 // fetched from `pyBaseURL` and written into Pyodide's in-memory filesystem.
 // =============================================================================
 
-// The pure-Python modules the browser session needs (import order doesn't matter;
-// Python resolves dependencies). All are Stim-free and numpy-only.
-const QMS_PY_MODULES = [
-  "__init__.py",
-  "quantum_backend.py",
-  "board.py",
-  "game.py",
-  "purepy_backend.py",
-  "engine.py",
-  "browser.py",
-];
+// The set of pure-Python modules to load is NOT hardcoded here. It is the build
+// script's job (scripts/build_browser.py) to decide which Stim-free modules ship
+// to the browser, and it writes that list into the bundle as `modules.json`
+// (next to the .py files). We fetch that manifest at boot so there is a single
+// source of truth — adding a pure module to build_browser.py is enough; this
+// file never needs editing. Import order doesn't matter (Python resolves deps).
+const QMS_PY_MANIFEST = "modules.json";
 
 class PyodideEngine {
   // pyBaseURL: where the qminesweeper/*.py sources are served from.
   // indexURL : optional Pyodide dist location (defaults to the CDN the loader uses).
-  constructor({ pyBaseURL = "/py/qminesweeper/", indexURL = null } = {}) {
+  // cacheBust: build id appended to module fetches so a PWA cache cannot serve
+  // a stale modules.json after the Python module set changes.
+  constructor({ pyBaseURL = "/py/qminesweeper/", indexURL = null, cacheBust = null } = {}) {
     this.pyBaseURL = pyBaseURL;
     this.indexURL = indexURL;
+    this.cacheBust = cacheBust;
     this._ready = null; // memoized boot promise
     this.session = null; // PyProxy of the Python BrowserSession
   }
@@ -48,10 +47,18 @@ class PyodideEngine {
     const pyodide = await loadPyodide(this.indexURL ? { indexURL: this.indexURL } : undefined);
     await pyodide.loadPackage(["numpy"]);
     pyodide.FS.mkdirTree("/lib/qminesweeper");
+    // Read the build-emitted module list, then fetch each module it names.
+    const manifestURL = this._moduleURL(QMS_PY_MANIFEST);
+    const manifestRes = await fetch(manifestURL);
+    if (!manifestRes.ok) {
+      throw new Error(`failed to fetch module manifest ${manifestURL}: ${manifestRes.status}`);
+    }
+    const modules = await manifestRes.json();
     await Promise.all(
-      QMS_PY_MODULES.map(async (name) => {
-        const res = await fetch(this.pyBaseURL + name);
-        if (!res.ok) throw new Error(`failed to fetch ${name}: ${res.status}`);
+      modules.map(async (name) => {
+        const url = this._moduleURL(name);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`failed to fetch ${url}: ${res.status}`);
         pyodide.FS.writeFile("/lib/qminesweeper/" + name, await res.text());
       })
     );
@@ -59,6 +66,12 @@ class PyodideEngine {
     const browser = pyodide.pyimport("qminesweeper.browser");
     this.pyodide = pyodide;
     this.session = browser.BrowserSession();
+  }
+
+  _moduleURL(name) {
+    const path = this.pyBaseURL + name;
+    if (!this.cacheBust) return path;
+    return path + (path.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(this.cacheBust);
   }
 
   // Convert a returned Python dict (PyProxy) into a plain JS object for render.js,

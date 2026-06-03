@@ -18,7 +18,7 @@
   const PY_BASE = "py/qminesweeper/"; // relative -> works at any hosting base path
   const SAVE_KEY = "qms_browser_save_v1";
 
-  const engine = new PyodideEngine({ pyBaseURL: PY_BASE });
+  const engine = new PyodideEngine({ pyBaseURL: PY_BASE, cacheBust: window.QMS_BROWSER_BUILD || null });
   const rawMove = engine.move.bind(engine);
   engine.move = async (gameId, cmd) => {
     const state = await rawMove(gameId, cmd);

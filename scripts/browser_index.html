@@ -10,6 +10,28 @@
 <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/setup.css">
 <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/game.css">
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
+
+{# --- PWA: installable, offline-capable browser build ------------------------
+   The manifest and service worker are emitted at the dist root by
+   build_browser.py (paths here are relative, so they resolve from there and
+   keep working under any hosting sub-path). Server mode never includes this
+   block, so it is unaffected. #}
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#17191e">
+<link rel="apple-touch-icon" href="{{ STATIC_BASE | default('/static') }}/icons/icon-192.png">
+<script>
+  window.QMS_BROWSER_BUILD = {{ build_id | tojson }};
+  // Register the service worker so the app is installable and runs offline after
+  // the first online launch (it caches Pyodide + numpy as they download).
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      const swURL = "sw.js?v=" + encodeURIComponent(window.QMS_BROWSER_BUILD);
+      navigator.serviceWorker.register(swURL).catch(function (err) {
+        console.warn("service worker registration failed", err);
+      });
+    });
+  }
+</script>
 {% endblock %}
 
 {% block content %}
