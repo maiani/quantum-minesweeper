@@ -113,6 +113,23 @@
     <script src="{{ STATIC_BASE | default('/static') }}/scripts/help.js" defer></script>
   </div>
 
+  {# About overlay (shared by all builds). The header's About link still points to
+     the real /about page (works with no JS and stays crawlable for SEO); about.js
+     intercepts the click, fetches that page once, and shows its content here — so
+     the current page, and any running game, is never unloaded. #}
+  <div id="about-overlay" class="app-overlay" hidden>
+    <div class="app-overlay__panel" role="dialog" aria-modal="true" aria-label="About Quantum Minesweeper">
+      {# Two dismiss controls, toggled by CSS: a ✕ (top-right) on wider screens, and
+         a full-width "Close" pinned to the bottom on small screens (thumb-reachable). #}
+      <button class="app-overlay__close" type="button" data-overlay-close aria-label="Close">✕</button>
+      <div class="about-body setup-expl"></div>
+      <div class="app-overlay__footer">
+        <button class="btn" type="button" data-overlay-close>Close</button>
+      </div>
+    </div>
+  </div>
+  <script src="{{ STATIC_BASE | default('/static') }}/scripts/about.js" defer></script>
+
   {% include "footer.html" %}
 </body>
 </html>

@@ -37,7 +37,7 @@ fi
 export QMS_DB_PATH="${RUNTIME_DB}"
 export QMS_BACKEND="${QMS_BACKEND:-stim}"
 echo "[entrypoint] Starting uvicorn on port ${PORT:-8080}..."
-uvicorn qminesweeper.webapp:app \
+uvicorn qminesweeper.server:app \
   --host 0.0.0.0 \
   --port "${PORT:-8080}" \
   --workers "${UVICORN_WORKERS:-1}" \

@@ -229,7 +229,7 @@ class SQLiteStore:
                         (game_id,),
                     )
                 else:
-                    # Unknown kind: ignore but log (keeps webapp simple)
+                    # Unknown kind: ignore but log (keeps server simple)
                     log.warning(f"increment_move: unknown kind '{kind}' gid={game_id}")
         except Exception as e:
             log.exception(f"DB increment_move failed gid={game_id}, kind={kind}: {e}")

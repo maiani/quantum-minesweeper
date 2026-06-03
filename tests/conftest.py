@@ -1,7 +1,7 @@
 """
 Test configuration.
 
-Set auth-related env BEFORE qminesweeper.webapp is imported by any test, so the
+Set auth-related env BEFORE qminesweeper.server is imported by any test, so the
 app module (which builds Basic Auth middleware at import time and reads
 ADMIN_PASS) can be imported without real credentials. Disabling auth keeps the
 import side-effect-free; a known ADMIN_PASS lets us exercise admin-session logic.

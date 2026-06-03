@@ -56,7 +56,7 @@ def webui(
     port_final = port or int(os.getenv("PORT", "8080"))
 
     uvicorn.run(
-        "qminesweeper.webapp:app",
+        "qminesweeper.server:app",
         host=host_final,
         port=port_final,
         reload=reload,

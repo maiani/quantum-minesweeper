@@ -1,4 +1,4 @@
-# tests/test_webapp_logic.py
+# tests/test_server_logic.py
 """
 Logic-level tests for the web layer that don't need an HTTP client:
 setup-parameter validation and the signed admin-session cookie.
@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from qminesweeper.engine import MAX_DIM, MAX_QUBITS, validate_setup_params
-from qminesweeper.webapp import (
+from qminesweeper.server import (
     ADMIN_COOKIE,
     _admin_serializer,
     admin_authed,
@@ -102,6 +102,14 @@ def test_setup_uses_stable_public_links():
     assert "/about?game_id" not in html
 
 
+def test_header_renders_about_link():
+    # The game now links to a clean /about (no game_id) — the about page's Back
+    # button returns to the game via history, so no per-game URL is minted.
+    html = templates.env.get_template("header.html").render(ABOUT_HREF="/about")
+
+    assert 'href="/about"' in html
+
+
 def test_about_without_game_id_links_to_setup():
     html = templates.env.get_template("about.html").render(game_id=None)
 
@@ -109,10 +117,13 @@ def test_about_without_game_id_links_to_setup():
     assert "/game?game_id" not in html
 
 
-def test_about_with_game_id_can_return_to_game():
+def test_about_has_back_button_without_minting_game_url():
+    # About offers a single "Back" (history.back()) rather than a /game?game_id=
+    # link, keeping /about a clean canonical page (no per-game crawl-trap URLs).
     html = templates.env.get_template("about.html").render(game_id="gid-1")
 
-    assert 'href="/game?game_id=gid-1"' in html
+    assert "history.back()" in html
+    assert "/game?game_id" not in html
 
 
 def test_robots_txt_points_to_sitemap_and_skips_action_endpoints():

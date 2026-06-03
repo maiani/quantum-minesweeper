@@ -17,14 +17,21 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shutil
+import sys
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from qminesweeper import __version__
-from qminesweeper.docs_render import load_docs
+# Run as `python scripts/build_browser.py`, so sys.path[0] is scripts/ — a stale
+# installed qminesweeper in site-packages would otherwise shadow the in-repo
+# source. Put the repo root first so we always build from the current tree.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from qminesweeper import __version__  # noqa: E402
+from qminesweeper.docs_render import load_docs  # noqa: E402
+from qminesweeper.settings import get_settings  # noqa: E402
+from qminesweeper.view_context import build_config, build_features  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 PKG = ROOT / "qminesweeper"
@@ -35,7 +42,7 @@ PWA_DIR = ROOT / "scripts" / "pwa"  # manifest + service-worker sources (emitted
 # PWA icons the manifest references (rasterised from icon.svg by make_icons.py).
 PWA_ICONS = ["icon-192.png", "icon-512.png"]
 
-# Pure-Python modules the in-browser engine needs (Stim-free, numpy-only).
+# Pure-Python modules the in-browser engine needs (numpy-only).
 PURE_MODULES = [
     "__init__.py",
     "quantum_backend.py",
@@ -107,16 +114,10 @@ def main() -> None:
     template_context = {
         "BASE_URL": None,
         "STATIC_BASE": "static",
-        "FEATURES": {
-            "ENABLE_HELP": True,
-            "ENABLE_TUTORIAL": False,
-            "TUTORIAL_URL": None,
-            "ENABLE_SURVEY": False,
-            "SURVEY_URL": None,
-            "ENABLE_ABOUT": True,
-            "RESET_POLICY": "any",
-        },
-        "config": {"reset_policy": "any", "enable_survey": False, "survey_url": None},
+        # Browser build uses the shared shape with its fixed product defaults
+        # (help on, about on, no tutorial/survey, reset always allowed).
+        "FEATURES": build_features(),
+        "config": build_config(),
         "docs": docs,
         "game_id": None,
         "version": __version__,
@@ -126,7 +127,7 @@ def main() -> None:
         "ABOUT_HREF": "about.html",
         "SETUP_HREF": "index.html",
         "build_id": cache_id,
-        "GA_MEASUREMENT_ID": os.environ.get("QMS_GA_MEASUREMENT_ID"),
+        "GA_MEASUREMENT_ID": get_settings().GA_MEASUREMENT_ID,
     }
     index_html = env.get_template("browser_index.html").render(**template_context)
     (DIST / "index.html").write_text(index_html, encoding="utf-8")

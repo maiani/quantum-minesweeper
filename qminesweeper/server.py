@@ -1,10 +1,11 @@
-# qminesweeper/webapp.py
+# qminesweeper/server.py
 from __future__ import annotations
 
 import csv
 import io
 import logging
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -46,6 +47,7 @@ from qminesweeper.game import (
 )
 from qminesweeper.logging_config import setup_logging
 from qminesweeper.settings import get_settings
+from qminesweeper.view_context import build_config, build_features
 
 # --------- Logging ---------
 logger = setup_logging()
@@ -103,17 +105,33 @@ templates.env.globals["version"] = __version__
 templates.env.globals["BASE_URL"] = settings.BASE_URL
 templates.env.globals["GA_MEASUREMENT_ID"] = settings.GA_MEASUREMENT_ID
 
-FEATURES = {
-    "ENABLE_HELP": settings.ENABLE_HELP,
-    "ENABLE_TUTORIAL": settings.ENABLE_TUTORIAL,
-    "TUTORIAL_URL": settings.TUTORIAL_URL,
-    "ENABLE_SURVEY": settings.ENABLE_SURVEY,
-    "SURVEY_URL": settings.SURVEY_URL,
-    "ENABLE_ABOUT": settings.ENABLE_ABOUT,
-    "RESET_POLICY": settings.RESET_POLICY,
-}
+FEATURES = build_features(
+    enable_help=settings.ENABLE_HELP,
+    enable_tutorial=settings.ENABLE_TUTORIAL,
+    tutorial_url=settings.TUTORIAL_URL,
+    enable_survey=settings.ENABLE_SURVEY,
+    survey_url=settings.SURVEY_URL,
+    enable_about=settings.ENABLE_ABOUT,
+    reset_policy=settings.RESET_POLICY,
+)
 templates.env.globals["FEATURES"] = FEATURES
-templates.env.globals["online_count"] = lambda: STATS_DB.online_active()
+
+
+# The header renders the active-game count on every server page. Cache it briefly
+# so a burst of requests doesn't hit the DB on each render (single-instance app).
+_ONLINE_TTL_SECONDS = 10.0
+_online_cache = {"at": 0.0, "value": 0}
+
+
+def _online_count() -> int:
+    now = time.monotonic()
+    if now - _online_cache["at"] > _ONLINE_TTL_SECONDS:
+        _online_cache["value"] = STATS_DB.online_active()
+        _online_cache["at"] = now
+    return _online_cache["value"]
+
+
+templates.env.globals["online_count"] = _online_count
 
 
 DOCS = load_docs(DOCS_DIR)
@@ -381,13 +399,17 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
     # Game state (the shared contract) + app config (server-only feature flags),
     # inlined separately into the shell. render.js builds the view from both.
     state = serialize_game(board, game, game_id)
-    config = {
-        "reset_policy": settings.RESET_POLICY,
-        "enable_survey": bool(settings.ENABLE_SURVEY),
-        "survey_url": settings.SURVEY_URL,
-    }
+    config = build_config(
+        reset_policy=settings.RESET_POLICY,
+        enable_survey=bool(settings.ENABLE_SURVEY),
+        survey_url=settings.SURVEY_URL,
+    )
     return attach_user_cookie(
-        templates.TemplateResponse(request, "game.html", {"state": state, "config": config}),
+        templates.TemplateResponse(
+            request,
+            "game.html",
+            {"state": state, "config": config, "ABOUT_HREF": "/about"},
+        ),
         user_id,
         request,
     )
@@ -639,14 +661,10 @@ def download_db(request: Request):
 
 
 @app.get("/about", response_class=HTMLResponse)
-async def about_get(request: Request, game_id: Optional[str] = Query(None)):
+async def about_get(request: Request):
     prune_stale_games()
 
     user_id = ensure_user_id(request)
     log.info(f"User {user_id} opened about page")
-    resp = templates.TemplateResponse(
-        request,
-        "about.html",
-        {"game_id": game_id},
-    )
+    resp = templates.TemplateResponse(request, "about.html", {})
     return attach_user_cookie(resp, user_id, request)
