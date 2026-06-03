@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # External links
     TUTORIAL_URL: str | None = None
     SURVEY_URL: str | None = None
+    GA_MEASUREMENT_ID: str | None = None
 
     # --- Auth ---
     ENABLE_AUTH: bool = True

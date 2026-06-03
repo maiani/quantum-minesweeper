@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -125,6 +126,7 @@ def main() -> None:
         "ABOUT_HREF": "about.html",
         "SETUP_HREF": "index.html",
         "build_id": cache_id,
+        "GA_MEASUREMENT_ID": os.environ.get("QMS_GA_MEASUREMENT_ID"),
     }
     index_html = env.get_template("browser_index.html").render(**template_context)
     (DIST / "index.html").write_text(index_html, encoding="utf-8")

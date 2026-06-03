@@ -101,6 +101,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.globals["now"] = datetime.now
 templates.env.globals["version"] = __version__
 templates.env.globals["BASE_URL"] = settings.BASE_URL
+templates.env.globals["GA_MEASUREMENT_ID"] = settings.GA_MEASUREMENT_ID
 
 FEATURES = {
     "ENABLE_HELP": settings.ENABLE_HELP,

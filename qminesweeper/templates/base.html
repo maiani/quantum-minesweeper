@@ -3,6 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  {% if GA_MEASUREMENT_ID %}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID | urlencode }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', {{ GA_MEASUREMENT_ID | tojson }});
+  </script>
+  {% endif %}
+
   {% block robots_meta %}{% endblock %}
   <meta name="description" content="{% block meta_description %}Learn quantum mechanics through Quantum Minesweeper, a playable puzzle about measurement, gates, superposition, and entanglement.{% endblock %}">
   
