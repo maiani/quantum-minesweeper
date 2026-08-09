@@ -59,10 +59,10 @@ change that completes, removes, reprioritizes, or materially redefines an item.
 
 ### Analytics store
 
-- [ ] Move admin reads and CSV export behind public, locked `SQLiteStore`
+- [x] Move admin reads and CSV export behind public, locked `SQLiteStore`
   methods.
-- [ ] Remove route-level access to `STATS_DB._db`.
-- [ ] Add tests for concurrent analytics reads/writes and empty CSV export.
+- [x] Remove route-level access to `STATS_DB._db`.
+- [x] Add tests for concurrent analytics reads/writes and empty CSV export.
 
 ### Configuration ownership
 

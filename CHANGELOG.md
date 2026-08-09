@@ -4,9 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Moved admin analytics reads and CSV export behind public, lock-guarded
+  `SQLiteStore` methods, so routes no longer reach into the private database
+  connection and concurrent reads cannot observe a torn counter snapshot.
+- Fixed the analytics CSV export to emit column headers when no games exist.
 - Replaced the browser build's plain loading text with a staged progress bar for
   the Pyodide boot, and locked the setup form while a game starts.
 - Added the WINQ funder logo to the shared footer.
+- Replaced the raster Nordita footer logo with an inlined single-colour SVG that
+  follows the active theme.
 - Added a project logo and status badges to the README.
 - Added PWA icons, install metadata, and a content-fingerprinted service worker
   to the static browser build.

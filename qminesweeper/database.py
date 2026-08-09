@@ -272,6 +272,60 @@ class SQLiteStore:
             log.exception(f"DB summary failed: {e}")
         return out
 
+    # --- admin reads / export ---
+    def game_columns(self) -> list[str]:
+        """
+        Column names of the `games` table, in declaration order.
+
+        Read from the table definition rather than from a result row so callers
+        get a stable header even when there are no rows to describe.
+        """
+        try:
+            with self._lock:
+                cur = self._db.cursor()
+                cur.execute("PRAGMA table_info(games)")
+                return [str(row["name"]) for row in cur.fetchall()]
+        except Exception as e:
+            log.exception(f"DB game_columns failed: {e}")
+            return []
+
+    def recent_games(self, *, limit: int = 100) -> list[Dict[str, Any]]:
+        """
+        The `limit` most recently created games, newest first.
+
+        Returns plain dicts rather than `sqlite3.Row` objects so callers do not
+        depend on the connection's row factory. Empty list on error.
+        """
+        try:
+            with self._lock:
+                cur = self._db.cursor()
+                cur.execute("SELECT * FROM games ORDER BY created_at DESC LIMIT ?", (limit,))
+                return [dict(row) for row in cur.fetchall()]
+        except Exception as e:
+            log.exception(f"DB recent_games failed: {e}")
+            return []
+
+    def export_games(self) -> tuple[list[str], list[list[Any]]]:
+        """
+        Every game row as `(columns, rows)`, ready for CSV export.
+
+        Each row is ordered to match `columns`, and the columns are reported
+        even when there are no rows, so an export of an empty database still
+        carries a valid header line.
+        """
+        # Taken before the lock below: threading.Lock is not reentrant, so this
+        # must not run inside the read block.
+        columns = self.game_columns()
+        try:
+            with self._lock:
+                cur = self._db.cursor()
+                cur.execute("SELECT * FROM games")
+                rows = [[row[name] for name in columns] for row in cur.fetchall()]
+            return columns, rows
+        except Exception as e:
+            log.exception(f"DB export_games failed: {e}")
+            return columns, []
+
 
 # ---------- Singleton accessor ----------
 

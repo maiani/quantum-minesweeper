@@ -608,14 +608,12 @@ def view_db(request: Request):
     if not admin_authed(request):
         return RedirectResponse("/admin/login", status_code=303)
 
-    cur = STATS_DB._db.cursor()
-    cur.execute("SELECT * FROM games ORDER BY created_at DESC LIMIT 100")
-    rows = cur.fetchall()
+    rows = STATS_DB.recent_games(limit=100)
 
     if not rows:
         return HTMLResponse("<p>No games found.</p>")
 
-    # convert sqlite3.Row → dict with formatted datetimes
+    # copy each row before formatting datetimes, so the store's output is not mutated
     formatted_rows = []
     for r in rows:
         d = dict(r)
@@ -640,17 +638,15 @@ def download_db(request: Request):
     if not admin_authed(request):
         return RedirectResponse("/admin/login", status_code=303)
 
-    # fetch rows
-    cur = STATS_DB._db.cursor()
-    cur.execute("SELECT * FROM games")
-    rows = cur.fetchall()
+    # Columns come from the table definition, so an export with no games still
+    # has a header row instead of a leading blank line.
+    columns, rows = STATS_DB.export_games()
 
     # write CSV into memory
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(rows[0].keys() if rows else [])
-    for row in rows:
-        writer.writerow([row[k] for k in row.keys()])
+    writer.writerow(columns)
+    writer.writerows(rows)
 
     output.seek(0)
     return StreamingResponse(
