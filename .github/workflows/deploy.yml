@@ -46,7 +46,7 @@ jobs:
 
       - name: Run lint
         run: |
-          python -m ruff check qminesweeper tests
+          python -m ruff check qminesweeper tests scripts
 
       - name: Run tests
         run: |

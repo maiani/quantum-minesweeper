@@ -26,7 +26,7 @@ jobs:
 
       - name: Run Ruff
         run: |
-          python -m ruff check qminesweeper tests
+          python -m ruff check qminesweeper tests scripts
 
   test:
     runs-on: ubuntu-latest
@@ -51,9 +51,34 @@ jobs:
         run: |
           pytest -q --disable-warnings
 
+  # Runs the same gate contributors run locally (`pixi run check` = lint + test +
+  # js-check). The pip jobs above cover many Python versions but not the pinned
+  # pixi toolchain, so this job is what keeps CI and the documented dev workflow
+  # from drifting apart. It also provides nodejs from the pixi environment, so
+  # `js-check` cannot silently skip for want of a Node interpreter.
+  pixi-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: prefix-dev/setup-pixi@v0.10.1
+        with:
+          # `locked: false` lets pixi re-solve when pixi.lock has fallen behind
+          # pyproject.toml instead of failing the job. Dependency bumps (which
+          # cannot regenerate the lockfile) therefore stay green and are tested
+          # against the dependency they actually request. The trade-off is that
+          # lockfile drift is not reported here; flip this to `locked: true` to
+          # make CI fail on it, at the cost of a manual `pixi lock` per bump.
+          locked: false
+          cache: true
+
+      - name: Run the documented development gate
+        run: pixi run check
+
   build-package:
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, pixi-check]
 
     steps:
       - uses: actions/checkout@v7
@@ -70,7 +95,7 @@ jobs:
 
   docker-build:
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, pixi-check]
 
     steps:
       - uses: actions/checkout@v7
