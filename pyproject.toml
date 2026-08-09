@@ -42,7 +42,7 @@ rl = [
   "stim>=1.13,<2",
 ]
 dev = [
-  "pytest>=8,<10",
+  "pytest>=9,<10",
   "gymnasium>=0.29,<2",
   "stim>=1.13,<2",
   "qiskit>=1.2,<3",
@@ -70,6 +70,16 @@ qminesweeper = [
   "static/**/*",
   "docs/**/*"
 ]
+
+# ---------------- Pytest ----------------
+
+[tool.pytest]
+minversion = "9.0"
+addopts = ["-ra", "-q"]
+testpaths = [
+  "tests",
+]
+pythonpath = ["."]
 
 # ---------------- Ruff ----------------
 

@@ -30,7 +30,9 @@ The **entanglement level** controls the size of stabilizer groups used to place 
 
 - **Level 0** — purely classical mines.  
 - **Level 1** — mines are independent single-qubit stabilizers.  
-- **Level $k$** — mines are prepared as random stabilizer states over groups of $k$ qubits. At Level 2 may produce Bell pairs, Level 3 GHZ-type states, etc.
+- **Level $k$** — mines are prepared as random stabilizer states over groups of
+  $k$ qubits. Level 2 can produce Bell-pair-like states, Level 3 can produce
+  GHZ-type states, and so on.
   
 #### 3. Win condition
 - **Identify**: you win by measuring all currently safe sites without triggering a mine outcome.  

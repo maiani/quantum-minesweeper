@@ -1,25 +1,29 @@
 # Quantum Minesweeper
 
-Quantum Minesweeper is a quantum twist on the classic game of Minesweeper.  
-Instead of fixed mines, the board is prepared in **quantum states** (classical mines, product stabilizers, or entangled stabilizers).  
-You interact with the board by **measuring qubits** or **applying quantum gates**, and you must **identify** or **clear** the "quantum mines." In Clear mode, clearing means making every mine outcome impossible.
+Quantum Minesweeper is a quantum twist on the classic game of Minesweeper.
+Instead of a fixed hidden layout, each cell is a qubit and a mine is the
+Z-basis outcome $|1\rangle$. Measure qubits or apply Clifford gates to identify
+or clear the quantum mines. In Clear mode, clearing means making every mine
+outcome impossible.
 
 ---
 
 ## Features
 
-- **Two interfaces**
-  - **TUI** (Text UI) powered by `rich`
-  - **Web UI** powered by **FastAPI** + **Uvicorn**
+- **Shared game with multiple runtimes**
+  - **TUI** powered by Rich
+  - **Server Web UI** powered by FastAPI and Uvicorn
+  - **Browser-only PWA** powered by Pyodide, with no application server
 - **Multiple backends** (selected with `--backend` or `QMS_BACKEND`)
-  - **PurePy** — pure-Python stabilizer tableau, no native deps (default for local/static browser runs; runs anywhere, incl. Pyodide)
+  - **PurePy** — NumPy stabilizer tableau with no native extension dependency
+    (default for local and static-browser runs, including Pyodide)
   - **Stim** — optional fast C++ stabilizer simulator (default for deployed server runs)
   - **Qiskit** — optional stabilizer simulator via Qiskit
 - **Game modes**
-  - **Classical** - standard Minesweeper rules with |1⟩ mines
-  - **Identify** - identify deterministic mines and explore all safe regions
-  - **Clear** - apply gates to drive all mine probabilities to ~0
-  - **Sandbox** - no win condition; experiment freely with gates
+  - **Classical** — standard Minesweeper rules with $|1\rangle$ mines
+  - **Identify** — identify deterministic mines and explore all safe regions
+  - **Clear** — apply gates to drive all mine probabilities to zero
+  - **Sandbox** — no win condition; experiment freely with gates
 - **Moves**
   - Classical: **Measure (M)**, **Pin (P)**
   - 1-qubit gates: **X, Y, Z, H, S, Sdg, SX, SXdg, SY, SYdg**
@@ -34,7 +38,7 @@ You interact with the board by **measuring qubits** or **applying quantum gates*
 git clone https://github.com/maiani/quantum-minesweeper.git
 cd quantum-minesweeper
 
-# Copy the setting
+# Copy the example settings
 cp .env_example .env
 
 # Create and activate a virtual environment 
@@ -63,7 +67,7 @@ Common flags:
 - `QMS_ENABLE_SURVEY` / `QMS_SURVEY_URL` - show a Survey link
 - `QMS_BASE_URL` can be set for absolute paths.
   
-Create a `.env` (or use `.env.example`) in local dev.
+Create a `.env` from the supplied `.env_example` in local development.
 
 
 ### Textual Interface (TUI)
@@ -93,48 +97,64 @@ Local web UI runs use the configured backend, which defaults to **PurePy** for a
 plain install. The Docker/Cloud Run deployment installs the Stim extra and
 defaults `QMS_BACKEND` to **Stim** unless you override it.
 
-### Browser-only build
-Build a static version that runs the game in the page with Pyodide and the
-pure-Python backend:
+### Browser-only PWA
+
+Build a static version that runs the game in-page with Pyodide and the PurePy
+backend:
 
 ```bash
-make browser
-make browser-serve
+just browser
+just browser-serve
 ```
 
 Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The static build does
 not need FastAPI, a database, or Cloud Run while you play. It saves the current
-browser game in `localStorage`, so a reload restores the in-progress board.
+game in `localStorage`, so a reload restores the in-progress board. The bundle
+also includes a manifest and service worker for installation and offline use
+after its initial successful load.
 
 ### Docker
 Build and run locally with
 
 ```bash
-make run
+just docker-run
 ```
 
 ---
 
 ## Development & Testing
 
-You can install the package including the development dependencies in editable mode as 
+Install the package and development dependencies in editable mode:
 
 ```bash
 pip install -e ".[dev]"
 pre-commit install
 ```
 
-We run tests with [pytest](https://pytest.org/):
+Run the release checks with:
+
 ```bash
-pytest tests/
+just check
 ```
+
+This runs Ruff, pytest, and JavaScript syntax checks. The test suite exercises
+all installed simulator backends.
+
+Run `just` to list all development, packaging, browser, Docker, and deployment
+commands. The `justfile` is only a thin task interface; implementation remains
+in Python modules and the scripts under `scripts/`.
+
+Project design and active work are documented in
+[`docs/architecture.md`](docs/architecture.md) and
+[`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 ## Gameplay Notes
 
-- Classical mode matches standard Minesweeper: mines are fixed |1⟩ states; clues sum over neighbors.
+- Classical mode matches standard Minesweeper: mines are fixed $|1\rangle$
+  states and clues sum over neighbors.
 - Quantum modes use stabilizer states:
-  - Identify: measure to reveal deterministically safe cells 
+  - Identify: measure to reveal deterministically safe cells.
   - Clear: apply gates (and measurements) to drive each cell's Z-basis mine probability to ~0.
 
 The status bar shows the expected number of mines:
@@ -145,7 +165,8 @@ $$
 
 where $p_i$ is the current Z-basis mine probability of cell $i$.
 
-Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, etc. change clues and probabilities without a win condition
+Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, and other
+Clifford gates change clues and probabilities without a win condition.
 
 
 ## Authors

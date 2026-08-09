@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+- Added PWA icons, install metadata, and a content-fingerprinted service worker
+  to the static browser build.
+- Added optional analytics configuration to generated browser pages.
+- Refactored FastAPI application context into `qminesweeper/server.py` and the
+  shared `view_context.py` module.
+- Added a shared About overlay for server and browser-only modes.
+- Moved project architecture and planning documentation to
+  `docs/architecture.md` and `docs/roadmap.md` and refreshed their status.
+- Replaced the Makefile command wrapper with a minimal `justfile` task interface.
+- Fixed the installed `qminesweeper` command to use the same package-owned
+  Typer application as `python -m qminesweeper`.
+
 ## [0.3.0] - 2026-06-02
 - Added a static browser-only build that runs Quantum Minesweeper in Pyodide on the PurePy backend.
 - Added `BrowserSession`, `PyodideEngine`, and browser game persistence through versioned `localStorage` snapshots.

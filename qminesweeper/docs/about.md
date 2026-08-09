@@ -6,27 +6,33 @@ You interact with the board by **measuring** one cell, or by **applying quantum 
 to modify the board and *defuse* the "quantum mines." In the main Clear mode,
 defusing means making every mine outcome impossible.
 
-Developed at the Nordic Institute for Theoretical Physics ([Nordita](https://www.nordita.org)) in 2025, the project brings together a unified vision across gameplay, stabilizer mechanics, and the web/TUI interfaces.
+Developed at the Nordic Institute for Theoretical Physics
+([Nordita](https://www.nordita.org)), the project brings together gameplay,
+stabilizer mechanics, and shared browser, server, and TUI implementations.
 
 ---
 
 ### Team
+
 - **Andrea Maiani** · [GitHub](https://github.com/maiani)
 - **Niklas Engelhardt Önne** · [GitHub](https://github.com/niklasonne)
-- **Jason Pye** 
+- **Jason Pye**
 
 ---
 
-### Source & Issues
-- GitHub: [maiani/quantum-minesweeper](https://github.com/maiani/quantum-minesweeper)  
+### Source and issues
+
+- GitHub: [maiani/quantum-minesweeper](https://github.com/maiani/quantum-minesweeper)
 - Issues & feature requests: [Open an issue](https://github.com/maiani/quantum-minesweeper/issues)
 
 ---
 
-### How to Cite
-If you use *Quantum Minesweeper* in research or teaching, please cite the archived software release: TBA
+### How to cite
+
+Citation metadata will be added when an archived software release is published.
 
 ---
 
 ## License
-MIT License. © 2025 Andrea Maiani and contributors.
+
+MIT License. © 2025–2026 Andrea Maiani and contributors.

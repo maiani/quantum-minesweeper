@@ -1,8 +1,13 @@
 ## Game rules
 
-**Goal**: Defuse the board by bringing every cell to the |0> state. If you measure a cell and observe |1>, you lose.
+**Goal**: Defuse the board by bringing every cell to the $|0\rangle$ state. If
+you measure a cell and observe $|1\rangle$, you lose.
 
-**Overview**: Each cell is a qubit (quantum bit): it may be a mine |1>, empty |0>, or in a superposition. Use measurements to reveal the expected number of mines in neighbouring cells, or apply gates to change the quantum states of the unrevealed cells. In Clear mode, the aim is to make every mine outcome impossible, not just to locate a fixed hidden layout.
+**Overview**: Each cell is a qubit: it may be a mine $|1\rangle$, empty
+$|0\rangle$, or in a superposition. Use measurements to reveal the expected
+number of mines in neighbouring cells, or apply gates to change unrevealed
+qubits. In Clear mode, the aim is to make every mine outcome impossible, not
+just to locate a fixed hidden layout.
 
 ---
 
