@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from qminesweeper.board import QMineSweeperBoard
-from qminesweeper.game import GameConfig, GameStatus, MoveSet, QMineSweeperGame, WinCondition
-from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES, QuantumBackend
+from qminesweeper.game import ALLOWED_MOVES, Action, GameConfig, GameStatus, MoveSet, QMineSweeperGame, WinCondition
+from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES, QuantumBackend, QuantumGate
 
 # Upper-cased move tokens, derived from the shared arity sets.
 _SINGLE_Q = {g.value.upper() for g in ONE_QUBIT_GATES}
@@ -85,6 +85,21 @@ def parse_command(cmd: str) -> Command:
     if op in _TWO_Q and len(parts) == 3:
         return Command("gate", gate=op, cell=_rc(parts[1]), cell2=_rc(parts[2]))
     raise ValueError(f"Unrecognized command: '{cmd}'")
+
+
+def command_tokens_for_moveset(move_set: MoveSet) -> dict[str, list[str]]:
+    """Return command tokens allowed by ``move_set``, grouped by arity.
+
+    The rules live in :data:`game.ALLOWED_MOVES`, while gate arity lives in
+    :mod:`quantum_backend`. Controllers such as the TUI use this derived view
+    for prompts; they must not maintain their own gate or move-set lists.
+    """
+    allowed = ALLOWED_MOVES[move_set]
+    return {
+        "actions": [action.value for action in Action if action in allowed],
+        "single": [gate.value.upper() for gate in QuantumGate if gate in allowed and gate in ONE_QUBIT_GATES],
+        "two": [gate.value.upper() for gate in QuantumGate if gate in allowed and gate in TWO_QUBIT_GATES],
+    }
 
 
 def apply_command(board: QMineSweeperBoard, game: QMineSweeperGame, cmd: Command) -> None:

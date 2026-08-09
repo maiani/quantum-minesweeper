@@ -14,6 +14,16 @@ they have; the browser-build defaults live in the signatures.
 
 from __future__ import annotations
 
+from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES
+
+
+def _gate_arities() -> dict[str, int]:
+    """JSON-ready gate arities derived from the simulator contract."""
+    return {
+        **{gate.value.upper(): 1 for gate in ONE_QUBIT_GATES},
+        **{gate.value.upper(): 2 for gate in TWO_QUBIT_GATES},
+    }
+
 
 def build_features(
     *,
@@ -47,9 +57,14 @@ def build_config(
     enable_survey: bool = False,
     survey_url: str | None = None,
 ) -> dict:
-    """The small app-config blob inlined into the game shell (``config``)."""
+    """The small app-config blob inlined into the game shell (``config``).
+
+    Gate arity is semantic configuration, not presentation: JavaScript owns
+    labels and layout but uses this derived mapping when constructing commands.
+    """
     return {
         "reset_policy": reset_policy,
         "enable_survey": enable_survey,
         "survey_url": survey_url,
+        "gate_arities": _gate_arities(),
     }

@@ -28,8 +28,8 @@ def test_classic_rl_env_uses_measure_actions_without_pins():
 def test_two_qubit_ruleset_expands_action_space_without_pins():
     env = QuantumMinesweeperEnv(rows=2, cols=2, mines=0, move_set="two", win_condition="sandbox", backend="purepy")
 
-    # TWO_QUBIT allows M, five 1Q gates (X,Y,Z,H,S), and three 2Q gates
-    # (CX,CZ,SWAP). Pins are deliberately omitted.
-    assert env.action_space.n == 4 + 5 * 4 + 3 * 4 * 3
+    # TWO_QUBIT allows M, five 1Q gates (X,Y,Z,H,S), and two 2Q gates
+    # (CX,SWAP). CZ and CY belong to TWO_QUBIT_EXTENDED; pins are omitted.
+    assert env.action_space.n == 4 + 5 * 4 + 2 * 4 * 3
     assert not any(action.startswith("P ") for action in env.action_meanings)
     assert "CX 1,1 1,2" in env.action_meanings

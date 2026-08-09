@@ -3,7 +3,7 @@
 
 /* ---------- Base theme ---------- */
 :root {
-    --bg: #1a1c22;;
+    --bg: #090c13;
     --fg: #e8e8e8;
     --muted: #7a7f87;
     --tile-muted: #5a6070;
@@ -46,6 +46,10 @@ html,
 body {
     height: 100%;
     margin: 0;
+}
+
+html {
+    background: var(--bg);
 }
 
 body {
@@ -297,14 +301,7 @@ body.light .btn.active {
     font-size: 0.85rem;
     color: var(--muted);
     opacity: 0.8;
-}
-
-.footer-separator {
-    flex-basis: 100%;
-    border: none;
-    border-top: 1px solid var(--tile-muted);
-    margin: 0 0 8px;
-    opacity: 0.4;
+    background: var(--bg);
 }
 
 .footer-logo {

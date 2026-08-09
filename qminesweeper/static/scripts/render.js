@@ -168,15 +168,15 @@ function renderBoard(state) {
   host.replaceChildren(table);
 }
 
-// Which gate buttons appear, grouped into rows for layout. This is a *curated*
-// presentation list (a deliberate subset of what the rules allow — e.g. TWO_QUBIT
-// intentionally offers only CX/SWAP), so it is decided here in the UI, keyed on
-// the move set, rather than from the backend's allowed-moves.
+// Which gate buttons appear, grouped into rows for layout. Ordering and row
+// breaks are presentation choices, so they stay in JavaScript. Python remains
+// authoritative for legality and arity; contract tests keep these rows aligned
+// with the shared move definitions.
 const TOOL_ROWS = {
-  core1: ["X", "Y", "Z", "H", "S"],
-  full1: ["SDG", "SX", "SXDG", "SY", "SYDG"],
-  two: ["CX", "SWAP"],
-  twoext: ["CX", "CY", "CZ", "SWAP"],
+  "core1": ["X", "Y", "Z", "H", "S"],
+  "full1": ["SDG", "SX", "SXDG", "SY", "SYDG"],
+  "two": ["CX", "SWAP"],
+  "twoext": ["CX", "CY", "CZ", "SWAP"]
 };
 
 const TOOL_LABELS = {
@@ -201,12 +201,15 @@ const TOOL_LABELS = {
 // One tool button. Clicking it selects that tool (setTool, in tools.js).
 function toolButton(token, helpId) {
   const label = TOOL_LABELS[token] || `Select ${token}`;
+  const arity = _config.gate_arities && _config.gate_arities[token];
   return el("button", {
     type: "button",
     class: "btn tool",
     "help-id": helpId,
     "aria-label": label,
     title: label,
+    "data-tool-id": token,
+    "data-arity": arity,
     text: token,
     onclick: () => setTool(token),
   });

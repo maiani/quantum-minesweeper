@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Replaced the browser build's plain loading text with a staged progress bar for
+  the Pyodide boot, and locked the setup form while a game starts.
+- Added the WINQ funder logo to the shared footer.
+- Added a project logo and status badges to the README.
 - Added PWA icons, install metadata, and a content-fingerprinted service worker
   to the static browser build.
 - Added optional analytics configuration to generated browser pages.
@@ -12,9 +16,13 @@ All notable changes to this project will be documented in this file.
 - Added a shared About overlay for server and browser-only modes.
 - Moved project architecture and planning documentation to
   `docs/architecture.md` and `docs/roadmap.md` and refreshed their status.
-- Replaced the Makefile command wrapper with a minimal `justfile` task interface.
+- Replaced the Makefile command wrapper with a locked Pixi development
+  environment and native tasks.
 - Fixed the installed `qminesweeper` command to use the same package-owned
   Typer application as `python -m qminesweeper`.
+- Unified TUI command parsing and move prompts with the shared engine rules,
+  synchronized frontend gate arity, and kept `CZ` in the extended two-qubit
+  move set.
 
 ## [0.3.0] - 2026-06-02
 - Added a static browser-only build that runs Quantum Minesweeper in Pyodide on the PurePy backend.

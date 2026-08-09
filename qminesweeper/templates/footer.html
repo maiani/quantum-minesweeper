@@ -1,8 +1,16 @@
 <footer class="footer">
-  <hr class="footer-separator">
       <a href="https://nordita.org/" target="_blank" rel="noopener noreferrer" aria-label="Nordita website">
-      <img src="{{ STATIC_BASE | default('/static') }}/nordita.svg" alt="Nordita" class="footer-logo" decoding="async">
-      </a> 
+      <img src="{{ STATIC_BASE | default('/static') }}/nordita-logo.webp" alt="Nordita" class="footer-logo" decoding="async">
+      </a>
+    {# Funder acknowledgement. The asset is the WINQ wordmark without the tagline,
+       which is illegible at footer size; its brand colours read on both themes. #}
+    · <a href="https://winq.se/" target="_blank" rel="noopener noreferrer"
+         aria-label="WINQ – Wallenberg Initiative on Networks and Quantum Information">
+      <img src="{{ STATIC_BASE | default('/static') }}/winq-logo.webp"
+           alt="WINQ – Wallenberg Initiative on Networks and Quantum Information"
+           title="Funded by WINQ – Wallenberg Initiative on Networks and Quantum Information"
+           class="footer-logo" decoding="async">
+      </a>
     · <a href="https://github.com/maiani/quantum-minesweeper/releases/tag/v{{ version }}" target="_blank" rel="noopener noreferrer">v{{ version }}</a>
    
     · <a href="https://github.com/maiani/quantum-minesweeper" target="_blank" rel="noopener noreferrer">GitHub</a>

@@ -42,6 +42,9 @@ rl = [
   "stim>=1.13,<2",
 ]
 dev = [
+  "build>=1,<2",
+  "setuptools>=68",
+  "wheel",
   "pytest>=9,<10",
   "gymnasium>=0.29,<2",
   "stim>=1.13,<2",
@@ -101,3 +104,39 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = 88
+
+# ---------------- Pixi development environment ----------------
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+python = "3.13.*"
+nodejs = "22.*"
+librsvg = ">=2.58,<3"
+
+[tool.pixi.pypi-dependencies]
+qminesweeper = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { features = ["dev"], solve-group = "default" }
+
+[tool.pixi.tasks]
+lint = { cmd = "python -m ruff check qminesweeper tests scripts", description = "Run Python lint checks" }
+test = { cmd = "pytest", description = "Run the Python test suite" }
+js-check = { cmd = "python scripts/check_js.py", description = "Check JavaScript syntax" }
+check = { depends-on = ["lint", "test", "js-check"], description = "Run lint, tests, and JavaScript checks" }
+package = { cmd = "python -m build --no-isolation --outdir build/packages", description = "Build the wheel and source distribution" }
+icons = { cmd = "python scripts/make_icons.py", description = "Regenerate PWA icons" }
+browser = { cmd = "python scripts/build_browser.py", description = "Build the browser-only PWA" }
+docker-build = { cmd = "bash ./scripts/build.sh", description = "Build the local Docker image" }
+docker-run = { cmd = "bash ./scripts/run_local.sh", depends-on = ["docker-build"], description = "Build and run the local Docker image" }
+release-check = { depends-on = ["check", "package", "browser"], description = "Run all non-Docker release checks" }
+deploy = { cmd = "bash ./scripts/deploy.sh", description = "Build, push, and deploy to Cloud Run" }
+
+[tool.pixi.tasks.browser-serve]
+cmd = "python -m http.server -d dist {{ port }}"
+depends-on = ["browser"]
+args = [{ arg = "port", default = "8000" }]
+description = "Build and serve the browser-only PWA"

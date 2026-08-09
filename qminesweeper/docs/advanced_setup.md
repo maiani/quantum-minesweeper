@@ -51,6 +51,9 @@ Determines which quantum operations are allowed:
 - **One-qubit (complete set)**:  
     Covers the full single-qubit Clifford group by adding $S^\dagger$, $\sqrt{X}$, $\sqrt{X}^\dagger$, $\sqrt{Y}$, $\sqrt{Y}^\dagger$.  
 
-- **Two-qubit**:  
-    Full Clifford set: $CX$, $CY$, $CZ$, $SWAP$.  
-    Enables creation and manipulation of entangled mines.
+- **Two-qubit**:
+    Adds $CX$ and $SWAP$ to the core one-qubit gates.
+
+- **Two-qubit (extended)**:
+    Adds $CX$, $CY$, $CZ$, and $SWAP$ to the complete one-qubit gates. Both
+    two-qubit modes enable creation and manipulation of entangled mines.

@@ -39,7 +39,20 @@
    and browser-main.js intercepts form submit to call PyodideEngine.setup(). #}
 <script id="app-config" type="application/json">{{ config | tojson }}</script>
 
-<p id="loading" role="status"></p>
+{# Boot panel for the browser build: starting a game downloads the Python runtime,
+   so the wait gets a stage message plus a progress bar (driven by browser-main.js
+   from PyodideEngine's boot reports). The bar and hint stay hidden until there is
+   progress to show, so a warm start just flashes the message. #}
+<div id="loading" class="loading-card" hidden>
+  <p id="loading-message" class="loading-card__message" role="status" aria-live="polite"></p>
+  <div id="loading-track" class="loading-card__track" role="progressbar" aria-labelledby="loading-message"
+       aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+    <div id="loading-bar" class="loading-card__bar"></div>
+  </div>
+  <p id="loading-hint" class="loading-card__hint" hidden>
+    The Python runtime downloads once (a few MB) and is then cached for offline play.
+  </p>
+</div>
 
 <div id="browser-setup">
   {% set browser_setup = true %}

@@ -1,11 +1,21 @@
 // static/scripts/tools.js
 
-const singleQ = new Set(['X','Y','Z','H','S','SDG','SX','SXDG','SY','SYDG']);
-const twoQ    = new Set(['CX','CY','CZ','SWAP']);
-const allTools = new Set(['M','P', ...singleQ, ...twoQ]);
-
 let currentTool = localStorage.getItem("qms_tool") || "M";
 let firstPick = null;
+
+// Tool availability is whatever render.js put on screen for the current move
+// set. Gate arity comes from each button's data-arity attribute, which render.js
+// fills from the Python-owned app-config contract. This file therefore does not
+// maintain another one-/two-qubit gate list.
+function toolButtonFor(token) {
+  return Array.from(document.querySelectorAll(".btn.tool")).find((button) => button.dataset.toolId === token) || null;
+}
+
+function currentGateArity() {
+  const button = toolButtonFor(currentTool);
+  if (!button || !button.dataset.arity) return null;
+  return Number(button.dataset.arity);
+}
 
 function updateToolHint() {
   const hint = document.getElementById("tool-hint");
@@ -15,11 +25,11 @@ function updateToolHint() {
     hint.textContent = "Measure selected: choose a cell.";
   } else if (currentTool === "P") {
     hint.textContent = "Pin selected: choose a cell to mark.";
-  } else if (singleQ.has(currentTool)) {
+  } else if (currentGateArity() === 1) {
     hint.textContent = `${currentTool} selected: choose one unexplored cell.`;
-  } else if (twoQ.has(currentTool) && firstPick) {
+  } else if (currentGateArity() === 2 && firstPick) {
     hint.textContent = `${currentTool} selected: choose the target cell.`;
-  } else if (twoQ.has(currentTool)) {
+  } else if (currentGateArity() === 2) {
     hint.textContent = `${currentTool} selected: choose the first cell.`;
   } else {
     hint.textContent = "Choose a tool, then choose a cell.";
@@ -27,6 +37,9 @@ function updateToolHint() {
 }
 
 function setTool(t) {
+  // A persisted tool may not exist in a newly selected move set. Fall back to
+  // Measure instead of retaining a hidden command that the rules will reject.
+  if (!toolButtonFor(t) && toolButtonFor("M")) t = "M";
   currentTool = t;
   localStorage.setItem("qms_tool", t);
   firstPick = null;
@@ -80,8 +93,9 @@ function clickCell(r, c) {
   const rc = `${r+1},${c+1}`;
   if (currentTool === 'M') { sendCmd(rc); return; }
   if (currentTool === 'P') { sendCmd(`P ${rc}`); return; }
-  if (singleQ.has(currentTool)) { sendCmd(`${currentTool} ${rc}`); return; }
-  if (twoQ.has(currentTool)) {
+  const arity = currentGateArity();
+  if (arity === 1) { sendCmd(`${currentTool} ${rc}`); return; }
+  if (arity === 2) {
     if (!firstPick) {
       firstPick = [r,c];
       // highlight the first pick
@@ -112,19 +126,19 @@ if (document.readyState !== "loading") {
 
 // keyboard shortcuts
 document.addEventListener("keydown", (event) => {
-  let key = event.key.toUpperCase();
+  const key = event.key.toUpperCase();
 
   if (key === "C") {
     document.addEventListener("keydown", function secondKey(ev) {
       const combo = "C" + ev.key.toUpperCase();
-      if (allTools.has(combo)) {
+      if (toolButtonFor(combo)) {
         setTool(combo);
       }
     }, { once: true });
     return;
   }
 
-  if (allTools.has(key)) {
+  if (toolButtonFor(key)) {
     setTool(key);
   }
 });

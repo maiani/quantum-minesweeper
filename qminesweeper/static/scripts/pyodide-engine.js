@@ -23,17 +23,54 @@
 // file never needs editing. Import order doesn't matter (Python resolves deps).
 const QMS_PY_MANIFEST = "modules.json";
 
+// Weighted boot stages, used to report progress while `_boot()` runs (the first
+// game start has to download ~10 MB of Pyodide, so the UI needs something better
+// than a static line of text).
+//
+//   at    : fraction of the whole boot already done when the stage STARTS
+//   until : fraction at which the stage ends, i.e. where the next one starts
+//
+// Only the module-fetch stage can report true progress (we know how many files
+// there are). Pyodide's loader exposes no byte-level download progress, so the
+// runtime and numpy stages report just their start; the caller is handed `until`
+// as well so it can animate within a stage without ever overshooting it. The
+// weights are rough wall-clock shares on a cold cache, not measurements.
+const QMS_BOOT_STAGES = {
+  runtime: { at: 0.02, until: 0.55, message: "Downloading the Python runtime…" },
+  numpy: { at: 0.55, until: 0.72, message: "Loading numpy…" },
+  modules: { at: 0.72, until: 0.92, message: "Loading game modules…" },
+  session: { at: 0.94, until: 0.99, message: "Starting the game engine…" },
+  done: { at: 1, until: 1, message: "Ready" },
+};
+
 class PyodideEngine {
   // pyBaseURL: where the qminesweeper/*.py sources are served from.
   // indexURL : optional Pyodide dist location (defaults to the CDN the loader uses).
   // cacheBust: build id appended to module fetches so a PWA cache cannot serve
   // a stale modules.json after the Python module set changes.
-  constructor({ pyBaseURL = "/py/qminesweeper/", indexURL = null, cacheBust = null } = {}) {
+  // onProgress: optional boot-progress callback, see `_emit` below. Called only
+  // during the one real boot; later calls reuse the memoized promise and stay silent.
+  constructor({ pyBaseURL = "/py/qminesweeper/", indexURL = null, cacheBust = null, onProgress = null } = {}) {
     this.pyBaseURL = pyBaseURL;
     this.indexURL = indexURL;
     this.cacheBust = cacheBust;
+    this.onProgress = onProgress;
     this._ready = null; // memoized boot promise
     this.session = null; // PyProxy of the Python BrowserSession
+  }
+
+  // Report boot progress as {fraction, message, creepTo}:
+  //   fraction: how much of the boot is genuinely done (0..1)
+  //   creepTo : where the current stage ends — the UI may ease toward this while
+  //             waiting, but must not pass it until the next report arrives
+  // A throwing callback must never break the boot, hence the try/catch.
+  _emit(fraction, message, creepTo) {
+    if (!this.onProgress) return;
+    try {
+      this.onProgress({ fraction, message, creepTo: creepTo === undefined ? fraction : creepTo });
+    } catch (err) {
+      console.warn("boot progress callback failed", err);
+    }
   }
 
   // Boot Pyodide once: load numpy, copy the Python sources into the FS, import
@@ -44,8 +81,12 @@ class PyodideEngine {
   }
 
   async _boot() {
+    const stages = QMS_BOOT_STAGES;
+    this._emit(stages.runtime.at, stages.runtime.message, stages.runtime.until);
     const pyodide = await loadPyodide(this.indexURL ? { indexURL: this.indexURL } : undefined);
+    this._emit(stages.numpy.at, stages.numpy.message, stages.numpy.until);
     await pyodide.loadPackage(["numpy"]);
+    this._emit(stages.modules.at, stages.modules.message, stages.modules.until);
     pyodide.FS.mkdirTree("/lib/qminesweeper");
     // Read the build-emitted module list, then fetch each module it names.
     const manifestURL = this._moduleURL(QMS_PY_MANIFEST);
@@ -54,18 +95,29 @@ class PyodideEngine {
       throw new Error(`failed to fetch module manifest ${manifestURL}: ${manifestRes.status}`);
     }
     const modules = await manifestRes.json();
+    // The only stage with real progress: count modules as each one lands.
+    const span = stages.modules.until - stages.modules.at;
+    let loaded = 0;
     await Promise.all(
       modules.map(async (name) => {
         const url = this._moduleURL(name);
         const res = await fetch(url);
         if (!res.ok) throw new Error(`failed to fetch ${url}: ${res.status}`);
         pyodide.FS.writeFile("/lib/qminesweeper/" + name, await res.text());
+        loaded += 1;
+        this._emit(
+          stages.modules.at + (span * loaded) / modules.length,
+          `${stages.modules.message} (${loaded}/${modules.length})`,
+          stages.modules.until
+        );
       })
     );
+    this._emit(stages.session.at, stages.session.message, stages.session.until);
     pyodide.runPython('import sys; sys.path.insert(0, "/lib")');
     const browser = pyodide.pyimport("qminesweeper.browser");
     this.pyodide = pyodide;
     this.session = browser.BrowserSession();
+    this._emit(stages.done.at, stages.done.message);
   }
 
   _moduleURL(name) {

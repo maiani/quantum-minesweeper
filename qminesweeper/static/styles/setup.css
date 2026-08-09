@@ -137,6 +137,51 @@ body.light .setup-form select {
   background: var(--btn-bg);
 }
 
+/* ---------- Boot/loading card (browser build only) ----------
+   Only the static Pyodide build renders #loading: starting a game there has to
+   download the Python runtime first. Styled like .setup-form so the wait looks
+   like part of the same first screen. */
+.loading-card {
+  max-width: 520px;
+  margin: 28px auto;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.loading-card__message {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Track: only present while there is progress to report, so it carries its own
+   top margin rather than the message carrying a bottom one. */
+.loading-card__track {
+  height: 8px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fg), transparent 85%);
+  overflow: hidden;
+}
+
+.loading-card__bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  /* Smooths the ~5/s steps browser-main.js applies into continuous motion. */
+  transition: width 0.25s linear;
+}
+
+.loading-card__hint {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 @media (max-width: 640px) {
   .setup {
     margin: 16px auto;

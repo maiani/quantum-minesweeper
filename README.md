@@ -1,4 +1,15 @@
-# Quantum Minesweeper
+<p align="center">
+  <img src="qminesweeper/static/icons/icon-512.png" alt="Quantum Minesweeper" width="128">
+</p>
+
+<h1 align="center">Quantum Minesweeper</h1>
+
+<p align="center">
+  <a href="https://github.com/maiani/quantum-minesweeper/actions/workflows/tests.yml"><img src="https://github.com/maiani/quantum-minesweeper/actions/workflows/tests.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/maiani/quantum-minesweeper/releases"><img src="https://img.shields.io/github/v/tag/maiani/quantum-minesweeper?label=release&sort=semver" alt="Latest release"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
+</p>
 
 Quantum Minesweeper is a quantum twist on the classic game of Minesweeper.
 Instead of a fixed hidden layout, each cell is a qubit and a mine is the
@@ -103,8 +114,8 @@ Build a static version that runs the game in-page with Pyodide and the PurePy
 backend:
 
 ```bash
-just browser
-just browser-serve
+pixi run browser
+pixi run browser-serve
 ```
 
 Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The static build does
@@ -117,32 +128,39 @@ after its initial successful load.
 Build and run locally with
 
 ```bash
-just docker-run
+pixi run docker-run
 ```
 
 ---
 
 ## Development & Testing
 
-Install the package and development dependencies in editable mode:
+Create the reproducible development environment and run the checks through it:
+
+```bash
+pixi install
+pixi run pre-commit install
+pixi run check
+```
+
+Pixi installs Python, the editable package with all development and optional
+simulator dependencies, Node.js, and the SVG tooling used to regenerate PWA
+icons. Exact versions are recorded in `pixi.lock`. `pixi run check` runs Ruff,
+pytest, and syntax checks over every frontend JavaScript file.
+
+If Pixi is unavailable, a conventional editable install remains supported:
 
 ```bash
 pip install -e ".[dev]"
-pre-commit install
+pytest
+python -m ruff check qminesweeper tests scripts
 ```
 
-Run the release checks with:
+The test suite exercises all installed simulator backends.
 
-```bash
-just check
-```
-
-This runs Ruff, pytest, and JavaScript syntax checks. The test suite exercises
-all installed simulator backends.
-
-Run `just` to list all development, packaging, browser, Docker, and deployment
-commands. The `justfile` is only a thin task interface; implementation remains
-in Python modules and the scripts under `scripts/`.
+Run `pixi task list` to list all development, packaging, browser, Docker, and
+deployment commands. Their implementation remains in Python modules and the
+scripts under `scripts/`.
 
 Project design and active work are documented in
 [`docs/architecture.md`](docs/architecture.md) and

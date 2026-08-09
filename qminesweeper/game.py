@@ -78,7 +78,6 @@ ALLOWED_MOVES: dict[MoveSet, set[Action | QuantumGate]] = {
         QuantumGate.H,
         QuantumGate.S,
         QuantumGate.CX,
-        QuantumGate.CZ,
         QuantumGate.SWAP,
     },
     MoveSet.TWO_QUBIT_EXTENDED: {

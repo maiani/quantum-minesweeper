@@ -6,6 +6,7 @@ from rich.table import Table
 from rich.text import Text
 
 from qminesweeper.board import QMineSweeperBoard
+from qminesweeper.engine import Command, apply_command, command_tokens_for_moveset, parse_command
 from qminesweeper.game import (
     GameConfig,
     GameStatus,
@@ -109,22 +110,22 @@ def advanced_setup() -> tuple[WinCondition, MoveSet, int, int, int, int]:
     w_choice = ask_int("Choice [1-2]: ", lambda x: x in (1, 2))
     win = WinCondition.IDENTIFY if w_choice == 1 else WinCondition.CLEAR
 
-    console.print(
-        "[bold]Move set:[/]\n"
-        "  [cyan]1.[/] Classic (Measure, Pin)\n"
-        "  [cyan]2.[/] One-qubit (X,Y,Z,H,S)\n"
-        "  [cyan]3.[/] One-qubit (complete: +Sdg,SX,SXdg,SY,SYdg)\n"
-        "  [cyan]4.[/] Two-qubit (adds CX,CZ,SWAP; single-qubit: X,Y,Z,H,S)\n"
-        "  [cyan]5.[/] Two-qubit (extended: +CY and all single-qubit extras)"
-    )
-    m_choice = ask_int("Choice [1-5]: ", lambda x: x in (1, 2, 3, 4, 5))
-    move = {
-        1: MoveSet.CLASSIC,
-        2: MoveSet.ONE_QUBIT,
-        3: MoveSet.ONE_QUBIT_COMPLETE,
-        4: MoveSet.TWO_QUBIT,
-        5: MoveSet.TWO_QUBIT_EXTENDED,
-    }[m_choice]
+    move_sets = list(MoveSet)
+    move_labels = {
+        MoveSet.CLASSIC: "Classic",
+        MoveSet.ONE_QUBIT: "One-qubit",
+        MoveSet.ONE_QUBIT_COMPLETE: "One-qubit complete",
+        MoveSet.TWO_QUBIT: "Two-qubit",
+        MoveSet.TWO_QUBIT_EXTENDED: "Two-qubit extended",
+    }
+    move_lines = ["[bold]Move set:[/]"]
+    for choice, move_set in enumerate(move_sets, start=1):
+        tokens = command_tokens_for_moveset(move_set)
+        allowed = tokens["actions"] + tokens["single"] + tokens["two"]
+        move_lines.append(f"  [cyan]{choice}.[/] {move_labels[move_set]} ({','.join(allowed)})")
+    console.print("\n".join(move_lines))
+    m_choice = ask_int(f"Choice [1-{len(move_sets)}]: ", lambda x: 1 <= x <= len(move_sets))
+    move = move_sets[m_choice - 1]
 
     rows, cols = ask_two_ints("Rows,Cols (e.g. 5,6): ")
     mines = ask_int("Mines: ", lambda x: 0 < x < rows * cols)
@@ -145,40 +146,11 @@ def make_board(
     return board
 
 
-# ---------- Allowed tools computation & prompt ----------
-ONE_QUBIT_BASIC: list[str] = ["X", "Y", "Z", "H", "S"]
-ONE_QUBIT_EXTRA: list[str] = ["Sdg", "SX", "SXdg", "SY", "SYdg"]
-TWO_QUBIT_BASIC: list[str] = ["CX", "CZ", "SWAP"]
-TWO_QUBIT_EXTD: list[str] = ["CX", "CY", "CZ", "SWAP"]
-
-
-def allowed_tokens_for_moveset(ms: MoveSet) -> dict[str, list[str]]:
-    """
-    Returns dict with keys: 'mp' (measure/pin), 'single', 'two'
-    listing the tokens allowed for the given MoveSet.
-    """
-    tokens = {"mp": ["M", "P"], "single": [], "two": []}
-    if ms == MoveSet.CLASSIC:
-        return tokens
-    if ms == MoveSet.ONE_QUBIT:
-        tokens["single"] = ONE_QUBIT_BASIC[:]
-    elif ms == MoveSet.ONE_QUBIT_COMPLETE:
-        tokens["single"] = ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA
-    elif ms == MoveSet.TWO_QUBIT:
-        # basic: single {X,Y,Z,H,S}, two {CX,CZ,SWAP}
-        tokens["single"] = ONE_QUBIT_BASIC[:]
-        tokens["two"] = TWO_QUBIT_BASIC[:]
-    elif ms == MoveSet.TWO_QUBIT_EXTENDED:
-        # extended: add CY and the extra single-qubit gates
-        tokens["single"] = ONE_QUBIT_BASIC + ONE_QUBIT_EXTRA
-        tokens["two"] = TWO_QUBIT_EXTD[:]
-    return tokens
-
-
+# ---------- Allowed tools prompt ----------
 def build_prompt(tokens: dict[str, list[str]]) -> str:
     parts = []
-    if tokens["mp"]:
-        parts.append(f"[{'/'.join(tokens['mp'])}] r,c")
+    if tokens["actions"]:
+        parts.append(f"[{'/'.join(tokens['actions'])}] r,c")
     if tokens["single"]:
         parts.append(f"[{'/'.join(tokens['single'])}] r,c")
     if tokens["two"]:
@@ -195,7 +167,7 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
       - N: go to Advanced Setup (ask questions)
       - Q: quit
     """
-    tokens = allowed_tokens_for_moveset(game.cfg.move_set)
+    tokens = command_tokens_for_moveset(game.cfg.move_set)
 
     while True:
         # ---- live gameplay until win/lose ----
@@ -214,72 +186,14 @@ def game_loop(board: QMineSweeperBoard, game: QMineSweeperGame):
                     return "QUIT"
                 if u == "R":
                     # live reset: same board & rules, no questions
-                    board.reset()
-                    game.status = GameStatus.ONGOING
+                    apply_command(board, game, Command("reset"))
                     render_rich(board)
                     console.print("[green]Board reset.[/]")
                     continue
                 if u == "N":
                     return "NEW_RULES"
 
-                parts = u.split()
-                cmd = parts[0]
-
-                # Two-qubit gate
-                if cmd in tokens["two"]:
-                    if len(parts) != 3:
-                        console.print(f"[red]Format: {cmd} r1,c1 r2,c2[/]")
-                        continue
-                    try:
-                        r1, c1 = map(int, parts[1].split(","))
-                        r2, c2 = map(int, parts[2].split(","))
-                    except ValueError:
-                        console.print("[red]Invalid coordinates. Use row,col.[/]")
-                        continue
-                    game.cmd_gate(cmd, [(r1 - 1, c1 - 1), (r2 - 1, c2 - 1)])
-
-                else:
-                    # Single-qubit or measure/pin
-                    if cmd in tokens["mp"] or cmd in tokens["single"]:
-                        if len(parts) < 2:
-                            console.print(f"[red]Format: {cmd} row,col[/]")
-                            continue
-                        pos = parts[1]
-                        try:
-                            r, c = map(int, pos.split(","))
-                        except ValueError:
-                            console.print("[red]Invalid coordinates. Use row,col.[/]")
-                            continue
-
-                        if cmd == "P":
-                            game.cmd_toggle_pin(r - 1, c - 1)
-                        elif cmd == "M" or cmd in ONE_QUBIT_BASIC + [s.upper() for s in ONE_QUBIT_EXTRA]:
-                            if cmd == "M":
-                                game.cmd_measure(r - 1, c - 1)
-                            else:
-                                # Single-qubit gate must be explicitly allowed
-                                if cmd not in [*ONE_QUBIT_BASIC, *[s.upper() for s in ONE_QUBIT_EXTRA]] or cmd not in [
-                                    t.upper() for t in tokens["single"]
-                                ]:
-                                    console.print(f"[red]{cmd} not allowed in this MoveSet.[/]")
-                                    continue
-                                game.cmd_gate(cmd, [(r - 1, c - 1)])
-                        else:
-                            console.print(f"[red]Unknown command: {cmd}[/]")
-                            continue
-
-                    else:
-                        # If it's not a known token, try default "measure" syntax r,c — only if Measure is allowed
-                        if "M" in tokens["mp"]:
-                            try:
-                                r, c = map(int, cmd.split(","))
-                            except ValueError:
-                                console.print("[red]Unknown or disallowed command.[/]")
-                                continue
-                            game.cmd_measure(r - 1, c - 1)
-                        else:
-                            console.print("[red]Unknown or disallowed command.[/]")
-                            continue
+                apply_command(board, game, parse_command(raw))
 
                 render_rich(board)
                 console.print(f"[cyan]Game status:[/] [bold]{game.status.name}[/]")

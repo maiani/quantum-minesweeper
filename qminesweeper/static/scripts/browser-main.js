@@ -18,7 +18,13 @@
   const PY_BASE = "py/qminesweeper/"; // relative -> works at any hosting base path
   const SAVE_KEY = "qms_browser_save_v1";
 
-  const engine = new PyodideEngine({ pyBaseURL: PY_BASE, cacheBust: window.QMS_BROWSER_BUILD || null });
+  const engine = new PyodideEngine({
+    pyBaseURL: PY_BASE,
+    cacheBust: window.QMS_BROWSER_BUILD || null,
+    // Hoisted function declaration defined below; it only ever runs while a game
+    // is starting, long after this module has finished evaluating.
+    onProgress: onBootProgress,
+  });
   const rawMove = engine.move.bind(engine);
   engine.move = async (gameId, cmd) => {
     const state = await rawMove(gameId, cmd);
@@ -31,8 +37,103 @@
   const setupPanel = document.getElementById("browser-setup");
   const pageMain = document.querySelector("main");
   const gameSlotIds = ["status-bar", "board-container", "tools-container", "help-mount", "actions-container"];
-  const showLoading = (msg) => { if (loading) { loading.textContent = msg; loading.hidden = false; } };
-  const hideLoading = () => { if (loading) loading.hidden = true; };
+
+  // ---------------------------------------------------------------------------
+  // Boot progress bar
+  //
+  // Starting the first game downloads Pyodide (~10 MB) plus numpy plus the game's
+  // own Python modules, which takes seconds on a fast desktop and much longer on a
+  // phone. PyodideEngine reports weighted boot stages through `onProgress`; each
+  // report carries the fraction genuinely reached and `creepTo`, the fraction where
+  // that stage ends.
+  //
+  // Only the module-fetch stage knows real counts — Pyodide's loader gives us no
+  // byte-level download progress — so inside a stage we ease the bar toward
+  // `creepTo` on a timer, by a shrinking share of the remaining gap. The bar keeps
+  // moving during a long download and never reaches the ceiling on its own, so it
+  // can't claim to be finished before the runtime actually is; only a real stage
+  // report moves it past that ceiling.
+  // ---------------------------------------------------------------------------
+  const loadingMessage = document.getElementById("loading-message");
+  const loadingTrack = document.getElementById("loading-track");
+  const loadingBar = document.getElementById("loading-bar");
+  const loadingHint = document.getElementById("loading-hint");
+
+  const CREEP_INTERVAL_MS = 200; // how often the bar eases forward while waiting
+  const CREEP_STEP = 0.08; // share of the remaining gap consumed per tick
+
+  let barValue = 0; // fraction currently painted (0..1)
+  let barCeiling = 0; // fraction the creep may approach but not reach
+  let creepTimer = null;
+
+  const paintBar = () => {
+    if (loadingBar) loadingBar.style.width = (barValue * 100).toFixed(1) + "%";
+    if (loadingTrack) loadingTrack.setAttribute("aria-valuenow", String(Math.round(barValue * 100)));
+  };
+
+  const stopCreep = () => {
+    if (creepTimer !== null) {
+      clearInterval(creepTimer);
+      creepTimer = null;
+    }
+  };
+
+  const startCreep = () => {
+    if (creepTimer !== null) return;
+    creepTimer = setInterval(() => {
+      // Close enough to the ceiling that further steps are invisible: idle until
+      // the next stage report raises it.
+      if (barCeiling - barValue < 0.002) {
+        stopCreep();
+        return;
+      }
+      barValue += (barCeiling - barValue) * CREEP_STEP;
+      paintBar();
+    }, CREEP_INTERVAL_MS);
+  };
+
+  // Advance (never rewind) the bar. Monotonic so a cheap stage following an
+  // expensive one can't look like a regression.
+  const showProgress = ({ fraction, creepTo }) => {
+    if (!loadingTrack) return;
+    loadingTrack.hidden = false;
+    if (loadingHint) loadingHint.hidden = false;
+    barValue = Math.max(barValue, fraction);
+    barCeiling = Math.max(barValue, creepTo);
+    paintBar();
+    if (barValue >= 1) stopCreep();
+    else startCreep();
+  };
+
+  const hideProgress = () => {
+    stopCreep();
+    barValue = 0;
+    barCeiling = 0;
+    paintBar();
+    if (loadingTrack) loadingTrack.hidden = true;
+    if (loadingHint) loadingHint.hidden = true;
+  };
+
+  const showLoading = (msg) => {
+    if (!loading) return;
+    if (loadingMessage) loadingMessage.textContent = msg;
+    loading.hidden = false;
+  };
+  // Failures keep the text but drop the bar: a half-filled bar under an error
+  // message reads as "still working".
+  const showLoadingError = (msg) => {
+    hideProgress();
+    showLoading(msg);
+  };
+  const hideLoading = () => {
+    hideProgress();
+    if (loading) loading.hidden = true;
+  };
+
+  function onBootProgress(report) {
+    if (report.message) showLoading(report.message);
+    showProgress(report);
+  }
   const setPageMode = (mode) => {
     document.body.classList.toggle("setup-page", mode === "setup");
     document.body.classList.toggle("game-page", mode === "game");
@@ -113,7 +214,17 @@
     if (window.setTool) setTool(localStorage.getItem("qms_tool") || "M");
   };
 
+  // Lock the setup forms while a game is starting. The first boot takes seconds,
+  // and a still-live Start button invites a second submit on top of the one in
+  // flight; the panel stays visible so the page doesn't empty out while waiting.
+  const setSetupBusy = (busy) => {
+    if (!setupPanel) return;
+    setupPanel.setAttribute("aria-busy", busy ? "true" : "false");
+    for (const btn of setupPanel.querySelectorAll("button")) btn.disabled = busy;
+  };
+
   async function startGame(params) {
+    setSetupBusy(true);
     showLoading("Starting game…");
     try {
       const state = await engine.setup(params);
@@ -124,8 +235,10 @@
       hideSetup();
     } catch (err) {
       console.error("setup failed", err);
-      showLoading("Setup failed: " + (err && err.message ? err.message : err));
+      showLoadingError("Setup failed: " + (err && err.message ? err.message : err));
       showSetup({ keepMessage: true });
+    } finally {
+      setSetupBusy(false);
     }
   }
 
@@ -184,7 +297,9 @@
 
   if (setupPanel) setupPanel.hidden = true;
   setGameSlotsHidden(true);
-  showLoading("Loading the Python runtime… (first load downloads a few MB)");
+  // The engine's own stage reports take over the message as soon as the boot
+  // starts; this is only what the user sees for the first few milliseconds.
+  showLoading("Loading the Python runtime…");
   engine
     .ready()
     .then(async () => {
@@ -201,6 +316,6 @@
     })
     .catch((err) => {
       console.error(err);
-      showLoading("Failed to load the runtime: " + err);
+      showLoadingError("Failed to load the runtime: " + err);
     });
 })();

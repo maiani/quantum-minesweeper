@@ -2,128 +2,180 @@
 
 _Last updated: 2026-08-09_
 
-This is the active project roadmap. Stable design decisions live in
-[`architecture.md`](architecture.md), and shipped changes in
+This is the source of truth for active work and task status. Stable design
+decisions live in [`architecture.md`](architecture.md), and shipped changes in
 [`../CHANGELOG.md`](../CHANGELOG.md).
 
-## Current baseline
+Tasks are ordered first by priority and then by category:
 
-The browser/Pyodide architecture is implemented through a static PWA bundle.
-As of this review:
+- **P0 — Release blockers:** evidence required before the next release.
+- **P1 — Architectural correctness:** structural risks to address before broad
+  feature expansion or server scaling.
+- **P2 — Product and maintainability:** planned gameplay, UX, packaging, and
+  documentation improvements.
+- **P3 — Research and exploration:** experimental features without a committed
+  release target.
 
-- the release check passes with 563 tests passing and one optional RL test
-  skipped because Gymnasium is not installed;
-- Python lint and JavaScript syntax checks pass;
-- the wheel, source distribution, and 120-file static bundle build cleanly;
-- the generated HTML, manifest, service worker, and Python module manifest are
-  served successfully over local HTTP;
-- local `main` contains two commits after `v0.3.0` that have not been released;
-- a real-browser and deployed-environment validation is still outstanding.
+Treat each checkbox as a separate, reviewable task. Update this file in the same
+change that completes, removes, reprioritizes, or materially redefines an item.
 
-These results are a dated development baseline, not a permanent compatibility
-guarantee.
+## P1 — Architectural correctness
 
-## Active priorities
+### Core state ownership
 
-### 1. Validate the browser release candidate
+- [ ] Consolidate board/game ownership so commands and serialization cannot
+  receive mismatched board and game objects.
+- [ ] Decide whether a small framework-free runtime session model is warranted;
+  do not recreate presentation-oriented `GameView` or `CellView` state.
+- [ ] Keep browser, server, TUI, and RL callers aligned with the resulting
+  ownership boundary.
 
-- Run `just browser-serve` in a real desktop and mobile browser.
-- Exercise simple and advanced setup, all move types, reset, new game, new
-  setup, save/restore, About, Help, and dark/light themes.
-- Check Pyodide download and boot messaging, first-game startup, and behavior
-  after reload.
-- Verify PWA installation, update behavior, and offline startup after the first
-  successful load.
-- Compare generated pages with server mode for header, footer, setup docs, help
-  controls, responsive layout, and accessibility.
+### Browser persistence
 
-### 2. Publish the post-0.3 work
+- [ ] Replace direct access to private board fields and PurePy tableau arrays
+  with public, versioned snapshot methods.
+- [ ] Validate snapshot shapes, enum values, dimensions, and tableau consistency
+  before mutating a live session.
+- [ ] Define migration or explicit rejection behavior before changing the save
+  schema version.
 
-- Review the two local commits after `v0.3.0` and push them to the shared branch.
-- Confirm CI across Python 3.11, 3.12, and 3.13, package build, and Docker build.
-- Decide whether the changes warrant `v0.3.1` or a larger release.
-- Update version metadata and finalize the Unreleased changelog section before
-  tagging.
+### Server game store
 
-### 3. Refresh deployment confidence
+- [ ] Replace the process-global dictionary of untyped records with an explicit
+  game-store/session boundary.
+- [ ] Centralize create, lookup, reset, new-same, heartbeat, outcome, and pruning
+  behavior in that boundary.
+- [ ] Document whether server games are deliberately ephemeral and
+  single-process, or make restart and multi-instance persistence reliable.
 
-- Smoke-test the FastAPI server with PurePy and Stim.
-- Verify Docker startup and Cloud Run configuration without changing deployment
-  state during the diagnostic pass.
-- Confirm analytics, authentication, admin access, base URLs, and optional links
-  with production-like configuration.
-- Review pending dependency-update branches and merge only after CI validation.
+### Request concurrency
 
-### 4. Measure browser performance before optimizing
+- [ ] Choose an explicit FastAPI execution model for CPU-bound simulator work
+  and synchronous SQLite access.
+- [ ] Add per-game locking before allowing threaded or genuinely concurrent
+  mutation.
+- [ ] Align Cloud Run concurrency, Uvicorn worker assumptions, and documented
+  server guarantees with the chosen model.
+
+### Analytics store
+
+- [ ] Move admin reads and CSV export behind public, locked `SQLiteStore`
+  methods.
+- [ ] Remove route-level access to `STATS_DB._db`.
+- [ ] Add tests for concurrent analytics reads/writes and empty CSV export.
+
+### Configuration ownership
+
+- [ ] Validate backend and reset-policy values with typed settings.
+- [ ] Consolidate application defaults across `Settings`, `.env_example`, shell
+  scripts, deployment workflow, and README where practical.
+- [ ] Remove mutable-import ambiguity from CLI backend overrides and Uvicorn
+  reload behavior.
+- [ ] Decide whether admin feature-setting changes are intentionally ephemeral;
+  document or persist them accordingly.
+
+### Frontend correctness and help
+
+- [ ] Keep frontend tool availability synchronized with shared move semantics.
+- [ ] Make illegal gate targets visibly unavailable or explain rejection
+  clearly; explored cells cannot be gate targets.
+- [ ] Generate gate visual markup from one template or data source.
+- [ ] Remove obsolete inline scripts, absolute-path assumptions, copied markup,
+  and the malformed Hadamard visual.
+- [ ] Validate every help topic and SVG state during the static build.
+- [ ] Add focused jsdom checks for renderer and tool-selection changes, followed
+  by a live-browser smoke test.
+
+## P2 — Product and maintainability
+
+### Browser performance
 
 A local Python benchmark on 2026-08-09 measured about 42 ms for PurePy
-whole-board observables on the largest 375-qubit preset. This suggests no urgent
-desktop-side optimization, but it does not measure Pyodide, rendering, or mobile
-hardware.
+whole-board observables on the largest 375-qubit preset. This does not measure
+Pyodide, DOM rendering, startup, or mobile hardware.
 
-- Benchmark representative boards inside the browser.
-- Profile startup separately from per-move calculation and DOM rendering.
-- Add caching or lazy entanglement computation only if measured interaction
-  latency warrants it.
-- Add a subpath/base-path helper only if actual hosting exposes path failures.
+- [ ] Benchmark representative boards inside Pyodide on desktop and mobile.
+- [ ] Profile runtime startup, simulator work, observable calculation, and DOM
+  rendering separately.
+- [ ] Add expectation caching or lazy/throttled entanglement computation only
+  if measured interaction latency warrants it.
 
-## Near-term product work
+### Packaging boundaries
 
-### Gameplay and rules
+- [ ] Reassess core, server, browser-build, and research optional dependencies
+  now that the CLI entrypoint boundary is stable.
+- [ ] Split extras only if the smaller installation is worth the additional
+  support matrix.
+- [ ] Keep the wheel, source distribution, browser `dist/`, and Docker outputs
+  isolated from one another.
 
-- Add a gate counter as a solution-cost metric.
-  - Count unitary gate applications, not measurements.
-  - Keep pin toggles outside scoring unless a future mode makes pins costly.
-- Make gate-target legality explicit in the UI.
-  - Gates cannot target explored cells.
-  - Disable or reject illegal targets with a clear explanation.
-- Explore a measurement-branch diagnostic.
-  - Track the cumulative probability of observed measurement outcomes.
-  - Present it as quantum branch conditioning, not hidden-board luck.
-  - Start in Sandbox or tutorials before considering scoring.
-- Add fixed tutorials, challenge seeds, and move-budget or par scoring.
+### Developer workflow and tests
+
+- [ ] Define shared backend parametrization instead of repeating backend class
+  lists across tests.
+- [ ] Use one JavaScript file-discovery source for pytest and the Pixi
+  `js-check` task.
+- [ ] Add installed-wheel CLI smoke coverage to the release workflow.
+- [ ] Preserve independent simulator implementations and numerical parity tests;
+  their duplication is intentional.
+
+### Scoring and challenges
+
+- [ ] Add a gate counter that counts unitary applications, not measurements or
+  pins.
+- [ ] Add fixed tutorials, challenge seeds, and move-budget or par scoring.
+- [ ] Explore a measurement-branch diagnostic based on cumulative observed
+  outcome probability; present it as branch conditioning, not hidden-board
+  luck.
 
 ### Circuit history and visualization
 
-- Separate the preparation circuit from player-applied gates.
-- Record measurements separately from reversible gate layers.
-- Begin with a compact Clifford/stabilizer history.
-- Design a small-screen circuit view that links layers to board cells.
-- Consider Stim text, Qiskit, or OpenQASM export only after the internal history
-  model is stable.
+- [ ] Separate preparation history from player-applied gates.
+- [ ] Record measurements separately from reversible gate layers.
+- [ ] Design a compact Clifford/stabilizer view that works on small screens and
+  links operations to board cells.
+- [ ] Consider Stim text, Qiskit, or OpenQASM export only after the internal
+  history model is stable.
 
-### Learning material and interaction polish
+### Interaction polish
 
-- Improve the mine, entanglement, and future gate-counter visuals.
-- Add short measurement and pin animations that distinguish collapse from a
-  reversible annotation.
-- Keep animation sources and rebuild instructions in the repository.
-- Develop tutorials for qubits, measurement, expectation values, Pauli
+- [ ] Improve mine, entanglement, and future gate-counter visuals.
+- [ ] Add short measurement and pin animations that distinguish quantum
+  collapse from a reversible player annotation.
+- [ ] Keep animation sources and rebuild instructions in the repository.
+
+### Documentation and learning material
+
+- [ ] Develop tutorials for qubits, measurement, expectation values, Pauli
   operators, Clifford gates, stabilizer states, and guided boards.
-- Keep README, in-game help, user docs, and paper staging synchronized when
-  rules or terminology change.
+- [ ] Keep README, in-game docs, contextual help, architecture, roadmap,
+  changelog, and manuscript staging synchronized with their code sources of
+  truth.
+- [ ] Keep Clear-mode language explicit: the goal is to make mine outcomes
+  impossible, not locate a fixed hidden layout.
+- [ ] Publish archive and citation guidance when archive metadata is available.
 
-## Research backlog
+## P3 — Research and exploration
 
 ### Region entanglement probes
 
-- Let the player select a connected region, boundary, or cut.
-- Report bipartite entropy $S(A : \bar{A})$.
-- Add and parity-test a backend API such as
+- [ ] Let the player select a connected region, boundary, or cut.
+- [ ] Add and parity-test a backend API such as
   `entanglement_entropy(subset: list[int]) -> float`.
-- Introduce it first as an advanced Sandbox diagnostic.
+- [ ] Report bipartite entropy $S(A : \bar{A})$ first as an advanced Sandbox
+  diagnostic.
 
 ### Basis-changing clues
 
-- Let learners compare Z-, X-, and Y-basis expectation clues on one board.
-- Keep Identify and Clear win semantics in the Z basis unless a separate
+- [ ] Let learners compare Z-, X-, and Y-basis expectation clues.
+- [ ] Keep Identify and Clear win semantics in the Z basis unless a separate
   ruleset is explicitly designed.
-- State clearly that clue basis changes the diagnostic, not the definition of a
-  mine.
+- [ ] State clearly that clue basis changes the diagnostic, not the definition
+  of a mine.
 
-### RL and research tools
+### RL and research tooling
 
-- Stabilize command history and deterministic replay before expanding the RL
-  environment.
-- Reuse deterministic seeds and the shared engine contract for training and
+- [ ] Stabilize command history and deterministic replay before expanding the
+  RL environment.
+- [ ] Reuse deterministic seeds and the shared engine contract for training and
   evaluation.
