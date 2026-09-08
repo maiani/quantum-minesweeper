@@ -1,10 +1,11 @@
 # Architecture
 
-_Last reviewed: 2026-08-09_
+_Last reviewed: 2026-09-08_
 
-This document records stable implementation boundaries and completed design
-decisions. Active work belongs in [`roadmap.md`](roadmap.md), and release
-history in [`../CHANGELOG.md`](../CHANGELOG.md).
+This document records stable implementation boundaries, completed design
+decisions, and constraints that hold indefinitely. Active work belongs in
+[`roadmap.md`](roadmap.md), and release history in
+[`../CHANGELOG.md`](../CHANGELOG.md).
 
 ## Core model
 
@@ -18,6 +19,8 @@ history in [`../CHANGELOG.md`](../CHANGELOG.md).
   measurement, gates, and entanglement while remaining efficiently simulable.
 - `Identify`, `Clear`, and `Sandbox` are win-condition modes. Move sets are a
   separate setup choice.
+- Clear-mode language stays explicit everywhere it appears: the goal is to make
+  mine outcomes impossible, not to locate a fixed hidden layout.
 - Pinning is a player annotation, not a quantum operation.
 - Gates cannot target explored cells. Explored cells represent revealed
   classical information; transforming them would make the displayed state
@@ -90,6 +93,10 @@ is declared once through `ONE_QUBIT_GATES` and `TWO_QUBIT_GATES` in
 Optional backends are imported lazily. Backend parity tests cover all installed
 implementations.
 
+The three implementations and their numerical parity tests are deliberately
+independent. Their duplication is the parity check; do not consolidate them
+behind a shared numerical core.
+
 ## Browser-only distribution
 
 `qminesweeper/browser.py` owns an in-memory `BrowserSession`. Setup, move,
@@ -110,6 +117,21 @@ frontend persists this snapshot in `localStorage`.
 The service worker uses network-first caching for same-origin application files
 and cache-first behavior for versioned cross-origin Pyodide assets. The static
 bundle requires no FastAPI server, database, or Cloud Run deployment.
+
+## Packaging outputs
+
+The wheel, source distribution, browser `dist/`, and Docker image are separate
+artifacts that stay isolated from one another:
+
+- `pixi run package` writes the wheel and source distribution to
+  `build/packages`, keeping them out of the browser bundle's `dist/`.
+- `scripts/build_browser.py` owns `dist/` and builds it from the package source
+  tree rather than from a built wheel.
+- The Docker image builds and installs its own wheel in a builder stage rather
+  than consuming a host `build/packages` or `dist/`.
+
+Each artifact therefore builds from source, and none assumes another has been
+produced first.
 
 ## Completed browser milestones
 
@@ -135,6 +157,9 @@ throttled entanglement display before reducing supported board sizes.
 - Region bipartite-entropy probes are advanced diagnostics, not part of the
   browser critical path.
 - Basis-changing clues are an exploratory Sandbox teaching feature. Identify
-  and Clear semantics remain Z-basis unless a separate ruleset is designed.
+  and Clear semantics remain Z-basis unless a separate ruleset is designed, and
+  the material must say that clue basis changes the diagnostic, not the
+  definition of a mine.
 - Circuit history, challenges, scoring, and RL tooling should build on the
-  shared engine contract rather than introduce parallel state models.
+  shared engine contract and its deterministic seeds rather than introduce
+  parallel state models.

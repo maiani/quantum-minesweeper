@@ -207,9 +207,7 @@ __marimo__/
 # Data
 qms_data/
 
-# Local agent instructions
-AGENTS.md
-CLAUDE.md
+# Local agent tool state (the tracked instructions live in AGENTS.md)
 .agents/
 .claude/
 .codex/
