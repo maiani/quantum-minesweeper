@@ -83,6 +83,7 @@
 }
 
 .board button {
+  position: relative;
   width: var(--tile);
   height: var(--tile);
   border: none;
@@ -132,6 +133,80 @@
 .tile.clue {
   color: var(--fg);
 }
+
+/* Probe outlines sit outside the tile, preserving its clue/pin colour. */
+.board button.probe-a {
+  outline: 3px solid #38bdf8;
+  outline-offset: -2px;
+}
+
+.board button.probe-b {
+  box-shadow: inset 0 0 0 3px #f59e0b, 0 1px 2px rgba(0,0,0,0.08) !important;
+}
+
+/* The anchor a shift-click extends its rectangle from. Drawn as an overlay
+   ring rather than an outline, so an anchor that is itself in a region keeps
+   that region's outline instead of replacing it. */
+.board button.probe-anchor::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+/* While a region is being edited the board owns the drag gesture: a finger
+   dragged across it draws a rectangle rather than scrolling the page, and the
+   pointer does not leave a trail of selected tile glyphs behind it. */
+.board.probe-selecting button {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The rectangle under the pointer, before release. The extra class in the
+   selector keeps this ahead of the themed .board button fills below. */
+.board.probe-selecting button.probe-preview {
+  outline: 3px dashed var(--accent);
+  outline-offset: -3px;
+  background: color-mix(in srgb, var(--accent) 30%, var(--btn-bg)) !important;
+}
+
+/* A drag that started on an already-selected cell erases instead of draws. */
+.board.probe-selecting button.probe-preview-remove {
+  outline-style: dotted;
+  background: color-mix(in srgb, var(--fg) 12%, var(--btn-bg)) !important;
+  opacity: 0.7;
+}
+
+.probe-badge {
+  position: absolute;
+  margin: -0.7em 0 0 -0.25em;
+  padding: 0 0.2em;
+  border-radius: 3px;
+  background: var(--header-bg);
+  color: var(--fg);
+  font-size: 0.65em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.probe-panel {
+  margin: 0.75rem 0 1rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent);
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+}
+
+.probe-panel h3,
+.probe-panel p { margin: 0.3rem 0; }
+.probe-controls { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+.probe-controls .active { outline: 2px solid var(--accent); }
+.probe-hint { color: var(--muted); font-size: 0.9rem; }
+.probe-result { min-height: 1.4em; }
+.probe-breakdown { color: var(--muted); font-size: 0.9rem; }
 
 /* Light: board buttons */
 body.light .board button {

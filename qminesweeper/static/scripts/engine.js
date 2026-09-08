@@ -24,6 +24,17 @@ class HttpEngine {
     // Both the success body (state) and the 404 body ({error, redirect}) are JSON.
     return res.json();
   }
+
+  async probe(gameId, areaA, areaB = null) {
+    const res = await fetch(`/probe?game_id=${encodeURIComponent(gameId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ area_a: areaA, area_b: areaB }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || result.error || "Probe failed");
+    return result;
+  }
 }
 
 // The active engine. Phase 2E will replace this with a PyodideEngine in the

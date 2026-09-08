@@ -47,6 +47,12 @@
   </label>
   <br>
   <label>
+    <input type="checkbox" name="ENABLE_ENTANGLEMENT_PROBES" value="1"
+           {% if FEATURES.ENABLE_ENTANGLEMENT_PROBES %}checked{% endif %}>
+    Enable Entanglement Probes
+  </label>
+  <br>
+  <label>
     Reset policy:
     <select name="RESET_POLICY">
       <option value="never" {% if FEATURES.RESET_POLICY == 'never' %}selected{% endif %}>Never</option>

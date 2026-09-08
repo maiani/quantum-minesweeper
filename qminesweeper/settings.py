@@ -16,9 +16,13 @@ class Settings(BaseSettings):
 
     # --- Feature flags ---
     ENABLE_HELP: bool = True
-    ENABLE_ABOUT: bool = True    
+    ENABLE_ABOUT: bool = True
     ENABLE_TUTORIAL: bool = False
-    ENABLE_SURVEY : bool = False
+    ENABLE_SURVEY: bool = False
+
+    # Whether the region entanglement probe exists in this deployment. How many
+    # regions a game gets is a separate, per-game setup choice.
+    ENABLE_ENTANGLEMENT_PROBES: bool = True
 
     # Reset policy: "never", "sandbox", "any"
     RESET_POLICY: str = "sandbox"

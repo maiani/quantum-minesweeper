@@ -41,6 +41,8 @@
     <input type="hidden" id="ent" name="ent_level" value="1">
     <input type="hidden" id="win" name="win_condition" value="clear">
     <input type="hidden" id="moves" name="move_set" value="one">
+    {# Set by applySelections() below: probes come with entangled boards. #}
+    <input type="hidden" id="probe-regions-simple" name="entanglement_probe_regions" value="0">
 
     <div class="setup-actions">
       <button type="submit" class="btn">Start Game</button>
@@ -97,6 +99,26 @@
       <option value="two_extended">Two-qubit gates (extended)</option>
     </select>
 
+    {# ENABLE_ENTANGLEMENT_PROBES is the deployment switch; the count below is
+       the per-game tier, offered up to what the game implements. Simple Setup
+       picks PROBE_REGION_DEFAULT for entangled boards; choosing here overrides
+       that for this game. #}
+    {% if FEATURES.ENABLE_ENTANGLEMENT_PROBES %}
+    {% set region_labels = {
+         0: "0 - no probes",
+         1: "1 - one area against the rest",
+         2: "2 - two areas, shared information",
+       } %}
+    <label for="probe-regions">Entanglement probe regions:</label>
+    <select id="probe-regions" name="entanglement_probe_regions">
+      {% for n in range(0, FEATURES.PROBE_REGION_LIMIT + 1) %}
+      <option value="{{ n }}" {% if n == FEATURES.PROBE_REGION_DEFAULT %}selected{% endif %}>
+        {{ region_labels.get(n, n ~ " regions") }}
+      </option>
+      {% endfor %}
+    </select>
+    {% endif %}
+
     <div class="setup-actions">
       <button type="submit" class="btn">Start Game</button>
       <button id="back-to-simple" type="button" class="btn">Go to Simple Setup</button>
@@ -114,6 +136,11 @@
   function resetToolSelection() {
     localStorage.setItem("qms_tool", "M");
   }
+
+  // The region count Simple Setup gives an entangled board, or 0 where the
+  // deployment has no entanglement probes at all.
+  const PROBE_REGIONS_DEFAULT =
+    {{ (FEATURES.PROBE_REGION_DEFAULT if FEATURES.ENABLE_ENTANGLEMENT_PROBES else 0) | tojson }};
 
   function applySelections() {
     const size = document.getElementById("board-size").value.split("x");
@@ -151,6 +178,12 @@
     document.getElementById("ent").value = ent;
     document.getElementById("win").value = win;
     document.getElementById("moves").value = moves;
+    // Probes come with the modes where entanglement can appear: levels 2 and
+    // up, whose boards are prepared entangled, and Sandbox, whose two-qubit
+    // gates let you build an entangled state yourself. Advanced Setup can set
+    // any allowed count regardless.
+    const canEntangle = ent >= 2 || diff === "S";
+    document.getElementById("probe-regions-simple").value = canEntangle ? PROBE_REGIONS_DEFAULT : 0;
   }
 
   // Ensure hidden inputs are updated before submission

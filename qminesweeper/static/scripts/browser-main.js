@@ -36,7 +36,7 @@
   const loading = document.getElementById("loading");
   const setupPanel = document.getElementById("browser-setup");
   const pageMain = document.querySelector("main");
-  const gameSlotIds = ["status-bar", "board-container", "tools-container", "help-mount", "actions-container"];
+  const gameSlotIds = ["status-bar", "board-container", "probe-container", "tools-container", "help-mount", "actions-container"];
 
   // ---------------------------------------------------------------------------
   // Boot progress bar
@@ -173,6 +173,10 @@
       ent_level: Number(f.get("ent_level")),
       win: f.get("win_condition"),
       moves: f.get("move_set"),
+      // Setup chooses a region count (0 none, 1 area A, 2 also area B); the
+      // session keeps the two rule flags that count stands for.
+      entanglement_probes: Number(f.get("entanglement_probe_regions")) >= 1,
+      two_area_probes: Number(f.get("entanglement_probe_regions")) >= 2,
     };
   }
 
@@ -251,17 +255,20 @@
     const action = (event.submitter && event.submitter.value) || "";
     try {
       if (action === "reset") {
+        window.GameRenderer.clearProbes();
         const state = await engine.reset();
         await persistCurrentGame();
         window.GameRenderer.applyState(state);
         highlightTool();
       } else if (action === "new_same") {
+        window.GameRenderer.clearProbes();
         localStorage.setItem("qms_tool", "M");
         const state = await engine.newSame();
         await persistCurrentGame();
         window.GameRenderer.applyState(state);
         highlightTool();
       } else if (action === "new_rules") {
+        window.GameRenderer.clearProbes();
         localStorage.setItem("qms_tool", "M");
         clearSavedGame();
         showSetup();

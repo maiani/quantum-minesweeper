@@ -105,6 +105,12 @@ ALLOWED_MOVES: dict[MoveSet, set[Action | QuantumGate]] = {
 class GameConfig:
     win_condition: WinCondition
     move_set: MoveSet
+    entanglement_probes: bool = True
+    two_area_probes: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.entanglement_probes, bool) or not isinstance(self.two_area_probes, bool):
+            raise ValueError("Probe settings must be boolean")
 
 
 class QMineSweeperGame:

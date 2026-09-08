@@ -32,11 +32,15 @@ from qminesweeper.database import get_store
 from qminesweeper.docs_render import load_docs
 from qminesweeper.engine import (
     MOVE_SETS,
+    PROBE_REGION_LIMIT,
     WIN_CONDITIONS,
     Command,
     apply_command,
     build_game,
     parse_command,
+    probe_regions,
+    probe_rules_for_limit,
+    probe_rules_for_regions,
     serialize_game,
 )
 from qminesweeper.game import (
@@ -67,7 +71,7 @@ enable_basic_auth(
 # --------- Abusive-bot blocklist ---------
 BLOCKED_BOT_AGENTS = (
     "tiktokspider",
-    "bytespider",  
+    "bytespider",
     "mj12bot",
     "ahrefsbot",
     "semrushbot",
@@ -113,6 +117,7 @@ FEATURES = build_features(
     survey_url=settings.SURVEY_URL,
     enable_about=settings.ENABLE_ABOUT,
     reset_policy=settings.RESET_POLICY,
+    enable_entanglement_probes=settings.ENABLE_ENTANGLEMENT_PROBES,
 )
 templates.env.globals["FEATURES"] = FEATURES
 
@@ -218,9 +223,39 @@ def _record_outcome(game_id: str, game: QMineSweeperGame, user_id: str) -> None:
         STATS_DB.outcome(game_id=game_id, ts=_now_iso(), status="LOST")
 
 
-def build_board_and_game(rows: int, cols: int, mines: int, ent_level: int, win: WinCondition, moves: MoveSet):
+def _probe_region_limit() -> int:
+    """Regions this deployment allows: all of them, or none when switched off."""
+    return PROBE_REGION_LIMIT if settings.ENABLE_ENTANGLEMENT_PROBES else 0
+
+
+def build_board_and_game(
+    rows: int,
+    cols: int,
+    mines: int,
+    ent_level: int,
+    win: WinCondition,
+    moves: MoveSet,
+    entanglement_probes: bool = True,
+    two_area_probes: bool = False,
+):
+    # A deployment with the probe switched off gets no probe rules, whatever the
+    # setup asked for. Applied on every build, so a new-same game follows a flag
+    # change too.
+    entanglement_probes, two_area_probes = probe_rules_for_limit(
+        entanglement_probes, two_area_probes, _probe_region_limit()
+    )
     # Construction (and validation) is shared with the browser session via engine.build_game.
-    return build_game(make_simulator_backend(settings.BACKEND), rows, cols, mines, ent_level, win, moves)
+    return build_game(
+        make_simulator_backend(settings.BACKEND),
+        rows,
+        cols,
+        mines,
+        ent_level,
+        win,
+        moves,
+        entanglement_probes,
+        two_area_probes,
+    )
 
 
 def prune_stale_games() -> None:
@@ -335,6 +370,7 @@ async def setup_post(
     ent_level: int = Form(...),
     win_condition: str = Form(...),
     move_set: str = Form(...),
+    entanglement_probe_regions: int = Form(0),
     game_id: Optional[str] = Query(None, alias="game_id"),
 ):
     user_id = ensure_user_id(request)
@@ -343,16 +379,27 @@ async def setup_post(
 
     win = WIN_CONDITIONS.get(win_condition.lower(), WinCondition.IDENTIFY)
     mv = MOVE_SETS.get(move_set.lower(), MoveSet.CLASSIC)
+    # Setup chooses a region count; the game keeps it as its two rule flags.
+    entanglement_probes, two_area_probes = probe_rules_for_regions(entanglement_probe_regions, _probe_region_limit())
 
     try:
-        board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv)
+        board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv, entanglement_probes, two_area_probes)
     except ValueError as e:
         log.info(f"SETUP rejected user={user_id} rows={rows} cols={cols} mines={mines} ent={ent_level}: {e}")
         return _render_setup_error(request, user_id, game_id, str(e))
     GAMES[game_id] = {
         "board": board,
         "game": game,
-        "config": {"rows": rows, "cols": cols, "mines": mines, "ent_level": ent_level, "win": win, "moves": mv},
+        "config": {
+            "rows": rows,
+            "cols": cols,
+            "mines": mines,
+            "ent_level": ent_level,
+            "win": win,
+            "moves": mv,
+            "entanglement_probes": entanglement_probes,
+            "two_area_probes": two_area_probes,
+        },
         "last_seen": datetime.now(timezone.utc),
     }
 
@@ -403,6 +450,8 @@ async def game_get(request: Request, game_id: Optional[str] = Query(None, alias=
         reset_policy=settings.RESET_POLICY,
         enable_survey=bool(settings.ENABLE_SURVEY),
         survey_url=settings.SURVEY_URL,
+        entanglement_probes=game.cfg.entanglement_probes,
+        two_area_probes=game.cfg.two_area_probes,
     )
     return attach_user_cookie(
         templates.TemplateResponse(
@@ -456,6 +505,26 @@ async def move_post(
     return serialize_game(board, game, game_id)
 
 
+@app.post("/probe")
+async def probe_post(request: Request, game_id: Optional[str] = Query(None, alias="game_id")):
+    """Read an advanced region entropy diagnostic for a live game."""
+    if not game_id or game_id not in GAMES:
+        return JSONResponse({"error": "game_not_found", "redirect": "/setup"}, status_code=404)
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("JSON body must be an object")
+        result = probe_regions(
+            GAMES[game_id]["board"],
+            GAMES[game_id]["game"],
+            payload.get("area_a"),
+            payload.get("area_b"),
+        )
+    except (ValueError, TypeError, KeyError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse(result)
+
+
 @app.post("/game")
 async def game_post(
     request: Request,
@@ -487,7 +556,14 @@ async def game_post(
         # Fresh game_id, same rules
         new_game_id = str(uuid4())
         board2, game2 = build_board_and_game(
-            cfg["rows"], cfg["cols"], cfg["mines"], cfg["ent_level"], cfg["win"], cfg["moves"]
+            cfg["rows"],
+            cfg["cols"],
+            cfg["mines"],
+            cfg["ent_level"],
+            cfg["win"],
+            cfg["moves"],
+            cfg.get("entanglement_probes", True),
+            cfg.get("two_area_probes", False),
         )
         GAMES[new_game_id] = {
             "board": board2,
@@ -579,6 +655,7 @@ async def update_settings(
     ENABLE_ABOUT: Optional[str] = Form(None),
     ENABLE_TUTORIAL: Optional[str] = Form(None),
     ENABLE_SURVEY: Optional[str] = Form(None),
+    ENABLE_ENTANGLEMENT_PROBES: Optional[str] = Form(None),
     RESET_POLICY: str = Form("sandbox"),
 ):
     if not admin_authed(request):
@@ -589,6 +666,7 @@ async def update_settings(
     settings.ENABLE_ABOUT = bool(ENABLE_ABOUT)
     settings.ENABLE_TUTORIAL = bool(ENABLE_TUTORIAL)
     settings.ENABLE_SURVEY = bool(ENABLE_SURVEY)
+    settings.ENABLE_ENTANGLEMENT_PROBES = bool(ENABLE_ENTANGLEMENT_PROBES)
     settings.RESET_POLICY = RESET_POLICY
 
     # update template globals
@@ -597,6 +675,7 @@ async def update_settings(
         ENABLE_ABOUT=settings.ENABLE_ABOUT,
         ENABLE_TUTORIAL=settings.ENABLE_TUTORIAL,
         ENABLE_SURVEY=settings.ENABLE_SURVEY,
+        ENABLE_ENTANGLEMENT_PROBES=settings.ENABLE_ENTANGLEMENT_PROBES,
         RESET_POLICY=settings.RESET_POLICY,
     )
 

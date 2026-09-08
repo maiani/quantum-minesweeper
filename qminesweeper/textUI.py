@@ -32,7 +32,7 @@ def _header_stats(board: QMineSweeperBoard) -> None:
     ent_score = board.entanglement_score("mean") * board.n
     console.print(
         f"[bold magenta]⟨Mines⟩ =[/bold magenta] {exp_mines:.1f}    "
-        f"[bold magenta]Entanglement = [/bold magenta] {int(ent_score):2d}"
+        f"[bold magenta]Local entropy sum = [/bold magenta] {int(ent_score):2d} bits"
         f"\n"
     )
 

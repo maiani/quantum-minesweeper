@@ -57,12 +57,35 @@ TWO_QUBIT_GATES: frozenset[QuantumGate] = frozenset(
 )
 
 
+def validate_subset(subset: list[int], n_qubits: int) -> tuple[int, ...]:
+    """Validate and canonicalize a region query without touching simulator state."""
+    if not isinstance(subset, list):
+        raise TypeError("subset must be a list of integer qubit indices")
+    if any(isinstance(q, bool) or not isinstance(q, int) for q in subset):
+        raise TypeError("subset must contain only integer qubit indices")
+    if len(set(subset)) != len(subset):
+        raise ValueError("subset must not contain duplicate qubit indices")
+    if any(q < 0 or q >= n_qubits for q in subset):
+        raise IndexError(f"subset indices must be in [0, {n_qubits})")
+    return tuple(sorted(subset))
+
+
 class StabilizerQuantumState(ABC):
     """Runtime quantum state handle used by the board."""
 
     @abstractmethod
     def expectation_pauli(self, idx: int, basis: str) -> float:
         """Return ⟨basis⟩ for qubit `idx`, where basis ∈ {'X','Y','Z'}."""
+        ...
+
+    @abstractmethod
+    def entanglement_entropy(self, subset: list[int]) -> float:
+        """Return the bipartite entropy S(subset : complement) in bits.
+
+        ``subset`` is a list of distinct integer qubit indices.  The query is
+        non-destructive: it must not change the state or consume randomness.
+        Empty and full subsets have entropy zero.
+        """
         ...
 
     @abstractmethod

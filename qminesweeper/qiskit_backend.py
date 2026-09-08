@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import (
     CXGate,
@@ -20,7 +21,26 @@ from qiskit.circuit.library import (
 )
 from qiskit.quantum_info import Clifford, Pauli, StabilizerState, random_clifford
 
-from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState, validate_subset
+
+
+def _binary_rank(matrix) -> int:
+    """Compute GF(2) rank with row operations on a NumPy tableau."""
+    work = np.asarray(matrix, dtype=np.uint8).copy()
+    rank = 0
+    for column in range(work.shape[1]):
+        pivots = np.flatnonzero(work[rank:, column])
+        if pivots.size == 0:
+            continue
+        pivot = rank + int(pivots[0])
+        work[[rank, pivot]] = work[[pivot, rank]]
+        rows = np.flatnonzero(work[:, column])
+        rows = rows[rows != rank]
+        work[rows] ^= work[rank]
+        rank += 1
+        if rank == work.shape[0]:
+            break
+    return rank
 
 
 class QiskitState(StabilizerQuantumState):
@@ -41,6 +61,22 @@ class QiskitState(StabilizerQuantumState):
     def reset(self) -> None:
         """Reset the state to |0...0⟩."""
         self._init_state()
+
+    def entanglement_entropy(self, subset: list[int]) -> float:
+        """Return ``S(subset : complement)`` in bits from Qiskit's tableau."""
+        region = validate_subset(subset, self.n)
+        k = len(region)
+        if not region or k == self.n:
+            return 0.0
+        if k > self.n - k:
+            region = tuple(q for q in range(self.n) if q not in region)
+            k = len(region)
+        # The projected generator rank is |A| + S(A) for a pure state.
+        # Use the smaller side; entropy is symmetric under complementation.
+        stab_x = self.state.clifford.stab_x
+        stab_z = self.state.clifford.stab_z
+        projected = np.concatenate((stab_x[:, list(region)], stab_z[:, list(region)]), axis=1)
+        return float(_binary_rank(projected) - k)
 
     def expectation_pauli(self, idx: int, basis: str) -> float:
         """

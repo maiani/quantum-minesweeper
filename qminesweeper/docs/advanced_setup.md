@@ -57,3 +57,43 @@ Determines which quantum operations are allowed:
 - **Two-qubit (extended)**:
     Adds $CX$, $CY$, $CZ$, and $SWAP$ to the complete one-qubit gates. Both
     two-qubit modes enable creation and manipulation of entangled mines.
+
+#### 5. Entanglement probes
+
+**Entanglement probe regions** sets how much of the probe this game gets:
+0 for none, 1 to weigh one area against the rest of the board, or 2 to also
+compare two areas. Simple Setup chooses a count to suit the level; this
+overrides it. Probing only reads the simulator, so it is not one of the moves:
+it never measures a cell, applies a gate, or changes a pin.
+
+Click cells one at a time, drag across the board to draw a rectangle, or
+shift-click to extend a rectangle from the last cell you clicked. Dragging out
+from a cell already in the area erases that rectangle. Cells need not be
+adjacent. The selected area $A$ has entanglement entropy
+$S(A)=-\mathrm{Tr}(\rho_A\log_2\rho_A)$ against the rest of the board.
+The result is in bits. For independent Bell pairs, it counts the pairs crossing
+the area's boundary. Selecting one member gives 1 bit, while selecting both
+gives 0. A product state such as $|+\rangle$ gives 0 even though its mine
+outcome is uncertain. Zero boundary entropy does not rule out entanglement
+inside the selected area.
+
+**Allow two-area probes** is off by default. Enable it to select a second,
+disjoint area $B$ and see the **shared information between A and B**:
+$$
+I(A:B)=S(A)+S(B)-S(A\cup B).
+$$
+This is mutual information, which includes classical and quantum correlations.
+The details show A versus the rest, B versus the rest, and both areas together
+versus the rest. A Bell pair split between A and B has 2 bits of mutual
+information; cells from separate independent pairs have 0. In a three-cell
+GHZ state, two cells share 1 bit of mutual information, although their reduced
+two-cell state is not entangled. Do not interpret general multipartite states
+as a count of pair connections.
+
+Keep the areas selected while switching to gates or measurement to compare
+the diagnostic before and after a move. Revealed cells may be selected, but
+cannot be targeted by gates. Readouts describe the current state conditioned
+on recorded measurement outcomes. The interlocked-rings counter's sum of single-cell
+entropies is separate from the selected-area entropy. Probe rules survive
+reset, new games with the same settings, and browser save/restore; area
+selections are temporary and clear on reset, a new game, or reload.

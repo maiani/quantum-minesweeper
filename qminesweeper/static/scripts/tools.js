@@ -43,6 +43,7 @@ function setTool(t) {
   currentTool = t;
   localStorage.setItem("qms_tool", t);
   firstPick = null;
+  if (window.GameRenderer) window.GameRenderer.stopProbeEditing();
 
   // Active style
   document.querySelectorAll('.btn.tool').forEach(b => {
@@ -65,6 +66,12 @@ function setTool(t) {
   updateToolHint();
 }
 
+function cancelMovePick() {
+  firstPick = null;
+  document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
+  updateToolHint();
+}
+
 // Submit a move command through the engine and re-render in place (no reload).
 // engine.move() returns the new game state; GameRenderer.applyState() rebuilds
 // the view from it. If the game has expired the server returns {redirect}; on a
@@ -73,6 +80,9 @@ function sendCmd(cmd) {
   const engine = window.GameEngine;
   const renderer = window.GameRenderer;
   if (!engine || !renderer) return; // engine.js / render.js not loaded
+  // A probe is a read-only diagnostic, but its pending answer describes the
+  // pre-move state. Invalidate it before starting any state mutation.
+  renderer.beforeMutation();
   engine
     .move(renderer.gameId(), cmd)
     .then((state) => {

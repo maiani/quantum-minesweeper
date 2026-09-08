@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import stim
 
-from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState
+from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState, validate_subset
 
 # QuantumGate -> Stim op name, split by arity.
 _ONE_Q_STIM: dict[QuantumGate, str] = {
@@ -44,6 +44,22 @@ _STIM_TO_BOARD: dict[str, tuple[str, int]] = {
 }
 
 
+def _bit_rank(rows: list[int]) -> int:
+    """Rank binary row bitmasks with integer Gaussian elimination."""
+    basis: dict[int, int] = {}
+    rank = 0
+    for value in rows:
+        while value:
+            pivot = value.bit_length() - 1
+            if pivot in basis:
+                value ^= basis[pivot]
+            else:
+                basis[pivot] = value
+                rank += 1
+                break
+    return rank
+
+
 class StimState(StabilizerQuantumState):
     """Stim-based stabilizer simulation backend."""
 
@@ -71,6 +87,36 @@ class StimState(StabilizerQuantumState):
     def reset(self) -> None:
         """Reset to |0>^n."""
         self._init_state()
+
+    def entanglement_entropy(self, subset: list[int]) -> float:
+        """Return the stabilizer entropy of a region, in bits.
+
+        Stim exposes canonical stabilizer generators as Pauli strings.  We
+        project onto the smaller side R and use S(R) = rank(projection) - |R|,
+        avoiding a state-vector conversion.
+        """
+        region = validate_subset(subset, self.n)
+        k = len(region)
+        if not region or k == self.n:
+            return 0.0
+        if k > self.n - k:
+            region = tuple(q for q in range(self.n) if q not in region)
+            k = len(region)
+        rows: list[int] = []
+        for stabilizer in self.tab.canonical_stabilizers():
+            text = str(stabilizer)
+            # Stim's text starts with a sign, followed by one Pauli letter per
+            # qubit; '_' denotes identity.
+            paulis = text[1:]
+            bits = 0
+            for local, q in enumerate(region):
+                letter = paulis[q]
+                if letter in "XY":
+                    bits |= 1 << local
+                if letter in "ZY":
+                    bits |= 1 << (k + local)
+            rows.append(bits)
+        return float(_bit_rank(rows) - k)
 
     def expectation_pauli(self, idx: int, basis: str) -> float:
         """

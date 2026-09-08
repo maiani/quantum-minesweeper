@@ -39,6 +39,13 @@ outcome impossible.
   - Classical: **Measure (M)**, **Pin (P)**
   - 1-qubit gates: **X, Y, Z, H, S, Sdg, SX, SXdg, SY, SYdg**
   - 2-qubit gates: **CX, CY, CZ, SWAP**
+- **Web entanglement probes**
+  - Click cells, or drag a rectangle across the board, to inspect the
+    entanglement between an area and the rest of the board.
+  - Advanced Setup chooses the number of regions: 0 for none, 1 for one area
+    against the rest, 2 to compare two areas by mutual information. Simple
+    Setup turns them on wherever entanglement can appear: Level 2 and above,
+    and Sandbox.
 
 ---
 
@@ -76,6 +83,9 @@ Common flags:
 - `QMS_ENABLE_HELP` - render the in-app Help sidebar toggle
 - `QMS_ENABLE_TUTORIAL` / `QMS_TUTORIAL_URL` - show a Tutorial link
 - `QMS_ENABLE_SURVEY` / `QMS_SURVEY_URL` - show a Survey link
+- `QMS_ENABLE_ENTANGLEMENT_PROBES` - whether the entanglement probe exists in
+  this deployment (default on). How many regions a game gets is a separate
+  per-game choice in Setup, not a deployment setting
 - `QMS_BASE_URL` can be set for absolute paths.
   
 Create a `.env` from the supplied `.env_example` in local development.

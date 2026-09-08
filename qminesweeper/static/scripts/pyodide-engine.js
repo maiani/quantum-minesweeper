@@ -134,13 +134,21 @@ class PyodideEngine {
     return state;
   }
 
+  _syncConfig() {
+    const config = this._toState(this.session.config());
+    if (window.GameRenderer) window.GameRenderer.mergeConfig(config);
+  }
+
   // Start a game from string params {rows, cols, mines, ent_level, win, moves};
   // returns the initial state.
   async setup(params) {
     await this.ready();
-    return this._toState(
-      this.session.setup(params.rows, params.cols, params.mines, params.ent_level, params.win, params.moves)
-    );
+    const state = this._toState(this.session.setup(
+      params.rows, params.cols, params.mines, params.ent_level, params.win, params.moves,
+      params.entanglement_probes, params.two_area_probes
+    ));
+    this._syncConfig();
+    return state;
   }
 
   // Same signature as HttpEngine.move; gameId is ignored (one in-browser game).
@@ -156,7 +164,9 @@ class PyodideEngine {
 
   async newSame(_gameId) {
     await this.ready();
-    return this._toState(this.session.new_same());
+    const state = this._toState(this.session.new_same());
+    this._syncConfig();
+    return state;
   }
 
   async exportSave() {
@@ -168,9 +178,24 @@ class PyodideEngine {
     await this.ready();
     const proxy = this.pyodide.toPy(snapshot);
     try {
-      return this._toState(this.session.import_save(proxy));
+      const state = this._toState(this.session.import_save(proxy));
+      this._syncConfig();
+      return state;
     } finally {
       if (proxy.destroy) proxy.destroy();
+    }
+  }
+
+
+  async probe(_gameId, areaA, areaB = null) {
+    await this.ready();
+    const pyA = this.pyodide.toPy(areaA);
+    const pyB = areaB === null ? null : this.pyodide.toPy(areaB);
+    try {
+      return this._toState(this.session.probe(pyA, pyB));
+    } finally {
+      if (pyA.destroy) pyA.destroy();
+      if (pyB && pyB.destroy) pyB.destroy();
     }
   }
 }

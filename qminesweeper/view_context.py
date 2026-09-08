@@ -14,6 +14,7 @@ they have; the browser-build defaults live in the signatures.
 
 from __future__ import annotations
 
+from qminesweeper.engine import PROBE_REGION_DEFAULT, PROBE_REGION_LIMIT
 from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES
 
 
@@ -34,6 +35,7 @@ def build_features(
     survey_url: str | None = None,
     enable_about: bool = True,
     reset_policy: str = "any",
+    enable_entanglement_probes: bool = True,
 ) -> dict:
     """The feature-flag dict templates read as ``FEATURES`` (header, setup, game).
 
@@ -48,6 +50,12 @@ def build_features(
         "SURVEY_URL": survey_url,
         "ENABLE_ABOUT": enable_about,
         "RESET_POLICY": reset_policy,
+        # Whether the deployment has the probe at all. The two constants beside
+        # it are the game's own tiers, which the setup form renders as choices:
+        # how many regions exist to offer, and which count setup starts from.
+        "ENABLE_ENTANGLEMENT_PROBES": bool(enable_entanglement_probes),
+        "PROBE_REGION_LIMIT": PROBE_REGION_LIMIT,
+        "PROBE_REGION_DEFAULT": PROBE_REGION_DEFAULT,
     }
 
 
@@ -56,6 +64,8 @@ def build_config(
     reset_policy: str = "any",
     enable_survey: bool = False,
     survey_url: str | None = None,
+    entanglement_probes: bool = True,
+    two_area_probes: bool = False,
 ) -> dict:
     """The small app-config blob inlined into the game shell (``config``).
 
@@ -67,4 +77,6 @@ def build_config(
         "enable_survey": enable_survey,
         "survey_url": survey_url,
         "gate_arities": _gate_arities(),
+        "entanglement_probes": entanglement_probes,
+        "two_area_probes": two_area_probes,
     }

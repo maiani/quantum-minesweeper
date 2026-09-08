@@ -4,10 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- Fixed contextual help never reaching parts of the page drawn by JavaScript
-  after load, which in the browser build is the whole game screen. Help topics
-  now mark the term they teach with `<dfn>` in an accent colour, and the
-  counter, gate, and move topics are rewritten for a first-time reader.
+- Added default-on web entanglement probes with cell, drag-rectangle, and
+  shift-click selection, and an optional two-area mutual-information comparison
+  in Advanced Setup. Probe rules are preserved by reset, new-same, and browser
+  save/restore.
+- Added `QMS_ENABLE_ENTANGLEMENT_PROBES`, a deployment switch for the
+  entanglement probe, also on the admin dashboard. It bounds every game built,
+  including new-same.
+- Made the number of probe regions a single per-game setup choice (0, 1, or 2)
+  instead of two independent flags. Simple Setup enables probes wherever
+  entanglement can appear, at Level 2 and above and in Sandbox; Advanced Setup
+  sets any count.
+- Added non-destructive subset entropy to the PurePy, Stim, and Qiskit state
+  APIs, with independent implementations and backend parity coverage.
+- Distinguished the single-cell entropy sum from region entropy and mutual
+  information in the interface and teaching material.
 - Replaced the status bar's text labels with a mine emoji and an
   interlocked-rings icon, keeping the expectation brackets on ⟨💣⟩, grouped the
   two counters above the board instead of at the page edges (where the help

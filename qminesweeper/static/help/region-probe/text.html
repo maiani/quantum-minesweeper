@@ -1,0 +1,28 @@
+<h1>Entanglement probe</h1>
+<div>
+  <p>The <dfn>entanglement probe</dfn> tells you, in
+    <dfn>bits</dfn>, how entangled the area you select is with the rest
+    of the board. It only looks: it never measures a cell or changes the board,
+    and it does not use up a move.</p>
+
+  <p>Click cells to add or remove them. Drag to draw a rectangle, or
+    shift-click to stretch one from the dashed cell. Dragging out from a cell
+    already in the area rubs that rectangle out. An area can be any shape, and
+    its cells need not touch.</p>
+
+  <p>Every <dfn>Bell pair</dfn> with one cell inside your area and one
+    outside adds 1 bit. Select both cells of a pair and you get 0: they are
+    entangled with each other, not with the outside. Two cells that are not
+    entangled at all also give 0, so a zero does not by itself prove you have
+    found a pair.</p>
+
+  <p>With two areas switched on in Advanced Setup, select disjoint areas A and
+    B to see their <dfn>mutual information</dfn>, the information they
+    share: I(A:B) = S(A) + S(B) − S(A ∪ B). A Bell pair split between them
+    gives 2 bits; cells from different pairs give 0. Careful with three or more
+    cells: in a <dfn>GHZ state</dfn> two cells share 1 bit this way, yet
+    on their own they are not entangled.</p>
+
+  <p>Your areas stay outlined while you go back to gates and measurement, so
+    you can watch the numbers change as you play.</p>
+</div>

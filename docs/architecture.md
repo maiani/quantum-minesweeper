@@ -97,6 +97,66 @@ The three implementations and their numerical parity tests are deliberately
 independent. Their duplication is the parity check; do not consolidate them
 behind a shared numerical core.
 
+`chp_tableau.py` is a standalone simulator library. It must not import from
+`qminesweeper`; the PurePy adapter connects it to the game contracts.
+
+## Entanglement probes
+
+Entanglement probes are a game rule. A game's probe rules come from one setup
+choice, a region count: 0 for none, 1 for area A against the rest, 2 to add
+area B and the mutual information between them. Simple Setup applies
+`PROBE_REGION_DEFAULT` wherever entanglement can appear — entanglement level 2
+and up, whose boards are prepared entangled, and Sandbox, whose two-qubit gates
+let the player entangle cells — and 0 elsewhere; Advanced Setup offers every
+count the game implements.
+
+The web interface selects an area by clicking single cells, by dragging a
+rectangle across the board, or by shift-clicking to extend a rectangle from the
+last cell clicked. A drag that starts inside the region being edited erases its
+rectangle instead of drawing one. Dragging is a pointer convenience only: every
+gesture is also reachable by keyboard, and a region need not be connected or
+rectangular. Two selected regions must be disjoint. The complement is always all remaining board qubits, including
+revealed cells. Selection never changes the state or gate-target legality.
+
+`StabilizerQuantumState.entanglement_entropy(subset)` returns the von Neumann
+entropy of the selected reduced state in bits. The complete state is pure,
+conditioned on recorded measurement outcomes, so this is entanglement entropy
+between the subset and its complement. Implementations use binary stabilizer
+rank calculations rather than exponentially sized density matrices.
+
+The framework-free `probe_regions` query validates regions and game rules.
+It returns S(A) and, when B is supplied, S(B), S(A union B), and mutual
+information I(A:B) = S(A) + S(B) - S(A union B). Mutual information measures
+total correlations; it must not be labelled as general pairwise entanglement.
+For independent Bell pairs, S(A) counts split pairs and I(A:B)/2 counts pairs
+connecting A and B. This interpretation does not extend to arbitrary
+multipartite states. The existing sum of single-cell entropies remains a
+separate observable.
+
+Two separate settings govern the feature, and they answer different questions.
+`ENABLE_ENTANGLEMENT_PROBES` is application configuration: a boolean saying
+whether this deployment has the diagnostic at all. The region count is a game
+tier chosen per game in Setup, bounded by `PROBE_REGION_LIMIT` in `engine.py`,
+the count the query implements. Adding a third region is then a change to that
+limit and the query, not a new flag.
+
+A deployment with probes switched off contributes a region limit of 0, and the
+limit is applied on every game construction, so it hides the setup control,
+narrows the rules of each new game including new-same, and can never switch on
+a rule the setup did not ask for.
+
+Both web runtimes use the same query and renderer. The server exposes a
+read-only POST `/probe`; the browser uses `BrowserSession.probe`. Queries do
+not count as moves or consume randomness. Game rule flags travel in app
+configuration, separate from serialized state. Area selections are temporary
+frontend state, clear on reset/new game/reload, and are not quantum snapshots.
+Browser saves preserve the rule flags; version-1 saves without them restore
+the defaults (probes on, two-area mode off).
+
+Entropy is evaluated only for an active selection, after edits or completed
+moves. The frontend invalidates pending results when selections or game state
+change, so an older response cannot replace a newer diagnostic.
+
 ## Browser-only distribution
 
 `qminesweeper/browser.py` owns an in-memory `BrowserSession`. Setup, move,
@@ -154,8 +214,6 @@ throttled entanglement display before reducing supported board sizes.
 
 ## Deliberately deferred features
 
-- Region bipartite-entropy probes are advanced diagnostics, not part of the
-  browser critical path.
 - Basis-changing clues are an exploratory Sandbox teaching feature. Identify
   and Clear semantics remain Z-basis unless a separate ruleset is designed, and
   the material must say that clue basis changes the diagnostic, not the

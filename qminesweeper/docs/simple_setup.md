@@ -17,6 +17,13 @@ just to locate a fixed hidden layout.
 
 - **Apply gate**: manipulates the quantum state of a cell without revealing it. (See the help pages for a description of the different gates you can use.)
 
+- **Entanglement probe**: select an area, by clicking cells or dragging a
+  rectangle, and see how entangled it is with the rest of the board. It never
+  measures or changes anything. One cell of a Bell pair gives 1 bit; add its
+  partner and you get 0, so a 0 is not proof on its own. You get the probe from
+  Level 2 up, where the board starts out entangled, and in Sandbox, where you
+  can entangle cells yourself. Advanced Setup sets it by hand.
+
 ### Levels
 
 - **Classical (Level 0)**

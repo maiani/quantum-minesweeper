@@ -41,6 +41,18 @@
 let _config = {};
 let _gameId = null;
 let _toolsSig = null;
+let _state = null;
+let _probeA = new Set();
+let _probeB = new Set();
+let _probeEdit = null;
+let _probeAnchor = null;
+let _drag = null;
+let _previewCells = new Set();
+let _suppressClick = false;
+let _probeRequest = 0;
+let _probeResult = null;
+let _probeError = null;
+let _mutationPending = false;
 
 // Read and parse a <script type="application/json"> blob by its id.
 // Returns the parsed object, or null if the element is missing / not valid JSON.
@@ -199,23 +211,360 @@ function renderBoard(state) {
       const val = state.grid[r][c];
       const decoded = decodeCell(val);
       const { text, cls, color } = decoded;
+      const index = r * state.cols + c;
       const btn = el("button", {
         class: "tile " + cls,
         text,
         "aria-label": cellAriaLabel(r, c, val, decoded),
+        "data-cell-index": index,
       });
+      const inA = _probeA.has(index);
+      const inB = _probeB.has(index);
+      btn.classList.toggle("probe-a", inA);
+      btn.classList.toggle("probe-b", inB);
+      const isAnchor = Boolean(_probeAnchor && _probeAnchor[0] === r && _probeAnchor[1] === c);
+      btn.classList.toggle("probe-anchor", isAnchor);
+      if (inA || inB) {
+        btn.appendChild(el("span", { class: "probe-badge", text: inA ? "A" : "B", "aria-hidden": "true" }));
+        btn.setAttribute("aria-label", `${btn.getAttribute("aria-label")}; region ${inA ? "A" : "B"}`);
+      }
+      if (isAnchor) btn.setAttribute("aria-label", `${btn.getAttribute("aria-label")}; selection anchor`);
       if (color) btn.style.color = color;
       // While the game is running, clicking a cell runs clickCell(r, c) (tools.js),
       // which turns the current tool + this cell into a move and submits it.
       // When the game is over, cells are disabled.
-      if (ongoing) btn.addEventListener("click", () => clickCell(r, c));
+      if (_probeEdit) btn.addEventListener("click", (event) => editProbeCell(r, c, event));
+      else if (ongoing) btn.addEventListener("click", () => clickCell(r, c));
       else btn.disabled = true;
       tr.appendChild(el("td", {}, [btn]));
     }
     table.appendChild(tr);
   }
+  // While a region is being edited the board also listens for press-and-drag
+  // rectangles. One delegated listener on the freshly built table covers every
+  // tile, and it disappears with the table on the next render.
+  if (_probeEdit) {
+    table.classList.add("probe-selecting");
+    table.addEventListener("pointerdown", onBoardPointerDown);
+  }
   // Moves now go through the JS engine (fetch), so no hidden form is needed.
   host.replaceChildren(table);
+}
+
+function formatBits(value) {
+  const amount = Number(value).toFixed(3).replace(/\.?0+$/, "");
+  return `${amount} ${Number(amount) === 1 ? "bit" : "bits"}`;
+}
+
+function invalidateProbeRequest() {
+  _probeRequest += 1;
+}
+
+async function refreshProbe() {
+  invalidateProbeRequest();
+  _probeResult = null;
+  _probeError = null;
+  renderProbePanel();
+  if (!_config.entanglement_probes || _probeA.size === 0 || _mutationPending) return;
+  const request = _probeRequest;
+  const areaB = _config.two_area_probes && _probeB.size ? [..._probeB].sort((a, b) => a - b) : null;
+  try {
+    const result = await window.GameEngine.probe(
+      _gameId, [..._probeA].sort((a, b) => a - b), areaB
+    );
+    if (request !== _probeRequest) return;
+    _probeResult = result;
+    renderProbePanel();
+  } catch (err) {
+    if (request !== _probeRequest) return;
+    _probeError = err && err.message ? err.message : "Probe failed";
+    renderProbePanel();
+  }
+}
+
+function setProbeEdit(mode) {
+  cancelDrag();
+  _probeEdit = _probeEdit === mode ? null : mode;
+  _probeAnchor = null;
+  if (_probeEdit && window.cancelMovePick) window.cancelMovePick();
+  if (_state) renderBoard(_state);
+  renderProbePanel();
+  const active = document.querySelector(`[data-probe-mode="${mode}"]`);
+  if (active) active.focus();
+  if (_probeEdit) {
+    document.dispatchEvent(new CustomEvent("tool:selected", {
+      detail: { toolId: "region-probe", helpId: "region-probe" },
+    }));
+  }
+}
+
+// --- Region selection gestures ----------------------------------------------
+// Three gestures edit the active region, and all of them end in
+// applyRegionEdit():
+//   click           toggle the clicked cell,
+//   press and drag  the rectangle between the pressed and released cells,
+//   shift-click     the rectangle between the anchor and the clicked cell.
+// The anchor is the last cell toggled by a plain click (drawn with a dashed
+// outline). Shift-click keeps rectangles available without a pointer, so
+// keyboard users are not limited to one cell at a time.
+
+// Every index inside the rectangle spanned by two [row, col] corners, in any
+// corner order.
+function rectangleIndices(from, to) {
+  const indices = [];
+  for (let r = Math.min(from[0], to[0]); r <= Math.max(from[0], to[0]); r++) {
+    for (let c = Math.min(from[1], to[1]); c <= Math.max(from[1], to[1]); c++) {
+      indices.push(r * _state.cols + c);
+    }
+  }
+  return indices;
+}
+
+// Add the cells to the region being edited, or remove them from it. Regions A
+// and B must stay disjoint, so adding a cell drops it from the other region.
+function applyRegionEdit(indices, remove) {
+  const region = _probeEdit === "A" ? _probeA : _probeB;
+  const other = region === _probeA ? _probeB : _probeA;
+  for (const index of indices) {
+    if (remove) region.delete(index);
+    else {
+      other.delete(index);
+      region.add(index);
+    }
+  }
+}
+
+function tileAt(index) {
+  return document.querySelector(`#board-container [data-cell-index="${index}"]`);
+}
+
+function focusCell(cell) {
+  const tile = tileAt(cell[0] * _state.cols + cell[1]);
+  if (tile) tile.focus();
+}
+
+// Outline the rectangle the pointer is currently spanning. This only toggles
+// classes on the affected tiles: rebuilding the whole board on every pointer
+// move would be far too much work for a 375-cell preset.
+function showPreview(indices, remove) {
+  const next = new Set(indices);
+  for (const index of _previewCells) {
+    if (next.has(index)) continue;
+    const tile = tileAt(index);
+    if (tile) tile.classList.remove("probe-preview", "probe-preview-remove");
+  }
+  for (const index of next) {
+    const tile = tileAt(index);
+    if (!tile) continue;
+    tile.classList.add("probe-preview");
+    tile.classList.toggle("probe-preview-remove", remove);
+  }
+  _previewCells = next;
+}
+
+// Which cell sits under the pointer. Hit-testing by coordinate rather than by
+// event.target is what makes touch work: after a touch pointerdown the browser
+// retargets every later event of that pointer to the pressed tile, so
+// event.target would never change during a finger drag.
+function cellFromPoint(x, y) {
+  const node = document.elementFromPoint ? document.elementFromPoint(x, y) : null;
+  const tile = node && node.closest ? node.closest("[data-cell-index]") : null;
+  if (!tile) return null;
+  const index = Number(tile.getAttribute("data-cell-index"));
+  if (!Number.isInteger(index)) return null;
+  return [Math.floor(index / _state.cols), index % _state.cols];
+}
+
+function onBoardPointerDown(event) {
+  if (!_state || !_probeEdit || _drag) return;
+  if (event.button > 0) return;   // primary button (or touch/pen) only
+  if (event.shiftKey) return;     // shift-click is handled as a click, not a drag
+  const tile = event.target.closest ? event.target.closest("[data-cell-index]") : null;
+  if (!tile) return;
+  const index = Number(tile.getAttribute("data-cell-index"));
+  const start = [Math.floor(index / _state.cols), index % _state.cols];
+  const region = _probeEdit === "A" ? _probeA : _probeB;
+  _drag = {
+    pointerId: event.pointerId,
+    start,
+    end: start,
+    moved: false,
+    // Starting on a cell that is already in the region erases the rectangle
+    // instead of drawing it, matching what a plain click on that cell does.
+    remove: region.has(index),
+  };
+  _suppressClick = false;
+  // The move and release can happen anywhere, including outside the board, so
+  // the rest of the gesture is tracked on the document.
+  document.addEventListener("pointermove", onDragMove);
+  document.addEventListener("pointerup", onDragEnd);
+  document.addEventListener("pointercancel", onDragCancel);
+  document.addEventListener("keydown", onDragKey);
+  updateDragPreview();
+}
+
+function onDragMove(event) {
+  if (!_drag || (event.pointerId !== undefined && event.pointerId !== _drag.pointerId)) return;
+  const cell = cellFromPoint(event.clientX, event.clientY);
+  if (!cell) return; // pointer left the board: keep the last rectangle
+  if (cell[0] === _drag.end[0] && cell[1] === _drag.end[1]) return;
+  _drag.end = cell;
+  if (cell[0] !== _drag.start[0] || cell[1] !== _drag.start[1]) _drag.moved = true;
+  updateDragPreview();
+}
+
+function updateDragPreview() {
+  const indices = rectangleIndices(_drag.start, _drag.end);
+  showPreview(indices, _drag.remove);
+  const rows = Math.abs(_drag.end[0] - _drag.start[0]) + 1;
+  const cols = Math.abs(_drag.end[1] - _drag.start[1]) + 1;
+  const verb = _drag.remove ? "remove from" : "add to";
+  setProbeHint(`${rows} x ${cols} rectangle - release to ${verb} region ${_probeEdit}.`);
+}
+
+function onDragEnd(event) {
+  if (!_drag || (event.pointerId !== undefined && event.pointerId !== _drag.pointerId)) return;
+  const drag = _drag;
+  endDrag();
+  // A press that never left its tile is an ordinary click; let the click
+  // handler toggle that one cell.
+  if (!drag.moved) return;
+  // A drag that returns to its starting tile still emits a click. Swallow it.
+  _suppressClick = true;
+  applyRegionEdit(rectangleIndices(drag.start, drag.end), drag.remove);
+  _probeAnchor = drag.start;
+  renderBoard(_state);
+  focusCell(drag.end);
+  refreshProbe();
+}
+
+function onDragKey(event) {
+  if (event.key === "Escape") onDragCancel();
+}
+
+function onDragCancel() {
+  if (!_drag) return;
+  endDrag();
+  renderProbePanel();
+}
+
+// Drop the in-progress rectangle and the listeners tracking it.
+function endDrag() {
+  document.removeEventListener("pointermove", onDragMove);
+  document.removeEventListener("pointerup", onDragEnd);
+  document.removeEventListener("pointercancel", onDragCancel);
+  document.removeEventListener("keydown", onDragKey);
+  _drag = null;
+  showPreview([], false);
+}
+
+function cancelDrag() {
+  if (_drag) endDrag();
+}
+
+function editProbeCell(row, col, event) {
+  if (!_state || !_probeEdit) return;
+  // Ignore the synthetic click a finished drag leaves behind. Keyboard
+  // activation reports detail 0 and is never the tail of a drag, so it is
+  // always allowed through.
+  if (_suppressClick && (!event || event.detail !== 0)) {
+    _suppressClick = false;
+    return;
+  }
+  _suppressClick = false;
+  const region = _probeEdit === "A" ? _probeA : _probeB;
+  if (event && event.shiftKey && _probeAnchor) {
+    applyRegionEdit(rectangleIndices(_probeAnchor, [row, col]), false);
+  } else {
+    const index = row * _state.cols + col;
+    applyRegionEdit([index], region.has(index));
+    _probeAnchor = [row, col]; // shift-click extends from the last plain click
+  }
+  renderBoard(_state);
+  focusCell([row, col]);
+  refreshProbe();
+}
+
+function clearProbes() {
+  cancelDrag();
+  invalidateProbeRequest();
+  _probeA.clear();
+  _probeB.clear();
+  _probeEdit = null;
+  _probeAnchor = null;
+  _probeResult = null;
+  _probeError = null;
+  if (_state) renderBoard(_state);
+  renderProbePanel();
+}
+
+function stopProbeEditing() {
+  cancelDrag();
+  if (!_probeEdit && !_probeAnchor) return;
+  _probeEdit = null;
+  _probeAnchor = null;
+  if (_state) renderBoard(_state);
+  renderProbePanel();
+}
+
+function probeButton(text, mode) {
+  return el("button", {
+    type: "button", class: `btn${_probeEdit === mode ? " active" : ""}`,
+    text, "aria-pressed": _probeEdit === mode ? "true" : "false",
+    "data-probe-mode": mode,
+    onclick: () => setProbeEdit(mode),
+  });
+}
+
+// Rewrite the editing hint alone. The drag preview updates on every pointer
+// move, which is far too often to rebuild the panel (and would keep stealing
+// focus from the buttons inside it).
+function setProbeHint(text) {
+  const hint = document.querySelector(".probe-hint");
+  if (hint) hint.textContent = text;
+}
+
+function renderProbePanel() {
+  const host = document.getElementById("probe-container");
+  if (!host) return;
+  if (!_config.entanglement_probes) {
+    host.replaceChildren();
+    return;
+  }
+  const controls = [probeButton("Edit A", "A")];
+  if (_config.two_area_probes) controls.push(probeButton("Edit B", "B"));
+  controls.push(el("button", { type: "button", class: "btn", text: "Clear regions", onclick: clearProbes }));
+
+  const result = _probeResult;
+  const error = _probeError;
+  let primary = "Pick some cells for region A.";
+  // The parts a two-region result is built from. What any of it *means* is
+  // help-pane material (static/help/region-probe), not panel text.
+  let breakdown = null;
+  if (_mutationPending && _probeA.size) primary = "Waiting for the move to complete…";
+  else if (_probeA.size && !result && !error) primary = "Calculating…";
+  if (error) {
+    primary = `Probe unavailable: ${error}`;
+  } else if (result && _probeB.size && result.mutual_information !== null) {
+    primary = `Shared information between A and B: ${formatBits(result.mutual_information)}`;
+    breakdown = `S(A) ${formatBits(result.entropy_a)} · S(B) ${formatBits(result.entropy_b)} · S(A ∪ B) ${formatBits(result.entropy_union)}`;
+  } else if (result) {
+    primary = `Entanglement with the rest of the board: ${formatBits(result.entropy_a)}`;
+  }
+  host.replaceChildren(el("section", { class: "probe-panel", "help-id": "region-probe", "aria-label": "Entanglement probe" }, [
+    el("h3", { text: "Entanglement probe" }),
+    el("div", { class: "probe-controls" }, controls),
+    // Only shown while editing; the drag preview rewrites this line in place.
+    _probeEdit
+      ? el("p", {
+          class: "probe-hint",
+          text: `Region ${_probeEdit}: click cells to add or remove them. Drag to draw a rectangle, or shift-click to stretch one from the dashed cell.`,
+        })
+      : null,
+    el("p", { class: "probe-counts", text: `Region A: ${_probeA.size} cell${_probeA.size === 1 ? "" : "s"}${_config.two_area_probes ? ` · Region B: ${_probeB.size} cell${_probeB.size === 1 ? "" : "s"}` : ""}` }),
+    el("p", { class: "probe-result", "aria-live": "polite", text: primary }),
+    breakdown ? el("p", { class: "probe-breakdown", text: breakdown }) : null,
+  ]));
 }
 
 // Which gate buttons appear, grouped into rows for layout. Ordering and row
@@ -360,11 +709,23 @@ function renderActions(state, config) {
 // (Re)build every slot from a game-state object, using the cached config.
 // Called once on load and again after each no-reload move (with fresh state).
 function applyState(state) {
+  const sameGame = _gameId === null || _gameId === state.game_id;
+  cancelDrag();
+  invalidateProbeRequest();
+  if (!sameGame) {
+    _probeA.clear();
+    _probeB.clear();
+    _probeEdit = null;
+    _probeAnchor = null;
+  }
+  _state = state;
+  _mutationPending = false;
   _gameId = state.game_id;
   renderStatus(state);
   renderBoard(state);
   renderTools(state);
   renderActions(state, _config);
+  refreshProbe();
 }
 
 // Exposed so the move flow (tools.js) can re-render after the engine returns new
@@ -373,6 +734,19 @@ function applyState(state) {
 window.GameRenderer = {
   applyState,
   gameId: () => _gameId,
+  beforeMutation: () => {
+    _mutationPending = true;
+    invalidateProbeRequest();
+    _probeResult = null;
+    _probeError = null;
+    renderProbePanel();
+  },
+  clearProbes,
+  stopProbeEditing,
+  mergeConfig: (config) => {
+    _config = { ..._config, ...config };
+    renderProbePanel();
+  },
 };
 
 // Top-level on load: cache config, and build the initial view if state was

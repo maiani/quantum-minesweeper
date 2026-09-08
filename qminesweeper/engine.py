@@ -50,6 +50,91 @@ def serialize_game(board: QMineSweeperBoard, game: QMineSweeperGame, game_id: st
     }
 
 
+def _validate_probe_area(area: list[int], n: int, name: str) -> list[int]:
+    if not isinstance(area, list) or not area:
+        raise ValueError(f"{name} must be a nonempty list")
+    if any(isinstance(i, bool) or not isinstance(i, int) for i in area):
+        raise ValueError(f"{name} must contain integers")
+    if len(set(area)) != len(area):
+        raise ValueError(f"{name} contains duplicate cells")
+    if any(i < 0 or i >= n for i in area):
+        raise ValueError(f"{name} contains an out-of-range cell")
+    return area
+
+
+PROBE_REGION_LIMIT = 2
+"""How many probe regions the diagnostic implements: A, and optionally B."""
+
+PROBE_REGION_DEFAULT = 2
+"""The region count setup uses unless the player chooses another.
+
+This is a game tier, not a deployment switch: whether probes exist at all is
+the separate `ENABLE_ENTANGLEMENT_PROBES` application flag. Simple Setup gives
+entangled boards this many regions; Advanced Setup can pick any count up to
+``PROBE_REGION_LIMIT``.
+"""
+
+
+def probe_rules_for_regions(regions: int, region_limit: int) -> tuple[bool, bool]:
+    """Per-game probe rules for a requested region count.
+
+    ``regions`` is what setup asked for and ``region_limit`` what the deployment
+    allows; the smaller wins, and neither can exceed ``PROBE_REGION_LIMIT``.
+    0 means no probes, 1 region A alone, 2 also region B.
+    """
+    allowed = max(0, min(int(regions), int(region_limit), PROBE_REGION_LIMIT))
+    return allowed >= 1, allowed >= 2
+
+
+def probe_rules_for_limit(
+    entanglement_probes: bool,
+    two_area_probes: bool,
+    region_limit: int,
+) -> tuple[bool, bool]:
+    """Narrow a game's requested probe rules to a deployment's region limit.
+
+    The boolean form of :func:`probe_rules_for_regions`, for callers holding a
+    game's stored rules rather than a setup choice. A request beyond the limit
+    is narrowed rather than rejected, so neither a stale setup form nor a
+    hand-made request can enable more than the deployment allows.
+    """
+    requested = 0
+    if entanglement_probes:
+        requested = 2 if two_area_probes else 1
+    return probe_rules_for_regions(requested, region_limit)
+
+
+def probe_regions(
+    board: QMineSweeperBoard,
+    game: QMineSweeperGame,
+    area_a: list[int],
+    area_b: list[int] | None = None,
+) -> dict:
+    """Read region entropies from a game without changing its state."""
+    if not isinstance(game.cfg.entanglement_probes, bool) or not game.cfg.entanglement_probes:
+        raise ValueError("entanglement probes are disabled")
+    a = _validate_probe_area(area_a, board.n, "area_a")
+    b = None if area_b is None else _validate_probe_area(area_b, board.n, "area_b")
+    if b is not None:
+        if not isinstance(game.cfg.two_area_probes, bool) or not game.cfg.two_area_probes:
+            raise ValueError("two-area probes are disabled")
+        if set(a) & set(b):
+            raise ValueError("probe regions must not overlap")
+    entropy_a = float(board.state.entanglement_entropy(a))
+    entropy_b = None if b is None else float(board.state.entanglement_entropy(b))
+    entropy_union = None
+    mutual_information = None
+    if b is not None:
+        entropy_union = float(board.state.entanglement_entropy(a + b))
+        mutual_information = entropy_a + entropy_b - entropy_union
+    return {
+        "entropy_a": entropy_a,
+        "entropy_b": entropy_b,
+        "entropy_union": entropy_union,
+        "mutual_information": mutual_information,
+    }
+
+
 @dataclass(frozen=True)
 class Command:
     """A single command applied to a live game. Cells are 0-based (row, col)."""
@@ -140,7 +225,14 @@ MOVE_SETS = {
 }
 
 
-def validate_setup_params(rows: int, cols: int, mines: int, ent_level: int) -> None:
+def validate_setup_params(
+    rows: int,
+    cols: int,
+    mines: int,
+    ent_level: int,
+    entanglement_probes: bool = True,
+    two_area_probes: bool = False,
+) -> None:
     """Validate setup parameters, raising ValueError with a user-facing message."""
     if not (1 <= rows <= MAX_DIM) or not (1 <= cols <= MAX_DIM):
         raise ValueError(f"Board dimensions must be between 1 and {MAX_DIM} (got {rows}x{cols}).")
@@ -150,6 +242,8 @@ def validate_setup_params(rows: int, cols: int, mines: int, ent_level: int) -> N
         raise ValueError(f"Entanglement level must be between 0 and {MAX_ENT_LEVEL} (got {ent_level}).")
     if not (0 <= mines <= rows * cols):
         raise ValueError(f"Mines must be between 0 and {rows * cols} (got {mines}).")
+    if not isinstance(entanglement_probes, bool) or not isinstance(two_area_probes, bool):
+        raise ValueError("Probe settings must be boolean")
 
 
 def build_game(
@@ -160,18 +254,28 @@ def build_game(
     ent_level: int,
     win: WinCondition,
     moves: MoveSet,
+    entanglement_probes: bool = True,
+    two_area_probes: bool = False,
 ) -> tuple[QMineSweeperBoard, QMineSweeperGame]:
     """Construct (board, game) on the given backend. Validates params first.
 
     Used by the server (with its configured backend) and by the browser session
     (with PurePyBackend) — single source of game construction.
     """
-    validate_setup_params(rows, cols, mines, ent_level)
+    validate_setup_params(rows, cols, mines, ent_level, entanglement_probes, two_area_probes)
     board = QMineSweeperBoard(rows, cols, backend=backend, flood_fill=True)
     if ent_level == 0:
         board.span_classical_mines(mines)
     else:
         board.span_random_stabilizer_mines(mines, level=ent_level)
     board.set_clue_basis("Z")
-    game = QMineSweeperGame(board, GameConfig(win_condition=win, move_set=moves))
+    game = QMineSweeperGame(
+        board,
+        GameConfig(
+            win_condition=win,
+            move_set=moves,
+            entanglement_probes=entanglement_probes,
+            two_area_probes=two_area_probes,
+        ),
+    )
     return board, game

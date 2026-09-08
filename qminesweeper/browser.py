@@ -27,6 +27,7 @@ from qminesweeper.engine import (
     apply_command,
     build_game,
     parse_command,
+    probe_regions,
     serialize_game,
 )
 from qminesweeper.game import GameConfig, GameStatus, QMineSweeperGame
@@ -47,10 +48,19 @@ class BrowserSession:
         self._params: tuple | None = None  # remembered for new_same
 
     # ---------- lifecycle ----------
-    def setup(self, rows: int, cols: int, mines: int, ent_level: int, win: str, moves: str) -> dict:
+    def setup(
+        self,
+        rows: int,
+        cols: int,
+        mines: int,
+        ent_level: int,
+        win: str,
+        moves: str,
+        entanglement_probes: bool = True,
+        two_area_probes: bool = False,
+    ) -> dict:
         """Start a new game from the same string params the setup form uses."""
-        self._params = (rows, cols, mines, ent_level, win, moves)
-        self._board, self._game = build_game(
+        board, game = build_game(
             self._backend,
             rows,
             cols,
@@ -58,7 +68,11 @@ class BrowserSession:
             ent_level,
             WIN_CONDITIONS.get(win.lower(), WIN_CONDITIONS["identify"]),
             MOVE_SETS.get(moves.lower(), MOVE_SETS["classic"]),
+            entanglement_probes,
+            two_area_probes,
         )
+        self._params = (rows, cols, mines, ent_level, win, moves, entanglement_probes, two_area_probes)
+        self._board, self._game = board, game
         return self.state()
 
     def new_same(self) -> dict:
@@ -88,6 +102,17 @@ class BrowserSession:
         self._require_game()
         return serialize_game(self._board, self._game, _GAME_ID)
 
+    def config(self) -> dict:
+        self._require_game()
+        return {
+            "entanglement_probes": self._game.cfg.entanglement_probes,
+            "two_area_probes": self._game.cfg.two_area_probes,
+        }
+
+    def probe(self, area_a: list[int], area_b: list[int] | None = None) -> dict:
+        self._require_game()
+        return probe_regions(self._board, self._game, area_a, area_b)
+
     # ---------- persistence ----------
     def export_save(self) -> dict:
         """Return a versioned browser-only save snapshot.
@@ -101,7 +126,7 @@ class BrowserSession:
             raise RuntimeError("cannot save before setup")
         if not isinstance(self._board.state, PurePyState):
             raise TypeError("browser saves require PurePyState")
-        rows, cols, mines, ent_level, win, moves = self._params
+        rows, cols, mines, ent_level, win, moves, entanglement_probes, two_area_probes = self._params
         state = self._board.state
         return {
             "version": SAVE_VERSION,
@@ -112,6 +137,8 @@ class BrowserSession:
                 "ent_level": ent_level,
                 "win": win,
                 "moves": moves,
+                "entanglement_probes": entanglement_probes,
+                "two_area_probes": two_area_probes,
             },
             "status": self._game.status.name,
             "board": {
@@ -141,7 +168,10 @@ class BrowserSession:
             ent_level = int(params["ent_level"])
             win = str(params["win"])
             moves = str(params["moves"])
-            self._params = (rows, cols, mines, ent_level, win, moves)
+            entanglement_probes = params.get("entanglement_probes", True)
+            two_area_probes = params.get("two_area_probes", False)
+            if not isinstance(entanglement_probes, bool) or not isinstance(two_area_probes, bool):
+                raise ValueError("Probe settings must be boolean")
 
             win_enum = WIN_CONDITIONS.get(win.lower(), WIN_CONDITIONS["identify"])
             move_enum = MOVE_SETS.get(moves.lower(), MOVE_SETS["classic"])
@@ -167,9 +197,18 @@ class BrowserSession:
             board._exploration[:, :] = np.array(snapshot["board"]["exploration"], dtype=np.int8)
             board._measured = {int(idx): int(outcome) for idx, outcome in snapshot["board"]["measured"]}
 
-            game = QMineSweeperGame(board, GameConfig(win_condition=win_enum, move_set=move_enum))
+            game = QMineSweeperGame(
+                board,
+                GameConfig(
+                    win_condition=win_enum,
+                    move_set=move_enum,
+                    entanglement_probes=entanglement_probes,
+                    two_area_probes=two_area_probes,
+                ),
+            )
             game.status = GameStatus[str(snapshot["status"])]
-        except (KeyError, TypeError, IndexError) as e:
+            self._params = (rows, cols, mines, ent_level, win, moves, entanglement_probes, two_area_probes)
+        except (KeyError, TypeError, IndexError, ValueError) as e:
             raise ValueError(f"malformed browser save: {e}") from e
         self._board = board
         self._game = game

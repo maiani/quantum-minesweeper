@@ -28,11 +28,11 @@ Supported gates (passed by name string):
 Usage example
 -------------
 >>> sim = CHP(2)
->>> sim.apply_gate("H", [0])          # H on qubit 0
->>> sim.apply_gate("CX", [0, 1])      # CNOT: 0 → 1  (Bell pair)
+>>> sim.apply_gate("H", [0])  # H on qubit 0
+>>> sim.apply_gate("CX", [0, 1])  # CNOT: 0 → 1  (Bell pair)
 >>> sim.pauli_expectation({0: "Z", 1: "Z"})  # ⟨ZZ⟩ = 1.0
->>> sim.measure(0)                    # collapses to 0 or 1 randomly
->>> sim.measure(1)                    # correlated: same outcome
+>>> sim.measure(0)  # collapses to 0 or 1 randomly
+>>> sim.measure(1)  # correlated: same outcome
 
 Reference: Aaronson, S. & Gottesman, D. (2004). Improved simulation of
 stabilizer circuits. Phys. Rev. A 70, 052328.
@@ -47,6 +47,38 @@ import numpy as np
 # adapter in purepy_backend.py can pass .value through without remapping.
 _1Q: frozenset[str] = frozenset({"X", "Y", "Z", "H", "S", "Sdg", "SX", "SXdg", "SY", "SYdg"})
 _2Q: frozenset[str] = frozenset({"CX", "CY", "CZ", "SWAP"})
+
+
+def _gf2_rank(matrix: np.ndarray) -> int:
+    """Return the rank of a binary matrix using in-place Gaussian elimination."""
+    a = np.array(matrix, dtype=np.uint8, copy=True)
+    rank = 0
+    for col in range(a.shape[1]):
+        pivots = np.flatnonzero(a[rank:, col])
+        if pivots.size == 0:
+            continue
+        pivot = rank + int(pivots[0])
+        a[[rank, pivot]] = a[[pivot, rank]]
+        for row in range(a.shape[0]):
+            if row != rank and a[row, col]:
+                a[row] ^= a[rank]
+        rank += 1
+        if rank == a.shape[0]:
+            break
+    return rank
+
+
+def _validate_subset(subset: list[int], n_qubits: int) -> tuple[int, ...]:
+    """Validate a region without coupling this standalone module to the game."""
+    if not isinstance(subset, list):
+        raise TypeError("subset must be a list of integer qubit indices")
+    if any(isinstance(q, bool) or not isinstance(q, int) for q in subset):
+        raise TypeError("subset must contain only integer qubit indices")
+    if len(set(subset)) != len(subset):
+        raise ValueError("subset must not contain duplicate qubit indices")
+    if any(q < 0 or q >= n_qubits for q in subset):
+        raise IndexError(f"subset indices must be in [0, {n_qubits})")
+    return tuple(sorted(subset))
 
 
 class CHP:
@@ -75,12 +107,37 @@ class CHP:
         self.z = np.zeros((2 * n + 1, n), dtype=np.uint8)
         self.r = np.zeros(2 * n + 1, dtype=np.uint8)
         if n:
-            np.fill_diagonal(self.x[0:n], 1)      # destabilizer i = X_i
-            np.fill_diagonal(self.z[n: 2 * n], 1)  # stabilizer  i = Z_i
+            np.fill_diagonal(self.x[0:n], 1)  # destabilizer i = X_i
+            np.fill_diagonal(self.z[n : 2 * n], 1)  # stabilizer  i = Z_i
 
     def reset(self) -> None:
         """Reinitialise to |0...0⟩ (same qubit count)."""
         self._init_state()
+
+    def entanglement_entropy(self, subset: list[int]) -> float:
+        """Return ``S(subset : complement)`` for this pure stabilizer state.
+
+        The stabilizer generators supported entirely inside the selected
+        region span its local stabilizer subgroup.  If its GF(2) rank is ``r``
+        and the region has ``k`` qubits, the reduced-state entropy is ``k-r``
+        bits.  Only tableau arrays are read; this query does not alter the
+        scratch row or consume measurement randomness.
+        """
+        region = _validate_subset(subset, self.n)
+        k = len(region)
+        if not region or k == self.n:
+            return 0.0
+        if k > self.n - k:
+            region = tuple(q for q in range(self.n) if q not in region)
+            k = len(region)
+        # The projection onto A has rank n - rank(S_complement).  Purity
+        # gives S(A) = S(complement) = rank(projected generators) - |A|.
+        # Project the smaller side so a single-cell query has only two columns.
+        projected = np.concatenate(
+            (self.x[self.n : 2 * self.n, list(region)], self.z[self.n : 2 * self.n, list(region)]),
+            axis=1,
+        )
+        return float(_gf2_rank(projected) - k)
 
     # ------------------------------------------------------------------
     # Convenience: M = 2n (number of real rows, excluding scratch)
