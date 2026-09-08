@@ -312,6 +312,30 @@ body.light .btn.active {
     display: inline-block;
 }
 
+/* The Nordita logo is an inlined single-colour SVG (templates/_nordita_logo.svg)
+   painted entirely in `currentColor`. That is what makes it theme-tunable: it takes
+   the footer link colour below, so it is muted grey on both themes and picks up the
+   accent colour on hover. Sizing happens on this link; the SVG just fills it. */
+.footer-logo--nordita {
+    display: inline-flex;
+    align-items: center;
+}
+
+.footer-logo--nordita svg {
+    display: block;
+    height: 100%;
+    width: auto;
+}
+
+/* Logos are not text: the footer's link underline (see .footer a:hover below)
+   would cut straight through them. Two shapes to cover, because the logo class
+   sits in a different place in each: on the link itself for Nordita, whose SVG
+   is inlined, and on the <img> inside the link for WINQ. */
+.footer a.footer-logo:hover,
+.footer a.footer-logo-link:hover {
+    text-decoration: none;
+}
+
 .footer a {
     color: var(--muted);
     text-decoration: none;

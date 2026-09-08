@@ -1,10 +1,12 @@
 <footer class="footer">
-      <a href="https://nordita.org/" target="_blank" rel="noopener noreferrer" aria-label="Nordita website">
-      <img src="{{ STATIC_BASE | default('/static') }}/nordita-logo.webp" alt="Nordita" class="footer-logo" decoding="async">
+      {# Inlined rather than an <img> so the logo's `currentColor` follows the theme. #}
+      <a href="https://nordita.org/" target="_blank" rel="noopener noreferrer" aria-label="Nordita website"
+         class="footer-logo footer-logo--nordita">
+      {% include "_nordita_logo.svg" %}
       </a>
     {# Funder acknowledgement. The asset is the WINQ wordmark without the tagline,
        which is illegible at footer size; its brand colours read on both themes. #}
-    · <a href="https://winq.se/" target="_blank" rel="noopener noreferrer"
+    · <a href="https://winq.se/" target="_blank" rel="noopener noreferrer" class="footer-logo-link"
          aria-label="WINQ – Wallenberg Initiative on Networks and Quantum Information">
       <img src="{{ STATIC_BASE | default('/static') }}/winq-logo.webp"
            alt="WINQ – Wallenberg Initiative on Networks and Quantum Information"

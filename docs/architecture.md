@@ -60,6 +60,22 @@ and removed because it duplicated existing state.
 There is no separate `/api/*` game-state namespace and no second browser
 frontend.
 
+### Footer logos
+
+Acknowledgement logos live in the shared footer template. Nordita's is inlined
+from `templates/_nordita_logo.svg` rather than referenced as an image: it is a
+single-colour SVG painted in `currentColor`, so one asset follows both themes
+(a referenced `<img>` cannot see page CSS). It was rebuilt from
+`static/nordita.svg` — the official vector logo — by keeping the mark's petal
+paths, subtracting the middle lens through a mask instead of painting it white,
+and outlining the "NORDITA" wordmark from Montserrat Medium, Nordita's brand
+font, so no webfont is needed at render time. Cap height, tracking, and the
+mark box were fitted to the official raster logo. WINQ's logo stays a small
+`<img>`: it is multi-colour brand artwork that must not be recoloured.
+
+Changing either logo is an asset change, not a layout change. Colour belongs in
+`base.css`; the SVG geometry should be left alone.
+
 ## Simulator backends
 
 `QuantumBackend` abstracts quantum simulation, not deployment mode. Gate arity
