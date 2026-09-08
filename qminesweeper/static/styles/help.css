@@ -69,6 +69,16 @@ body.admin-page #toggle-help {
   color: var(--accent);
 }
 
+/* <dfn> marks a term where the topic teaches it, which is what every help
+   topic's bold first mention always was. Giving that its own tag means the
+   accent marks vocabulary only, and <strong> stays free for plain emphasis.
+   Browsers italicise <dfn> by default; here it is upright and accented. */
+#sidebar-content dfn {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .help-card {
   /* background: rgba(32, 36, 49, 0.35); */
   background: var(--box-overlay);

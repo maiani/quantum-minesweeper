@@ -184,35 +184,47 @@
     }
 
     // --- Attach listeners ---
+    // The last help topic a button *activated*, which hovering only borrows:
+    // moving off a hovered element returns the panel to this topic.
     let activeHelpId = null;
+    // The [help-id] element the pointer is currently inside, so a move within
+    // one element (say from the mine emoji to its number) is not a new hover.
+    let hoveredOwner = null;
 
-    // --- Attach listeners ---
-    document.querySelectorAll("[help-id]").forEach(el => {
-      const id = el.getAttribute("help-id");
+    // Both listeners are on `document` and find their target with closest(),
+    // rather than being attached to each [help-id] element on load. That is
+    // what makes contextual help work for parts of the page JavaScript draws
+    // later or redraws: the status counters and probe panel (rendered from game
+    // state, and in the browser build only once Pyodide has booted), the tool
+    // buttons, and the board. Elements bound individually at load time would
+    // lose their help the moment they were replaced.
+    //
+    // mouseover/mouseout bubble, unlike mouseenter/mouseleave, so one listener
+    // sees every crossing. Entering and leaving are the same event here: when
+    // the pointer moves onto something that is not inside a [help-id] element,
+    // `owner` is null and the panel goes back to the activated topic.
+    document.addEventListener("mouseover", (event) => {
+      const owner = event.target.closest ? event.target.closest("[help-id]") : null;
+      if (owner === hoveredOwner) return;
+      hoveredOwner = owner;
+      if (!panel.classList.contains("active")) return;
+      const id = owner && owner.getAttribute("help-id");
+      if (id) loadHelp(id);
+      else if (activeHelpId) loadHelp(activeHelpId);
+    });
+
+    document.addEventListener("click", (event) => {
+      const owner = event.target.closest ? event.target.closest("[help-id]") : null;
+      if (!owner) return;
+      const id = owner.getAttribute("help-id");
       if (!id) return;
-
-      const isButton = el.classList.contains("tool-btn") || el.tagName === "BUTTON";
-
-      if (isButton) {
-        // Buttons: activation only on click (redundant)
-        el.addEventListener("click", () => {
-          activeHelpId = id;
-          loadHelp(id);
-        });
-      } else {
-        // Non-buttons: keep hover (only when panel is active)...
-        el.addEventListener("mouseenter", () => {
-          if (panel.classList.contains("active")) loadHelp(id);
-        });
-        el.addEventListener("click", () => {
-          if (panel.classList.contains("active")) loadHelp(id);
-        });
-        // ...and revert to last activated button help on mouseleave
-        el.addEventListener("mouseleave", () => {
-          if (panel.classList.contains("active") && activeHelpId) {
-            loadHelp(activeHelpId);
-          }
-        });
+      // A button's help stays up after the pointer leaves; anything else is
+      // only shown while help mode is on, matching its hover behaviour.
+      if (owner.tagName === "BUTTON" || owner.classList.contains("tool-btn")) {
+        activeHelpId = id;
+        loadHelp(id);
+      } else if (panel.classList.contains("active")) {
+        loadHelp(id);
       }
     });
 

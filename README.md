@@ -110,19 +110,16 @@ defaults `QMS_BACKEND` to **Stim** unless you override it.
 
 ### Browser-only PWA
 
-Build a static version that runs the game in-page with Pyodide and the PurePy
-backend:
+Run the game entirely in the browser, on Pyodide and the PurePy backend:
 
 ```bash
-pixi run browser
 pixi run browser-serve
 ```
 
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The static build does
-not need FastAPI, a database, or Cloud Run while you play. It saves the current
-game in `localStorage`, so a reload restores the in-progress board. The bundle
-also includes a manifest and service worker for installation and offline use
-after its initial successful load.
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The static build does not need FastAPI, a database, or Cloud Run while you
+play. It saves the current game in `localStorage`, so a reload restores the
+in-progress board. The bundle also includes a manifest and service worker for
+installation and offline use after its initial successful load.
 
 ### Docker
 Build and run locally with
@@ -175,16 +172,39 @@ Project design and active work are documented in
   - Identify: measure to reveal deterministically safe cells.
   - Clear: apply gates (and measurements) to drive each cell's Z-basis mine probability to ~0.
 
-The status bar shows the expected number of mines:
+Two counters sit above the board. The ⟨💣⟩ counter is the expected number of
+mines:
 
 $$
 \langle Mines \rangle=\sum_i p_i 
 $$
 
-where $p_i$ is the current Z-basis mine probability of cell $i$.
+where $p_i$ is the current Z-basis mine probability of cell $i$. The counter
+marked with two interlocked rings is the sum of the single-cell entropies, in
+bits. The icons stand alone in the interface; the help pane names each counter
+and its unit.
 
 Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, and other
 Clifford gates change clues and probabilities without a win condition.
+
+Entanglement probes are available in all web game modes when the rule is
+enabled. Selecting an area $A$ reports its entropy $S(A)$ against the rest of
+the board, in bits. Selection is a read-only simulator diagnostic: it does not
+measure cells or change the state. Selected cells can be disconnected, and
+revealed cells can be included without changing their gate restrictions.
+
+For independent Bell pairs, $S(A)$ counts pairs split by the selection. One
+member of a Bell pair gives 1 bit; selecting both gives 0. Zero means no
+entanglement with the outside, not necessarily no entanglement inside the area.
+
+The optional two-area mode compares disjoint areas $A$ and $B$ using mutual
+information $I(A:B)=S(A)+S(B)-S(A\cup B)$. This measures total shared
+information, including classical and quantum correlations. Two halves of a
+Bell pair share 2 bits of mutual information; cells from independent pairs
+share 0. Multipartite states need not follow a pair-count interpretation.
+The existing status counter is the sum of single-cell entropies, a different
+quantity. All these diagnostics describe the current state conditioned on
+recorded measurement outcomes.
 
 
 ## Authors

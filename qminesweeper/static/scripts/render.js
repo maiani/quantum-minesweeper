@@ -109,30 +109,80 @@ function cellAriaLabel(r, c, val, decoded) {
   return `${prefix}: clue ${val.toFixed(1)}`;
 }
 
-// --- Status bar: "⟨Mines⟩ = X.X" on the left, "Entanglement = N bits" on the right.
-// help-id attributes are picked up by help.js to show contextual help.
+// Build an SVG element. `el` cannot: document.createElement would make an
+// unknown *HTML* element of the same name, which renders nothing.
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svg(tag, props = {}, children = []) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(props)) node.setAttribute(key, value);
+  for (const child of [].concat(children)) node.appendChild(child);
+  return node;
+}
+
+// Two interlocked rings: the entanglement counter's icon. Drawn in currentColor
+// so it follows the light/dark theme like the text beside it, and sized in `em`
+// so it tracks the surrounding font size. There is no emoji for entanglement,
+// and a link glyph would suggest pairwise links this number does not measure.
+function entanglementIcon() {
+  const ring = (cx) => svg("circle", {
+    cx, cy: 12, r: 6, fill: "none", stroke: "currentColor", "stroke-width": 2,
+  });
+  return svg("svg", {
+    class: "status-glyph", viewBox: "0 0 24 24", width: "1.15em", height: "1.15em",
+    "aria-hidden": "true", focusable: "false",
+  }, [ring(8), ring(16)]);
+}
+
+// --- Status bar: expected mines on the left, entanglement on the right.
+// Each counter is an icon and a number. The icons replace the words in the old
+// "⟨Mines⟩ =" and "Local entropy sum =" labels, but the mine counter keeps its
+// expectation brackets: ⟨💣⟩ is the expectation value of the mine number, not a
+// count of mines, and the notation is the same one the paper and README use.
+// What the numbers mean, and that entropy is counted in bits, is help-pane
+// material (static/help/mine-counter and static/help/entanglement), reached by
+// the help-id attributes below. Screen readers get the full wording from the
+// .sr-only span, since an icon and a bare number would otherwise be read as an
+// unlabelled figure.
 function renderStatus(state) {
   const host = document.getElementById("status-bar");
   if (!host) return;
-  const mineText = `⟨Mines⟩ = ${state.mines_exp.toFixed(1)}`;
-  const entText = `Entanglement = ${Math.trunc(state.ent_measure)} bits`; // trunc matches the old "%d"
+  const mineValue = state.mines_exp.toFixed(1);
+  const entValue = String(Math.trunc(state.ent_measure)); // trunc matches the old "%d"
+  const mineLabel = `${mineValue} expected mines`;
+  const entLabel = `${entValue} bits of entanglement`;
   // If the bar already exists, just update the numbers in place. That keeps the
   // existing <td> elements (and the help-id listeners help.js attached to them on
   // load) alive across a no-reload re-render. Otherwise build it from scratch.
   const mineCell = host.querySelector(".mine-counter");
   const entCell = host.querySelector(".entanglement");
   if (mineCell && entCell) {
-    mineCell.textContent = mineText;
-    entCell.textContent = entText;
+    mineCell.querySelector(".status-value").textContent = mineValue;
+    mineCell.querySelector(".sr-only").textContent = mineLabel;
+    entCell.querySelector(".status-value").textContent = entValue;
+    entCell.querySelector(".sr-only").textContent = entLabel;
     return;
   }
+  const counter = (cls, helpId, tooltip, icon, value, label) =>
+    el("div", { class: `status-counter ${cls}`, "help-id": helpId, title: tooltip }, [
+      icon,
+      el("span", { class: "status-value", text: value }),
+      el("span", { class: "sr-only", text: label }),
+    ]);
+  // The two counters sit together above the board rather than at the page
+  // edges: they are small enough to read as one scoreboard, and the right edge
+  // is where the help sidebar opens over the page.
   host.replaceChildren(
-    el("table", { class: "status-table" }, [
-      el("tr", {}, [
-        el("td", { class: "mine-counter", "help-id": "mine-counter", text: mineText }),
-        el("td", { class: "status-spacer" }),
-        el("td", { class: "entanglement", "help-id": "entanglement", text: entText }),
-      ]),
+    el("div", { class: "status-row" }, [
+      counter(
+        "mine-counter", "mine-counter", "Expected number of mines",
+        el("span", { class: "status-icon", text: "⟨💣⟩ =", "aria-hidden": "true" }),
+        mineValue, mineLabel
+      ),
+      counter(
+        "entanglement", "entanglement", "Entanglement in bits: each cell, added up",
+        el("span", { class: "status-icon", "aria-hidden": "true" }, [entanglementIcon(), " ="]),
+        entValue, entLabel
+      ),
     ])
   );
 }

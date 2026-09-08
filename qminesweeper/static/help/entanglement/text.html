@@ -1,10 +1,15 @@
-<h1> Entanglement counter </h1>
+<h1>Entanglement counter</h1>
 
 <div>
   <p>
-    The entanglement counter indicates how strongly cells are coupled to the
-    rest of the board. Entanglement can make clearing less local: changing or
-    measuring one cell may affect what happens elsewhere. Try applying two-qubit
-    gates to see how this number changes.
+    The counter with the two linked rings, measured in <dfn>bits</dfn>.
+    For every cell it asks how <dfn>entangled</dfn> that cell is with the
+    whole rest of the board, and adds the answers up.
+  </p>
+  <p>
+    A single <dfn>Bell pair</dfn> adds 2 bits: 1 for each of its two
+    cells. Cells that are not entangled add 0, even when it is still uncertain
+    whether they hide a mine. So this counter tells you how much entanglement
+    is on the board, not where it is.
   </p>
 </div>

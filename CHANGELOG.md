@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Fixed contextual help never reaching parts of the page drawn by JavaScript
+  after load, which in the browser build is the whole game screen. Help topics
+  now mark the term they teach with `<dfn>` in an accent colour, and the
+  counter, gate, and move topics are rewritten for a first-time reader.
+- Replaced the status bar's text labels with a mine emoji and an
+  interlocked-rings icon, keeping the expectation brackets on ⟨💣⟩, grouped the
+  two counters above the board instead of at the page edges (where the help
+  sidebar covered the right-hand one), and moved their names and the bit unit
+  into the help pane and tooltips.
 - Moved admin analytics reads and CSV export behind public, lock-guarded
   `SQLiteStore` methods, so routes no longer reach into the private database
   connection and concurrent reads cannot observe a torn counter snapshot.
