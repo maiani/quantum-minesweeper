@@ -10,13 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /src
+# Not /src: the project keeps its packages in a directory of that name, and
+# "COPY src /src/src" is needlessly hard to read.
+WORKDIR /build
 
 # Install build tools once (cached unless pyproject changes)
-COPY pyproject.toml README.md /src/
+COPY pyproject.toml README.md ./
 RUN python -m pip install --upgrade pip setuptools wheel build
 
-COPY qminesweeper /src/qminesweeper
+COPY src ./src
 RUN python -m build --wheel --outdir /wheels
 
 ############################

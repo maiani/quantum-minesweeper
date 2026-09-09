@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Benchmark stabilizer backends on the operations that dominate gameplay cost.
 
-Run:  python scripts/benchmark_backends.py [--backends stim,purepy,qiskit]
+Run:  python scripts/benchmark_backends.py [--backends stim,chppy,qiskit]
 
 The per-render hot path is the whole-board observables (expected_mines +
 entanglement_score), evaluated on every /game render. This script times that,
@@ -20,7 +20,7 @@ from qminesweeper.board import QMineSweeperBoard
 
 BACKENDS = {
     "stim": "qminesweeper.stim_backend:StimBackend",
-    "purepy": "qminesweeper.purepy_backend:PurePyBackend",
+    "chppy": "qminesweeper.chppy_backend:ChppyBackend",
     "qiskit": "qminesweeper.qiskit_backend:QiskitBackend",
 }
 
@@ -70,7 +70,7 @@ def bench(backend_cls, rows, cols):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--backends", default="stim,purepy")
+    ap.add_argument("--backends", default="stim,chppy")
     args = ap.parse_args()
     names = [b.strip() for b in args.backends.split(",") if b.strip()]
     classes = {name: _load(BACKENDS[name]) for name in names}

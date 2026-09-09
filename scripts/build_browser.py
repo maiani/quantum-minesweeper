@@ -7,7 +7,9 @@ the game runs entirely in the browser via Pyodide. Layout:
     dist/
       index.html              # browser entry (scripts/browser_index.html)
       static/...              # CSS + JS (incl. render.js, tools.js, pyodide-engine.js, browser-main.js)
+      py/modules.json         # manifest of the Python modules to load
       py/qminesweeper/*.py    # the pure-Python engine, fetched by PyodideEngine
+      py/chppy/*.py           # the vendored standalone stabilizer library
 
 Run:   python scripts/build_browser.py
 Serve: python -m http.server -d dist 8000   # then open http://127.0.0.1:8000
@@ -25,8 +27,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # Run as `python scripts/build_browser.py`, so sys.path[0] is scripts/ — a stale
 # installed qminesweeper in site-packages would otherwise shadow the in-repo
-# source. Put the repo root first so we always build from the current tree.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# source. Put src/ first so we always build from the current tree.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from qminesweeper import __version__  # noqa: E402
 from qminesweeper.docs_render import load_docs  # noqa: E402
@@ -34,7 +36,9 @@ from qminesweeper.settings import get_settings  # noqa: E402
 from qminesweeper.view_context import build_config, build_features  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-PKG = ROOT / "qminesweeper"
+SRC = ROOT / "src"
+PKG = SRC / "qminesweeper"
+CHPPY = SRC / "chppy"
 DIST = ROOT / "dist"
 DOCS_DIR = PKG / "docs"
 PWA_DIR = ROOT / "scripts" / "pwa"  # manifest + service-worker sources (emitted at dist root)
@@ -42,16 +46,20 @@ PWA_DIR = ROOT / "scripts" / "pwa"  # manifest + service-worker sources (emitted
 # PWA icons the manifest references (rasterised from icon.svg by make_icons.py).
 PWA_ICONS = ["icon-192.png", "icon-512.png"]
 
-# Pure-Python modules the in-browser engine needs (numpy-only).
+# Pure-Python modules the in-browser engine needs (numpy-only), as paths
+# relative to dist/py. They are package-qualified because the bundle ships two
+# importable packages: the game, and the standalone chppy library it vendors.
+# Pyodide mirrors these paths under /lib, which is already on its sys.path.
 PURE_MODULES = [
-    "__init__.py",
-    "quantum_backend.py",
-    "chp_tableau.py",
-    "board.py",
-    "game.py",
-    "purepy_backend.py",
-    "engine.py",
-    "browser.py",
+    "qminesweeper/__init__.py",
+    "qminesweeper/quantum_backend.py",
+    "qminesweeper/board.py",
+    "qminesweeper/game.py",
+    "qminesweeper/chppy_backend.py",
+    "qminesweeper/engine.py",
+    "qminesweeper/browser.py",
+    "chppy/__init__.py",
+    "chppy/tableau.py",
 ]
 
 
@@ -67,7 +75,7 @@ def _build_fingerprint() -> str:
     """Fingerprint the files whose stale cache can break the browser build."""
     hasher = hashlib.sha256()
     for name in PURE_MODULES:
-        _hash_file(hasher, PKG / name)
+        _hash_file(hasher, SRC / name)
     for base in (PKG / "static", PWA_DIR):
         for path in sorted(p for p in base.rglob("*") if p.is_file()):
             _hash_file(hasher, path)
@@ -95,13 +103,15 @@ def main() -> None:
     shutil.copytree(PKG / "static", DIST / "static")
 
     # 2. python sources fetched by PyodideEngine, plus a manifest of their names.
-    # The manifest is the single source of truth for which modules the browser
-    # loads: pyodide-engine.js fetches modules.json instead of hardcoding the
-    # list, so adding a module here is all that's needed (no JS edit).
-    py_dir = DIST / "py" / "qminesweeper"
+    py_dir = DIST / "py"
     py_dir.mkdir(parents=True)
     for name in PURE_MODULES:
-        shutil.copy(PKG / name, py_dir / name)
+        target = py_dir / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(SRC / name, target)
+    # The manifest sits at the py/ root, above both packages, and is the single
+    # source of truth for what the browser loads: pyodide-engine.js fetches it
+    # instead of hardcoding the list, so adding a module here needs no JS edit.
     (py_dir / "modules.json").write_text(json.dumps(PURE_MODULES), encoding="utf-8")
 
     # 3. entry page. Render through Jinja at build time so the browser setup UI

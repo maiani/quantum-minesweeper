@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="qminesweeper/static/icons/icon-512.png" alt="Quantum Minesweeper" width="128">
+  <img src="src/qminesweeper/static/icons/icon-512.png" alt="Quantum Minesweeper" width="128">
 </p>
 
 <h1 align="center">Quantum Minesweeper</h1>
@@ -26,7 +26,7 @@ outcome impossible.
   - **Server Web UI** powered by FastAPI and Uvicorn
   - **Browser-only PWA** powered by Pyodide, with no application server
 - **Multiple backends** (selected with `--backend` or `QMS_BACKEND`)
-  - **PurePy** — NumPy stabilizer tableau with no native extension dependency
+  - **chppy** — NumPy stabilizer tableau with no native extension dependency
     (default for local and static-browser runs, including Pyodide)
   - **Stim** — optional fast C++ stabilizer simulator (default for deployed server runs)
   - **Qiskit** — optional stabilizer simulator via Qiskit
@@ -76,7 +76,7 @@ python -m pip install .
 Configuration is centralized with Pydantic Settings and loaded from environment variables (and .env in dev).
 
 Common flags:
-- `QMS_BACKEND` - simulator backend: `purepy`, `stim`, or `qiskit`. Local config defaults to `purepy`; `scripts/deploy.sh` defaults deployed server runs to `stim`.
+- `QMS_BACKEND` - simulator backend: `chppy`, `stim`, or `qiskit`. Local config defaults to `chppy`; `scripts/deploy.sh` defaults deployed server runs to `stim`.
 - `QMS_ENABLE_AUTH`  - enable HTTP basic auth
 - `QMS_USER` / `QMS_PASS` - credentials for basic auth
 - `QMS_ADMIN_PASS` - admin dashboard password; leave unset to disable admin routes
@@ -97,9 +97,9 @@ Launch the text UI:
 python -m qminesweeper tui
 ```
 
-Default backend is **PurePy**. You can also install and select Stim or Qiskit:
+Default backend is **chppy**. You can also install and select Stim or Qiskit:
 ```bash
-python -m qminesweeper tui --backend purepy
+python -m qminesweeper tui --backend chppy
 python -m pip install ".[stim]"
 python -m qminesweeper tui --backend stim
 python -m pip install ".[qiskit]"
@@ -114,13 +114,13 @@ python -m qminesweeper webui --port 8080
 
 Then open your browser at: [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
-Local web UI runs use the configured backend, which defaults to **PurePy** for a
+Local web UI runs use the configured backend, which defaults to **chppy** for a
 plain install. The Docker/Cloud Run deployment installs the Stim extra and
 defaults `QMS_BACKEND` to **Stim** unless you override it.
 
 ### Browser-only PWA
 
-Run the game entirely in the browser, on Pyodide and the PurePy backend:
+Run the game entirely in the browser, on Pyodide and the chppy backend:
 
 ```bash
 pixi run browser-serve

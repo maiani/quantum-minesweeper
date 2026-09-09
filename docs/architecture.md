@@ -32,14 +32,14 @@ Quantum Minesweeper is one product with three entry paths:
 
 - The TUI uses `board`, `game`, and the selected simulator backend directly.
 - Server mode uses FastAPI and Jinja, with game state computed on the server.
-- Browser-only mode runs the same Python rules in Pyodide on `PurePyBackend`.
+- Browser-only mode runs the same Python rules in Pyodide on `ChppyBackend`.
 
 The server and browser modes share the game contract, renderer, templates,
 styles, documentation, and terminology.
 
 ### Shared game contract
 
-`qminesweeper/engine.py` is framework-free and Pyodide-safe. It owns:
+`src/qminesweeper/engine.py` is framework-free and Pyodide-safe. It owns:
 
 - `serialize_game(board, game, game_id) -> dict`
 - `Command` and `parse_command`
@@ -52,7 +52,7 @@ and removed because it duplicated existing state.
 
 ### Frontend boundary
 
-- `qminesweeper/static/scripts/render.js` is the single game renderer.
+- `src/qminesweeper/static/scripts/render.js` is the single game renderer.
 - `HttpEngine` sends commands to the existing FastAPI routes in server mode.
 - `PyodideEngine` sends commands to `BrowserSession` in browser-only mode.
 - Symbols, labels, colours, and visible tool choices live in JavaScript.
@@ -85,7 +85,7 @@ Changing either logo is an asset change, not a layout change. Colour belongs in
 is declared once through `ONE_QUBIT_GATES` and `TWO_QUBIT_GATES` in
 `quantum_backend.py`.
 
-- `PurePyBackend` is the default for local installs and the browser build. It is
+- `ChppyBackend` is the default for local installs and the browser build. It is
   a NumPy stabilizer tableau with no native extension dependency.
 - `StimBackend` is optional and is the default in Docker/server deployment.
 - `QiskitBackend` is optional and provides an additional parity target.
@@ -97,8 +97,38 @@ The three implementations and their numerical parity tests are deliberately
 independent. Their duplication is the parity check; do not consolidate them
 behind a shared numerical core.
 
-`chp_tableau.py` is a standalone simulator library. It must not import from
-`qminesweeper`; the PurePy adapter connects it to the game contracts.
+`src/chppy/` is an independent project vendored here rather than a component of
+this application, kept ready to branch out into its own repository.
+`ChppyBackend` is the sole adapter connecting it to the game contracts, and
+absorbs any mismatch. That boundary is why the package keeps its own copies of
+the gate-arity sets and the subset validator instead of importing the shared
+definitions. `AGENTS.md` owns the rule to follow when changing it.
+
+### Seeded sampling is per-backend
+
+`QuantumBackend.random_clifford_circuit` accepts a `seed`, but the keyword is
+best-effort and every backend documents its own behaviour. A seed is not a
+portable board identifier.
+
+- `ChppyBackend` honours it, with a generator independent of the global NumPy
+  stream that unseeded calls use. Its docstring documents how the two relate.
+- `QiskitBackend` honours it, via `random_clifford(k, seed=...)`.
+- `StimBackend` ignores it: `stim.Tableau.random` exposes no seeding parameter.
+
+A backend that cannot seed must accept and ignore the keyword rather than
+substitute a different sampler when one is passed, which would make the
+sampling distribution depend on whether the caller seeded.
+
+Where a seed is honoured it fixes the sampled circuit only. A whole board also
+depends on the mine-index draw in `span_random_stabilizer_mines` and on
+measurement outcomes, both of which use the global NumPy stream, so pinning a
+board still means seeding that stream.
+
+The backends also sample from different distributions: Stim and Qiskit draw
+uniform Cliffords while chppy draws a scrambling circuit.
+`span_random_stabilizer_mines` rejection-samples for the properties the game
+needs, so uniformity is not a rule the game depends on, and no interface claims
+it.
 
 ## Entanglement probes
 
@@ -166,12 +196,12 @@ change, so an older response cannot replace a newer diagnostic.
 
 ## Browser-only distribution
 
-`qminesweeper/browser.py` owns an in-memory `BrowserSession`. Setup, move,
+`src/qminesweeper/browser.py` owns an in-memory `BrowserSession`. Setup, move,
 reset, and new-same operations all return the shared serialized state.
 
 The browser session can export and import a versioned snapshot containing setup
 parameters, game status, preparation circuit, clue and flood-fill settings,
-exploration and pin state, measured outcomes, and the PurePy tableau. The web
+exploration and pin state, measured outcomes, and the chppy tableau. The web
 frontend persists this snapshot in `localStorage`.
 
 `scripts/build_browser.py` produces `dist/` with:
@@ -214,7 +244,7 @@ produced first.
 ## Performance boundary
 
 Whole-board observables, especially `expected_mines()` and
-`entanglement_score()`, are the main PurePy render cost. Optimize only from
+`entanglement_score()`, are the main chppy render cost. Optimize only from
 measured browser evidence. Preferred mitigations are backend-agnostic
 expectation caching, invalidation after measurements and gates, and lazy or
 throttled entanglement display before reducing supported board sizes.
@@ -228,3 +258,13 @@ throttled entanglement display before reducing supported board sizes.
 - Circuit history, challenges, scoring, and RL tooling should build on the
   shared engine contract and its deterministic seeds rather than introduce
   parallel state models.
+- Cross-backend seeded reproducibility is deferred, not pending. Delivering it
+  means moving random-Clifford sampling out of `QuantumBackend` into one shared
+  seeded sampler, because no per-backend fix can reach it: Stim cannot seed
+  `Tableau.random`, and the browser runs chppy under Pyodide, so a Stim-side
+  fix would never apply there. Waiting on upstream does not help either —
+  quantumlib/Stim#1099 proposes `stim.TableauSampler(k, seed=...)` but is
+  unmerged, and warns that a seeded sequence is stable across neither Stim
+  versions nor CPU SIMD builds. Revisit only if reproducible shared boards
+  become a product requirement, such as challenge seeds or published boards,
+  and weigh it against the rule above that the backends stay independent.

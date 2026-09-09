@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Merged the companion paper's staging copy into the canonical
+  `manuscript/qminesweeper.tex`, which now supersedes it, and pointed the
+  manuscript repository at the authors' Overleaf project. `AGENTS.md` records
+  the single-source rule that replaces the staging workflow.
+- Fixed `StimBackend.random_clifford_circuit` dropping the `seed` keyword its
+  `QuantumBackend` base class declares, which raised `TypeError` on any caller
+  that passed one, and added a conformance test covering every backend.
+- Made `ChppyBackend.random_clifford_circuit` honour `seed`, giving in-backend
+  reproducibility without disturbing the global NumPy stream that unseeded calls
+  and the golden export tests use. Stim still cannot seed, so `seed` remains
+  best-effort and per-backend, and cross-backend seeded reproducibility is now
+  recorded as deliberately deferred in `architecture.md`.
+- Extracted the stabilizer tableau into `chppy`, an independent vendored package
+  under `src/chppy/`, kept ready to branch out into its own repository. It has no
+  references to the rest of the code and its own test suite in `tests/chppy/`,
+  checked against independently computed reference values.
+- **Breaking:** renamed the pure-Python backend from `purepy` to `chppy`, after
+  the library it adapts. `QMS_BACKEND=purepy` and `--backend purepy` are no
+  longer accepted and now raise an unknown-backend error; use `chppy`.
+  `PurePyBackend`/`PurePyState` became `ChppyBackend`/`ChppyState`. Deployments
+  are unaffected: `scripts/deploy.sh` defaults to `stim`.
+- Moved the packages under `src/` and split tests to match, as
+  `tests/qminesweeper/` and `tests/chppy/`. The game's pytest fixtures moved to
+  `tests/qminesweeper/conftest.py` so the chppy suite no longer imports the
+  application, and the browser bundle now serves both packages from `dist/py/`
+  with its module manifest at that root.
 - Added default-on web entanglement probes with cell, drag-rectangle, and
   shift-click selection, and an optional two-area mutual-information comparison
   in Advanced Setup. Region editing is one exclusive selection mode alongside

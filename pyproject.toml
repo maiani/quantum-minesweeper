@@ -61,11 +61,14 @@ Changelog = "https://github.com/maiani/quantum-minesweeper/blob/master/CHANGELOG
 qminesweeper = "qminesweeper.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = "."}
+package-dir = {"" = "src"}
 
+# Two distributions' worth of code in one wheel: the game, and the standalone
+# chppy stabilizer library it vendors. chppy is maintained as an independent
+# project (see AGENTS.md) and is kept ready to move to its own repository.
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["qminesweeper*"]
+where = ["src"]
+include = ["qminesweeper*", "chppy*"]
 
 [tool.setuptools.package-data]
 qminesweeper = [
@@ -82,7 +85,7 @@ addopts = ["-ra", "-q"]
 testpaths = [
   "tests",
 ]
-pythonpath = ["."]
+pythonpath = ["src"]
 
 # ---------------- Ruff ----------------
 
@@ -123,7 +126,7 @@ qminesweeper = { path = ".", editable = true }
 default = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.tasks]
-lint = { cmd = "python -m ruff check qminesweeper tests scripts", description = "Run Python lint checks" }
+lint = { cmd = "python -m ruff check src tests scripts", description = "Run Python lint checks" }
 test = { cmd = "pytest", description = "Run the Python test suite" }
 js-check = { cmd = "python scripts/check_js.py", description = "Check JavaScript syntax" }
 check = { depends-on = ["lint", "test", "js-check"], description = "Run lint, tests, and JavaScript checks" }

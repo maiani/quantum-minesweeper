@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "qminesweeper" / "static" / "scripts"
+SCRIPTS = ROOT / "src" / "qminesweeper" / "static" / "scripts"
 
 
 def main() -> None:

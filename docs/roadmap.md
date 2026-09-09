@@ -40,7 +40,7 @@ None open.
 
 ### Browser persistence
 
-- [ ] Replace direct access to private board fields and PurePy tableau arrays
+- [ ] Replace direct access to private board fields and chppy tableau arrays
   with public, versioned snapshot methods.
 - [ ] Validate snapshot shapes, enum values, dimensions, and tableau consistency
   before mutating a live session.
@@ -64,13 +64,6 @@ None open.
   mutation.
 - [ ] Align Cloud Run concurrency, Uvicorn worker assumptions, and documented
   server guarantees with the chosen model.
-
-### Analytics store
-
-- [x] Move admin reads and CSV export behind public, locked `SQLiteStore`
-  methods.
-- [x] Remove route-level access to `STATS_DB._db`.
-- [x] Add tests for concurrent analytics reads/writes and empty CSV export.
 
 ### Configuration ownership
 
@@ -100,7 +93,7 @@ None open.
 
 ### Browser performance
 
-A local Python benchmark on 2026-08-09 measured about 42 ms for PurePy
+A local Python benchmark on 2026-08-09 measured about 42 ms for chppy
 whole-board observables on the largest 375-qubit preset. This does not measure
 Pyodide, DOM rendering, startup, or mobile hardware.
 

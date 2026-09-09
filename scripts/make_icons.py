@@ -28,8 +28,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ICONS = ROOT / "qminesweeper" / "static" / "icons"
-FAVICON = ROOT / "qminesweeper" / "static" / "favicon.svg"
+ICONS = ROOT / "src" / "qminesweeper" / "static" / "icons"
+FAVICON = ROOT / "src" / "qminesweeper" / "static" / "favicon.svg"
 ICON_SVG = ICONS / "icon.svg"  # generated, derived from favicon.svg
 
 CANVAS = 512  # icon is CANVAS x CANVAS

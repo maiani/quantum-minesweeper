@@ -7,18 +7,25 @@ documentation, and paper terminology aligned.
 
 ## Repository map
 
-- `qminesweeper/game.py`: rules and win conditions.
-- `qminesweeper/board.py`: board mechanics and exported state.
-- `qminesweeper/quantum_backend.py`: simulator interface and the single source
-  for one- and two-qubit gate arity.
-- `qminesweeper/{purepy,stim,qiskit}_backend.py`: simulator implementations.
-- `qminesweeper/engine.py`: framework-free commands, setup validation, game
+`src/` holds two importable packages: the game, and the standalone `chppy`
+stabilizer library it vendors. Tests mirror that split under `tests/`.
+
+- `src/qminesweeper/game.py`: rules and win conditions.
+- `src/qminesweeper/board.py`: board mechanics and exported state.
+- `src/qminesweeper/quantum_backend.py`: simulator interface and the single
+  source for one- and two-qubit gate arity.
+- `src/qminesweeper/{chppy,stim,qiskit}_backend.py`: simulator implementations.
+- `src/qminesweeper/engine.py`: framework-free commands, setup validation, game
   construction, and `serialize_game`.
-- `qminesweeper/browser.py`: Pyodide-safe in-browser session on PurePy.
-- `qminesweeper/server.py`: FastAPI and Jinja server runtime.
-- `qminesweeper/static/scripts/render.js`: shared game renderer.
-- `qminesweeper/static/`: shared frontend assets and contextual help.
-- `qminesweeper/docs/`: user-facing setup and About content rendered in-app.
+- `src/qminesweeper/browser.py`: Pyodide-safe in-browser session on chppy.
+- `src/qminesweeper/server.py`: FastAPI and Jinja server runtime.
+- `src/qminesweeper/static/scripts/render.js`: shared game renderer.
+- `src/qminesweeper/static/`: shared frontend assets and contextual help.
+- `src/qminesweeper/docs/`: user-facing setup and About content rendered in-app.
+- `src/chppy/`: vendored standalone stabilizer library; see the rule below
+  before touching it.
+- `tests/qminesweeper/`, `tests/chppy/`: one suite per package, each with its
+  own `conftest.py`.
 - `scripts/build_browser.py`: static PWA build.
 - `manuscript/`: ignored companion-paper workspace; see the paper rules below.
 
@@ -63,14 +70,43 @@ such in code, documentation, and the paper.
 - Evolve existing server routes; do not add a parallel `/api/*` game-state
   namespace.
 - Treat `QuantumBackend` as a simulator abstraction, not a deployment runtime.
-- Import optional simulators lazily. Local and browser runs default to PurePy;
+- Import optional simulators lazily. Local and browser runs default to chppy;
   Docker/server deployment defaults to Stim.
 - Declare gate arity only in `quantum_backend.py`; do not duplicate the split.
+  `src/chppy/` is the one exception, for the reason in its own rule below.
 - Keep Cloud Run optional. Browser distribution must remain a first-class mode,
   not a forked product.
 
 The TUI uses the shared engine command parser and dispatcher while retaining its
 own setup and lifecycle flow. Check it whenever a shared interface changes.
+
+## `chppy` is an independent project
+
+Treat `src/chppy/` as a separate library that is vendored here, not as part of
+this application. It is kept ready to branch out into its own repository if we
+decide to, so every change must leave it extractable: copy `src/chppy/` and
+`tests/chppy/`, with no edits.
+
+- Develop it as its own project: numpy is its only dependency. Allow no imports
+  from this repository, and no references to the rest of the code in comments,
+  docstrings, or examples — do not name this game, its modules, its tests, its
+  documentation, or its terminology there.
+- Define its public surface only in terms of qubits, gate-name strings, and
+  Pauli bases. Application meaning belongs in the calling adapter.
+- Accept the resulting duplication. It re-declares the gate-arity split and the
+  subset validator on purpose; keep those copies in sync by hand rather than
+  importing the shared definitions.
+- Couple to it in one direction only. `qminesweeper/chppy_backend.py` is the
+  sole adapter, and it absorbs any mismatch between game contracts and the
+  library.
+- Test it on its own terms in `tests/chppy/`, against independently computed
+  reference values rather than another simulator, so the suite needs no
+  optional dependencies. Keep application fixtures out of any `conftest.py`
+  above that directory, and do not add `tests/chppy/__init__.py` — it would
+  shadow the package under test.
+
+If a change to it seems to require reaching into the application, the change
+belongs in the adapter instead.
 
 ## Implementation and verification
 
@@ -115,14 +151,14 @@ change. Do not leave conflicting descriptions for a later cleanup.
 
 Use this source-of-truth hierarchy:
 
-- Implemented rules and win semantics: `qminesweeper/game.py`.
-- Board mechanics and exported grid semantics: `qminesweeper/board.py`.
-- Gate vocabulary and arity: `qminesweeper/quantum_backend.py`.
+- Implemented rules and win semantics: `src/qminesweeper/game.py`.
+- Board mechanics and exported grid semantics: `src/qminesweeper/board.py`.
+- Gate vocabulary and arity: `src/qminesweeper/quantum_backend.py`.
 - Commands, setup validation, and serialized state contract:
-  `qminesweeper/engine.py`.
+  `src/qminesweeper/engine.py`.
 - Visible game presentation and tool layout: `render.js` and `tools.js`.
 - Shared visible page structure: Jinja templates under
-  `qminesweeper/templates/`.
+  `src/qminesweeper/templates/`.
 - Stable design decisions: `docs/architecture.md`.
 - Active priorities and deferred work: `docs/roadmap.md`.
 - Released behavior: `CHANGELOG.md` and the tagged implementation.
@@ -130,15 +166,16 @@ Use this source-of-truth hierarchy:
 Documentation explains these sources; it must not independently redefine them.
 When behavior, terminology, configuration, or a public interface changes, audit
 and update the applicable README, user docs, contextual help, architecture,
-roadmap, changelog, and manuscript staging copy. If code and documentation
+roadmap, changelog, and manuscript. If code and documentation
 conflict, establish the intended behavior first, then update every dependent
 description consistently.
 
-- `manuscript/qminesweeper.tex` and `manuscript/qminesweeper.bib` are canonical
-  files owned by the authors. Do not edit them.
-- Propose paper changes only in `manuscript/qminesweeper_staging.tex` and
-  `manuscript/qminesweeper_staging.bib`.
-- The user incorporates accepted staging changes into the canonical files.
+- `manuscript/` is a separate git repository, ignored by this one, whose
+  `origin` is the authors' Overleaf project. `manuscript/qminesweeper.tex` and
+  `manuscript/qminesweeper.bib` are the single canonical source; the earlier
+  `_staging` copies were merged into them and no longer exist.
+- Propose paper changes as edits to those files, and leave committing and
+  pushing to Overleaf to the user. Do not push that repository.
 - Keep paper statements mathematically consistent with implemented behavior.
   Mark future work and alternative rules explicitly.
 - In particular, keep expectation-value clues, win-condition semantics,
