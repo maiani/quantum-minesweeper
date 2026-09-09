@@ -204,7 +204,6 @@
 .probe-panel p { margin: 0.3rem 0; }
 .probe-controls { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
 .probe-controls .active { outline: 2px solid var(--accent); }
-.probe-hint { color: var(--muted); font-size: 0.9rem; }
 .probe-result { min-height: 1.4em; }
 .probe-breakdown { color: var(--muted); font-size: 0.9rem; }
 

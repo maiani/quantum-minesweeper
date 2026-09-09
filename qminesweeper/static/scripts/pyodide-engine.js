@@ -200,6 +200,6 @@ class PyodideEngine {
   }
 }
 
-// Exposed for the browser-entry page (Phase 2G), which will set
+// Exposed for the browser-entry page, which sets
 // window.GameEngine = new PyodideEngine(...) instead of the HttpEngine.
 window.PyodideEngine = PyodideEngine;

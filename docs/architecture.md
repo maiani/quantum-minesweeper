@@ -118,6 +118,13 @@ gesture is also reachable by keyboard, and a region need not be connected or
 rectangular. Two selected regions must be disjoint. The complement is always all remaining board qubits, including
 revealed cells. Selection never changes the state or gate-target legality.
 
+Editing a region is a frontend selection mode, like the move tools it sits
+beside: exactly one of them is armed, and it decides what a cell click does.
+Arming a region clears the tool row's highlight, choosing a tool drops the
+armed region, and both share the one hint line under the move buttons. The
+probe panel is therefore a readout — region sizes and the entropy or mutual
+information — and never a second place to look for what a click will do.
+
 `StabilizerQuantumState.entanglement_entropy(subset)` returns the von Neumann
 entropy of the selected reduced state in bits. The complete state is pure,
 conditioned on recorded measurement outcomes, so this is entanglement entropy

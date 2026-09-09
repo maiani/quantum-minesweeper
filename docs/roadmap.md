@@ -160,14 +160,6 @@ Pyodide, DOM rendering, startup, or mobile hardware.
 
 ## P3 — Research and exploration
 
-### Region entanglement probes
-
-- [ ] Let the player select a connected region, boundary, or cut.
-- [ ] Add and parity-test a backend API such as
-  `entanglement_entropy(subset: list[int]) -> float`.
-- [ ] Report bipartite entropy $S(A : \bar{A})$ as an advanced Sandbox
-  diagnostic.
-
 ### Basis-changing clues
 
 - [ ] Let learners compare Z-, X-, and Y-basis expectation clues.

@@ -3,9 +3,10 @@
 // The "engine" is the seam between the UI and "apply a move, get new state".
 //
 // In server mode (this file, HttpEngine) a move is a POST to /move that returns
-// the new game-state JSON. In the future browser build, a PyodideEngine with the
-// SAME move() method will run the game in-page and return the same state shape —
-// so the renderer and the rest of the UI don't change between modes.
+// the new game-state JSON. In the browser build, the PyodideEngine in
+// pyodide-engine.js has the SAME move() method, runs the game in-page and
+// returns the same state shape — so the renderer and the rest of the UI don't
+// change between modes.
 //
 // Contract:  engine.move(gameId, cmd) -> Promise<state>
 //   `cmd`   : a move command string (e.g. "2,3", "X 1,1", "CX 1,1 2,2"),
@@ -37,6 +38,6 @@ class HttpEngine {
   }
 }
 
-// The active engine. Phase 2E will replace this with a PyodideEngine in the
-// browser-only build; everything else keys off window.GameEngine.
+// The active engine. The browser-only build replaces it with a PyodideEngine
+// (see browser-main.js); everything else keys off window.GameEngine.
 window.GameEngine = new HttpEngine();

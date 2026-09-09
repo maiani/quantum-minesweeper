@@ -6,7 +6,9 @@ All notable changes to this project will be documented in this file.
 
 - Added default-on web entanglement probes with cell, drag-rectangle, and
   shift-click selection, and an optional two-area mutual-information comparison
-  in Advanced Setup. Probe rules are preserved by reset, new-same, and browser
+  in Advanced Setup. Region editing is one exclusive selection mode alongside
+  the move tools and shares their hint line, leaving the probe panel as a
+  readout. Probe rules are preserved by reset, new-same, and browser
   save/restore.
 - Added `QMS_ENABLE_ENTANGLEMENT_PROBES`, a deployment switch for the
   entanglement probe, also on the admin dashboard. It bounds every game built,
@@ -27,6 +29,10 @@ All notable changes to this project will be documented in this file.
 - Moved admin analytics reads and CSV export behind public, lock-guarded
   `SQLiteStore` methods, so routes no longer reach into the private database
   connection and concurrent reads cannot observe a torn counter snapshot.
+- Fixed the contextual help panel swapping back to the activated topic as soon
+  as the pointer moved into it, which made a hovered topic unreadable past its
+  first screenful. Arming a mode, including a probe region, now also sets the
+  topic that hovering returns to.
 - Fixed the analytics CSV export to emit column headers when no games exist.
 - Replaced the browser build's plain loading text with a staged progress bar for
   the Pyodide boot, and locked the setup form while a game starts.

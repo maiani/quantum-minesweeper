@@ -21,8 +21,8 @@
 //
 // "state" is game data only (see engine.serialize_game in Python). "config" is
 // server/build settings (e.g. whether the reset button is allowed). They are
-// kept separate on purpose: in the future browser build, the in-browser engine
-// produces `state`, while `config` comes from the build.
+// kept separate on purpose: in the browser build the in-browser engine produces
+// `state`, while `config` comes from the build.
 //
 // MOVES: clicking a cell calls the engine (engine.js), which POSTs /move and
 // returns the new state; applyState() re-renders in place — no page reload.
@@ -291,10 +291,14 @@ function setProbeEdit(mode) {
   renderProbePanel();
   const active = document.querySelector(`[data-probe-mode="${mode}"]`);
   if (active) active.focus();
+  // Help follows the armed mode: the probe's own topic while a region is being
+  // edited, and the move tool's topic again once the region is dropped.
   if (_probeEdit) {
     document.dispatchEvent(new CustomEvent("tool:selected", {
       detail: { toolId: "region-probe", helpId: "region-probe" },
     }));
+  } else if (window.GameTools) {
+    window.GameTools.announceTool();
   }
 }
 
@@ -516,12 +520,19 @@ function probeButton(text, mode) {
   });
 }
 
-// Rewrite the editing hint alone. The drag preview updates on every pointer
+// Rewrite the shared hint line alone. The drag preview updates on every pointer
 // move, which is far too often to rebuild the panel (and would keep stealing
-// focus from the buttons inside it).
+// focus from the buttons inside it). tools.js puts the armed mode's own hint
+// back the next time the panel is rendered.
 function setProbeHint(text) {
-  const hint = document.querySelector(".probe-hint");
-  if (hint) hint.textContent = text;
+  if (window.GameTools) window.GameTools.setHint(text);
+}
+
+// Region editing and the move tools are one exclusive selection, and tools.js
+// paints both the tool row and the hint line from it. Call this whenever the
+// armed region changes.
+function syncToolUi() {
+  if (window.GameTools) window.GameTools.refresh();
 }
 
 function renderProbePanel() {
@@ -531,40 +542,41 @@ function renderProbePanel() {
     host.replaceChildren();
     return;
   }
-  const controls = [probeButton("Edit A", "A")];
-  if (_config.two_area_probes) controls.push(probeButton("Edit B", "B"));
+  const controls = [probeButton("Region A", "A")];
+  if (_config.two_area_probes) controls.push(probeButton("Region B", "B"));
   controls.push(el("button", { type: "button", class: "btn", text: "Clear regions", onclick: clearProbes }));
 
   const result = _probeResult;
   const error = _probeError;
-  let primary = "Pick some cells for region A.";
-  // The parts a two-region result is built from. What any of it *means* is
-  // help-pane material (static/help/region-probe), not panel text.
+  // The panel is a readout: it names the quantity and gives its value, or an em
+  // dash while there is nothing to compute. How to select cells belongs to the
+  // hint line, and what any of it *means* to the help pane
+  // (static/help/region-probe) — neither is panel text.
+  const pairMode = Boolean(_config.two_area_probes && _probeA.size && _probeB.size);
+  const label = pairMode ? "Shared information between A and B" : "Entanglement with the rest of the board";
+  // The parts a two-region result is built from.
   let breakdown = null;
-  if (_mutationPending && _probeA.size) primary = "Waiting for the move to complete…";
-  else if (_probeA.size && !result && !error) primary = "Calculating…";
+  let primary;
   if (error) {
     primary = `Probe unavailable: ${error}`;
-  } else if (result && _probeB.size && result.mutual_information !== null) {
-    primary = `Shared information between A and B: ${formatBits(result.mutual_information)}`;
+  } else if (result && pairMode && result.mutual_information !== null) {
+    primary = `${label}: ${formatBits(result.mutual_information)}`;
     breakdown = `S(A) ${formatBits(result.entropy_a)} · S(B) ${formatBits(result.entropy_b)} · S(A ∪ B) ${formatBits(result.entropy_union)}`;
   } else if (result) {
-    primary = `Entanglement with the rest of the board: ${formatBits(result.entropy_a)}`;
+    primary = `${label}: ${formatBits(result.entropy_a)}`;
+  } else if (!_probeA.size) {
+    primary = `${label}: —`;
+  } else {
+    primary = `${label}: ${_mutationPending ? "waiting for the move…" : "calculating…"}`;
   }
   host.replaceChildren(el("section", { class: "probe-panel", "help-id": "region-probe", "aria-label": "Entanglement probe" }, [
     el("h3", { text: "Entanglement probe" }),
     el("div", { class: "probe-controls" }, controls),
-    // Only shown while editing; the drag preview rewrites this line in place.
-    _probeEdit
-      ? el("p", {
-          class: "probe-hint",
-          text: `Region ${_probeEdit}: click cells to add or remove them. Drag to draw a rectangle, or shift-click to stretch one from the dashed cell.`,
-        })
-      : null,
     el("p", { class: "probe-counts", text: `Region A: ${_probeA.size} cell${_probeA.size === 1 ? "" : "s"}${_config.two_area_probes ? ` · Region B: ${_probeB.size} cell${_probeB.size === 1 ? "" : "s"}` : ""}` }),
     el("p", { class: "probe-result", "aria-live": "polite", text: primary }),
     breakdown ? el("p", { class: "probe-breakdown", text: breakdown }) : null,
   ]));
+  syncToolUi();
 }
 
 // Which gate buttons appear, grouped into rows for layout. Ordering and row
@@ -730,7 +742,7 @@ function applyState(state) {
 
 // Exposed so the move flow (tools.js) can re-render after the engine returns new
 // state, and so it knows which game to send moves for. The browser-mode engine
-// (Phase 2E) drives this exactly the same way.
+// drives this exactly the same way.
 window.GameRenderer = {
   applyState,
   gameId: () => _gameId,
@@ -743,6 +755,7 @@ window.GameRenderer = {
   },
   clearProbes,
   stopProbeEditing,
+  probeMode: () => _probeEdit,
   mergeConfig: (config) => {
     _config = { ..._config, ...config };
     renderProbePanel();

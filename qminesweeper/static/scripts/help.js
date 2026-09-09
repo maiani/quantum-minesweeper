@@ -204,6 +204,12 @@
     // the pointer moves onto something that is not inside a [help-id] element,
     // `owner` is null and the panel goes back to the activated topic.
     document.addEventListener("mouseover", (event) => {
+      // Moving into the panel itself must never change the topic: the pointer
+      // goes there to scroll and read whatever is on screen, hovered or
+      // activated. Without this the panel would swap back to the activated
+      // topic the moment the pointer crossed into it, making any hovered topic
+      // unreadable past its first screenful.
+      if (event.target.closest && event.target.closest(`#${PANEL_ID}`)) return;
       const owner = event.target.closest ? event.target.closest("[help-id]") : null;
       if (owner === hoveredOwner) return;
       hoveredOwner = owner;
@@ -236,9 +242,14 @@
         loadHelp(currentTool + "-gate");
       }
     }
+    // Arming a mode — a gate, Measure, Pin, or a probe region — is an
+    // activation, so its topic becomes the one hovering returns to. Region
+    // buttons carry their help on the surrounding panel rather than on
+    // themselves, so the click listener above cannot make them sticky.
     document.addEventListener("tool:selected", (e) => {
       const { helpId } = e.detail;
       if (helpId) {
+        activeHelpId = helpId;
         loadHelp(helpId);
       }
     });

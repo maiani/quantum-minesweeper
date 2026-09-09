@@ -17,11 +17,42 @@ function currentGateArity() {
   return Number(button.dataset.arity);
 }
 
+// The entanglement probe's region editing is a selection mode just like Pin:
+// while it is armed, clicking a cell edits a region instead of playing a move.
+// render.js owns that state (it draws the regions and handles the clicks), so
+// this file only asks whether it is on. One armed mode, one source of truth.
+function activeProbeMode() {
+  const renderer = window.GameRenderer;
+  return renderer && renderer.probeMode ? renderer.probeMode() : null;
+}
+
+// Paint the tool row: nothing is highlighted while a probe region is armed,
+// because the tool is not what the next cell click will do.
+function syncToolSelection() {
+  const probeMode = activeProbeMode();
+  document.querySelectorAll(".btn.tool").forEach((button) => {
+    const token = button.dataset.toolId || button.textContent;
+    button.classList.toggle("active", !probeMode && token === currentTool);
+  });
+}
+
+// Overwrite the hint line with one-off text (the probe's live drag readout).
+// The next updateToolHint() call replaces it with the armed mode's own hint.
+function setToolHint(text) {
+  const hint = document.getElementById("tool-hint");
+  if (hint) hint.textContent = text;
+}
+
 function updateToolHint() {
   const hint = document.getElementById("tool-hint");
   if (!hint) return;
 
-  if (currentTool === "M") {
+  const probeMode = activeProbeMode();
+  if (probeMode) {
+    hint.textContent =
+      `Region ${probeMode} selected: click cells to add or remove them. ` +
+      "Drag to draw a rectangle, or shift-click to stretch one from the dashed cell.";
+  } else if (currentTool === "M") {
     hint.textContent = "Measure selected: choose a cell.";
   } else if (currentTool === "P") {
     hint.textContent = "Pin selected: choose a cell to mark.";
@@ -46,24 +77,26 @@ function setTool(t) {
   if (window.GameRenderer) window.GameRenderer.stopProbeEditing();
 
   // Active style
-  document.querySelectorAll('.btn.tool').forEach(b => {
-    b.classList.toggle('active', b.textContent === t);
-  });
+  syncToolSelection();
   document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
 
-  // --- Dispatch tool:selected for help.js ---
-  const el = document.querySelector('.btn.tool.active');
-  if (el) {
-    const toolId = el.dataset.toolId || el.textContent;
-    const helpId = el.getAttribute("help-id");
-    document.dispatchEvent(
-      new CustomEvent("tool:selected", {
-        detail: { toolId, helpId }
-      })
-    );
-  }
-
+  announceTool();
   updateToolHint();
+}
+
+// Tell help.js which mode is now armed, so the help panel rests on its topic.
+// Called when a tool is chosen and when a probe region is dropped, since the
+// tool is what a cell click does again from then on.
+function announceTool() {
+  const el = document.querySelector('.btn.tool.active');
+  if (!el) return;
+  const toolId = el.dataset.toolId || el.textContent;
+  const helpId = el.getAttribute("help-id");
+  document.dispatchEvent(
+    new CustomEvent("tool:selected", {
+      detail: { toolId, helpId }
+    })
+  );
 }
 
 function cancelMovePick() {
@@ -125,6 +158,17 @@ function clickCell(r, c) {
     }
   }
 }
+
+// Exposed for render.js: arming or dropping a probe region changes which mode
+// the tool row should show as active and what the shared hint line should say.
+window.GameTools = {
+  refresh: () => {
+    syncToolSelection();
+    updateToolHint();
+  },
+  setHint: setToolHint,
+  announceTool,
+};
 
 // restore last selected tool on load
 document.addEventListener("DOMContentLoaded", () => {

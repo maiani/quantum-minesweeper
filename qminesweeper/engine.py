@@ -1,6 +1,6 @@
 # qminesweeper/engine.py
 """
-Framework-free game engine contract shared by the server routes and the future
+Framework-free game engine contract shared by the server routes and the
 in-browser (Pyodide) engine.
 
 - `serialize_game` is the read side: a lean game-state **dict** (game data only;

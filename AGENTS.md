@@ -37,8 +37,10 @@ substantive logic in Python or `scripts/`, not in task-runner recipes.
 - Pinning is a player annotation, not a quantum operation.
 - Gates cannot target explored cells. Explored cells are revealed classical
   information and must not be transformed or re-hidden.
-- The displayed entanglement score is based on local single-qubit entropy.
-  Region bipartite entropy remains a later advanced feature.
+- The status bar's entanglement score is the sum of local single-qubit
+  entropies. Region bipartite entropy S(A : rest) and mutual information
+  I(A:B) are the separate read-only entanglement probe; keep the two
+  observables distinct in code, documentation, and the paper.
 
 Do not silently change these semantics. If exploring a variant, label it as
 such in code, documentation, and the paper.
