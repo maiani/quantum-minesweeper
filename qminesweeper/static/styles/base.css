@@ -390,22 +390,52 @@ select:focus-visible {
     }
 }
 
+/* The header icon alternates between the bomb and the blast. Both glyphs live
+   in the same single-cell grid so they stack without the header width jumping,
+   and each runs the same fade cycle half a period apart. */
 .mine-icon {
-    display: inline-block;
-    animation: quantum-fade 2s ease-in-out infinite;
+    display: inline-grid;
+    place-items: center;
+    vertical-align: text-bottom;
 }
 
+.mine-icon > span {
+    grid-area: 1 / 1;
+    animation: quantum-fade 4s ease-in-out infinite;
+}
+
+/* Negative delay starts the blast mid-cycle, so it is already faded out at
+   page load instead of flashing on top of the bomb. */
+.mine-icon > .mine-blast {
+    animation-delay: -2s;
+}
+
+/* Each glyph is visible for exactly half the period, so with the half-period
+   offset the two windows are exact complements: one is fully faded out before
+   the other starts fading in, and the loop is symmetric in both directions
+   (1.2s held, 0.4s fade out, 2s hidden, 0.4s fade in). */
 @keyframes quantum-fade {
-    0% {
+    0%,
+    15% {
         opacity: 1;
     }
 
-    50% {
+    25%,
+    75% {
         opacity: 0;
     }
 
+    85%,
     100% {
         opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* The global reduced-motion rule freezes animations on their last keyframe,
+       where both glyphs are opaque; show only the bomb instead. */
+    .mine-icon > .mine-blast {
+        display: none;
     }
 }
 
