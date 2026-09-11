@@ -36,7 +36,6 @@ ENV_VAR_ITEMS=(
   "QMS_SURVEY_URL=${QMS_SURVEY_URL:-}"
   "QMS_ENABLE_ENTANGLEMENT_PROBES=${QMS_ENABLE_ENTANGLEMENT_PROBES:-1}"
   "QMS_BASE_URL=${QMS_BASE_URL:-}"
-  "QMS_DB_PATH=${QMS_DB_PATH:-/tmp/qms.sqlite}"
   "QMS_GA_MEASUREMENT_ID=${QMS_GA_MEASUREMENT_ID:-}"
   "QMS_ENABLE_BROWSER_ANALYTICS=${QMS_ENABLE_BROWSER_ANALYTICS:-1}"
   "QMS_ANALYTICS_ALLOWED_ORIGINS=${QMS_ANALYTICS_ALLOWED_ORIGINS:-}"
@@ -46,6 +45,15 @@ ENV_VAR_ITEMS=(
   "QMS_ANALYTICS_RETENTION_DAYS=${QMS_ANALYTICS_RETENTION_DAYS:-365}"
   "QMS_ENABLE_BROWSER_APP=${QMS_ENABLE_BROWSER_APP:-1}"
 )
+# QMS_DB_PATH is deliberately not passed. scripts/entrypoint.sh owns the runtime
+# database location: it copies the persisted trio from the /data volume mounted
+# below into /tmp on start, exports QMS_DB_PATH=/tmp/qms.sqlite itself, and
+# copies back every 30 minutes and on SIGTERM, so SQLite runs on local disk
+# rather than over gcsfuse, where file locking is not dependable. Setting it
+# here only duplicated what the entrypoint exports a moment later, and passing
+# an operator-chosen value would be a promise this image cannot keep, since the
+# entrypoint overwrites it unconditionally.
+
 # gcloud accepts a custom delimiter via the ^DELIM^ prefix. A comma cannot be
 # the delimiter because ANALYTICS_ALLOWED_ORIGINS is itself comma-separated.
 ENV_VARS="$(IFS='|'; echo "^|^${ENV_VAR_ITEMS[*]}")"

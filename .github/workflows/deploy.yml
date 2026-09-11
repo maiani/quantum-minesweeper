@@ -83,6 +83,10 @@ jobs:
       QMS_ENABLE_BROWSER_APP: ${{ vars.QMS_ENABLE_BROWSER_APP || '1' }}
       QMS_BASE_URL: ${{ vars.QMS_BASE_URL }}
       QMS_BUCKET: ${{ vars.QMS_BUCKET }}
+      # The secret is named without the QMS_ prefix; deploy.sh reads the
+      # prefixed name, so without this line the configured id never arrived and
+      # the page shipped with no analytics tag at all.
+      QMS_GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
       CLOUD_RUN_MEMORY: ${{ vars.CLOUD_RUN_MEMORY || '512Mi' }}
       CLOUD_RUN_CPU: ${{ vars.CLOUD_RUN_CPU || '1' }}
       CLOUD_RUN_CONCURRENCY: ${{ vars.CLOUD_RUN_CONCURRENCY || '200' }}
