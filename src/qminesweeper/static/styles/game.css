@@ -20,7 +20,7 @@
 
   text-align: center;
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
   transition: background-color 0.2s ease, border-color 0.2s ease;
   font-variant-numeric: tabular-nums; /* the number must not jitter as it changes */
 }
@@ -57,7 +57,7 @@
 
 .status-row [help-id]:hover {
   border: 1px groove var(--accent);
-  background-color: rgba(106,160,255,0.1);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 /* ---------- Shared transitions ---------- */
@@ -66,13 +66,29 @@
   transition: background 0.2s, transform 0.05s, color 0.2s;
 }
 
-/* ---------- Board / Tile buttons ---------- */
+/* ---------- Board / Tile buttons ----------
+   The board sizes itself to the space it is given. `container-type` makes this
+   element the reference box, so `cqw` below is a percentage of the board area's
+   own width rather than of the viewport -- the distinction that matters, since
+   the page is capped at 1000px and gutters come off that.
+
+   `safe center` rather than plain `center`: a centred flex item that overflows
+   its container overflows equally in both directions, and the part that lands
+   before the scroll origin cannot be reached by scrolling at all. `safe` drops
+   back to start alignment exactly when that would happen, which is what makes
+   the overflow: auto below actually able to reach every column. */
 .board-container {
   display: flex;
   justify-content: center;
+  justify-content: safe center;
   margin: 1em 0;
+  container-type: inline-size;
+  overflow-x: auto;
 }
 
+/* --cols is set by render.js from the game's own column count. The vertical
+   margin doubles as the room the probe badges and anchor rings need to hang
+   outside the top row without being clipped by the scroll container. */
 .board {
   border-collapse: collapse;
   margin: 16px 0;
@@ -83,14 +99,25 @@
 }
 
 .board button {
+  /* Each column costs one tile plus the td padding on either side. Divide the
+     available width by the column count to get the largest tile that still
+     fits, then take the comfortable maximum if that is bigger (small boards
+     must not blow up into slabs) and the readable minimum if it is smaller
+     (very wide boards scroll sideways instead of shrinking to nothing). */
+  --tile-fit: calc((100cqw - var(--tile-gap) * 2 * var(--cols, 10)) / var(--cols, 10));
+  --tile-size: max(var(--tile-min), min(var(--tile-max), var(--tile-fit)));
+
   position: relative;
-  width: var(--tile);
-  height: var(--tile);
+  width: var(--tile-size);
+  height: var(--tile-size);
   border: none;
   border-radius: var(--radius);
   background: var(--btn-bg);
   color: var(--fg);
-  font-size: clamp(10px, 1.8vw, 15px);
+  /* Clue text scales with the tile, not with the viewport: a 25-column board on
+     a laptop has small tiles on a wide screen, and a viewport-based size would
+     overflow them. */
+  font-size: max(9px, min(15px, calc(var(--tile-size) * 0.38)));
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
@@ -126,22 +153,50 @@
   color: var(--boom);
 }
 
-.tile.empty {
+/* Explored cells are recessed; unexplored ones stay proud of the page. This is
+   the board's primary readout and it belongs to the surface, not to the digit:
+   before, only a zero-clue cell changed background, so a revealed "2.0" was
+   drawn on exactly the same tile as an unexplored cell beside it and the two
+   were told apart only by the coloured number.
+
+   Written with three classes so it outweighs the theme overrides further down,
+   which are more specific than a bare `.board button`. */
+.board button.tile.clue,
+.board button.tile.empty,
+.board button.tile.mine {
   background: var(--zero-bg);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
 }
 
+/* The clue ramp, green (low) through to red (high). render.js sets --clue-t in
+   [0, 1] per cell; the sweep from a green hue to a red one is this one calc,
+   and the lightness and chroma it is drawn at come from the theme (base.css),
+   which is what the old JS-side rgb() could not do -- a single bright green
+   cannot read on both a near-black and a near-white tile.
+
+   A browser without oklch() drops the declaration and falls back to the plain
+   --fg above, which is legible on both themes; only the ramp is lost. */
 .tile.clue {
+  /* Semibold: the digits have to carry at tile sizes down to 16px, and the
+     extra weight buys back some of the contrast the light theme's ramp spends
+     on staying colourful. */
+  font-weight: 600;
   color: var(--fg);
+  color: oklch(
+    calc(var(--clue-l) - var(--clue-l-drop) * var(--clue-t, 0))
+    var(--clue-c)
+    calc(150deg - 125deg * var(--clue-t, 0))
+  );
 }
 
 /* Probe outlines sit outside the tile, preserving its clue/pin colour. */
 .board button.probe-a {
-  outline: 3px solid #38bdf8;
+  outline: 3px solid var(--probe-a);
   outline-offset: -2px;
 }
 
 .board button.probe-b {
-  box-shadow: inset 0 0 0 3px #f59e0b, 0 1px 2px rgba(0,0,0,0.08) !important;
+  box-shadow: inset 0 0 0 3px var(--probe-b), 0 1px 2px rgba(0,0,0,0.08) !important;
 }
 
 /* The anchor a shift-click extends its rectangle from. Drawn as an overlay
@@ -195,7 +250,7 @@
 .probe-panel {
   margin: 0.75rem 0 1rem;
   padding: 0.8rem;
-  border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--box-overlay);
 }
@@ -207,20 +262,24 @@
 .probe-result { min-height: 1.4em; }
 .probe-breakdown { color: var(--muted); font-size: 0.9rem; }
 
-/* Light: board buttons */
+/* Light: board buttons. Only the shadow differs here -- backgrounds come from
+   the shared rules above, so the raised/recessed distinction is stated once.
+
+   Nothing sets a background on :disabled any more. Every cell is disabled once
+   the game ends, and giving them all the explored background made the whole
+   board look revealed at the moment the player most wants to read it. */
 body.light .board button {
-  background: var(--btn-bg);
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(30, 45, 80, 0.16);
 }
 
-body.light .board button:hover:not(:disabled) {
-  background: var(--btn-bg-hover);
+body.light .board button.tile.clue,
+body.light .board button.tile.empty,
+body.light .board button.tile.mine {
+  box-shadow: inset 0 1px 2px rgba(30, 45, 80, 0.18);
 }
 
 body.light .board button:disabled {
-  background: var(--zero-bg);
-  color: var(--muted);
   opacity: 0.95;
 }
 
@@ -292,14 +351,21 @@ body.light .board button:disabled {
   text-align: center;
 }
 
+/* The two outcome colours are the palette's, so each theme announces a loss in
+   the same red its board draws mines in. The glow is mixed from the same token
+   rather than restating the colour twice more in rgba(). */
 .result-msg.win {
-  color: #4caf50;
-  text-shadow: 0 0 6px rgba(76, 175, 80, 0.6), 0 0 12px rgba(76, 175, 80, 0.4);
+  color: var(--win);
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--win) 60%, transparent),
+    0 0 12px color-mix(in srgb, var(--win) 40%, transparent);
 }
 
 .result-msg.lost {
-  color: #e64545;
-  text-shadow: 0 0 6px rgba(230, 69, 69, 0.6), 0 0 12px rgba(230, 69, 69, 0.4);
+  color: var(--boom);
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--boom) 60%, transparent),
+    0 0 12px color-mix(in srgb, var(--boom) 40%, transparent);
 }
 
 .gameover-box h2 {

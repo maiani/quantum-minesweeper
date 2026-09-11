@@ -99,15 +99,26 @@ function el(tag, props = {}, children = []) {
 //   anything else (0..8, possibly fractional) = a clue value.
 // Returns { text, cls, color }: the glyph to show, the CSS class, and (for clues)
 // a red→green colour string. This is the ONLY place sentinels are interpreted.
+// The clue value the colour ramp treats as fully "dangerous". See decodeCell.
+const CLUE_RAMP_MAX = 6.0;
+
 function decodeCell(val) {
   if (val === -1) return { text: "■", cls: "unexplored", color: null };
   if (val === -2) return { text: "⚑", cls: "pinned", color: null };
   if (val === 9) return { text: "💥", cls: "mine", color: null };
   if (val === 0) return { text: " ", cls: "empty", color: null }; // non-breaking space keeps the cell sized
-  // Clue: map the value (0..8) onto a red(high)→green(low) gradient.
-  const t = Math.max(0.0, Math.min(val / 8.0, 1.0)); // clamp to [0, 1]
-  const color = `rgb(${Math.round(255 * t)},${Math.round(255 * (1.0 - t))},0)`;
-  return { text: val.toFixed(1), cls: "clue", color }; // one decimal place, e.g. "2.5"
+  // Clue: a position on the green(low)→red(high) ramp, as a number in [0, 1].
+  // The colour itself is game.css's, because only the stylesheet knows which
+  // theme is on and the same hue has to be drawn light on a dark tile and dark
+  // on a light one.
+  //
+  // The ramp spans 0 to CLUE_RAMP_MAX rather than the 0 to 8 a clue can reach
+  // in principle. Nearly every clue on a real board falls between 0 and 3, so
+  // stretching the ramp to 8 spent most of it on values that never occur and
+  // left 1.0 and 2.0 the same green. Anything above the top of the ramp is
+  // already maximally dangerous, so it simply pins to red.
+  const t = Math.max(0.0, Math.min(val / CLUE_RAMP_MAX, 1.0));
+  return { text: val.toFixed(1), cls: "clue", clueT: t }; // one decimal place, e.g. "2.5"
 }
 
 // Human-readable labels for screen readers. The board is visually dense, so
@@ -205,12 +216,16 @@ function renderBoard(state) {
   if (!host) return;
   const ongoing = state.status === "ONGOING";
   const table = el("table", { class: "board" });
+  // The column count is a layout input, not just a loop bound: game.css divides
+  // the width the board has been given by it to pick a tile size that fits.
+  // Custom properties inherit, so setting it here reaches every cell button.
+  table.style.setProperty("--cols", String(state.cols));
   for (let r = 0; r < state.rows; r++) {
     const tr = el("tr");
     for (let c = 0; c < state.cols; c++) {
       const val = state.grid[r][c];
       const decoded = decodeCell(val);
-      const { text, cls, color } = decoded;
+      const { text, cls, clueT } = decoded;
       const index = r * state.cols + c;
       const btn = el("button", {
         class: "tile " + cls,
@@ -229,7 +244,7 @@ function renderBoard(state) {
         btn.setAttribute("aria-label", `${btn.getAttribute("aria-label")}; region ${inA ? "A" : "B"}`);
       }
       if (isAnchor) btn.setAttribute("aria-label", `${btn.getAttribute("aria-label")}; selection anchor`);
-      if (color) btn.style.color = color;
+      if (clueT !== undefined) btn.style.setProperty("--clue-t", clueT.toFixed(3));
       // While the game is running, clicking a cell runs clickCell(r, c) (tools.js),
       // which turns the current tool + this cell into a move and submits it.
       // When the game is over, cells are disabled.

@@ -21,7 +21,7 @@ body.admin-page #toggle-help {
   -webkit-backdrop-filter: blur(8px);
   color: var(--fg);
   font-size: 0.95rem;
-  border-left: 1px solid var(--tile-muted);
+  border-left: 1px solid var(--border);
   overflow-y: auto;
   transform: translateX(100%);
   transition: transform 0.3s ease;
@@ -41,18 +41,17 @@ body.admin-page #toggle-help {
 #sidebar-header {
   padding-top: 10px;
   padding-bottom: 10px;
-  background: var(--accent-hover);
-  color: #2d3c58;
+  background: var(--accent);
   font-weight: 600;
   text-align: center;
-  border-bottom: 1px solid var(--tile-muted);
+  border-bottom: 1px solid var(--border);
 }
 
 #sidebar-header h2 {
   margin: 0;
   vertical-align: middle;
   font-size: 1.4rem;
-  color: var(--fg);
+  color: var(--on-accent);
 }
 
 #sidebar-content {
@@ -80,9 +79,7 @@ body.admin-page #toggle-help {
 }
 
 .help-card {
-  /* background: rgba(32, 36, 49, 0.35); */
   background: var(--box-overlay);
-  ;
   padding: 12px 14px;
   border-radius: var(--radius);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
@@ -102,18 +99,14 @@ body.light #gate-animation {
   background: var(--bg);
 }
 
-/* Light: sidebar & help */
-body.light #sidebar {
-  background: rgba(255, 255, 255, 0.95);
-  border-left: 1px solid #ddd;
-}
+/* Light: sidebar & help.
 
-body.light #sidebar-header h2 {
-  color: #fff;
-}
-
+   No background overrides here. The panel and its cards used to be pinned at
+   0.95 and 0.9 alpha on this theme while the dark one sat at 0.55, so the light
+   sidebar read as a solid wall where the dark one read as frosted glass. Both
+   now take --box-overlay and --tile-muted, which are already theme-aware, so
+   the two themes are translucent to the same degree. */
 body.light .help-card {
-  background: rgba(240, 243, 250, 0.9);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
@@ -150,7 +143,7 @@ body.light .help-card {
     transition: none;
     z-index: auto;
     border-left: none;
-    border-top: 1px solid var(--tile-muted);
+    border-top: 1px solid var(--border);
     background: var(--box-overlay);
     padding: 12px 12px 16px;
     border-radius: var(--radius);
@@ -172,16 +165,11 @@ body.light .help-card {
     padding: 6px 0 10px;
   }
 
-  body.light #sidebar.inline {
-    background: var(--box-overlay);
-    border-top: 1px solid #dce3ec;
-  }
-
   body.light #sidebar.inline #sidebar-header h2 {
     color: var(--fg);
   }
 
   body.light #sidebar.inline .help-card {
-    background: rgba(240, 243, 250, 0.9);
+    background: var(--box-overlay);
   }
 }

@@ -57,8 +57,26 @@ and removed because it duplicated existing state.
 - `src/qminesweeper/static/scripts/render.js` is the single game renderer.
 - `HttpEngine` sends commands to the existing FastAPI routes in server mode.
 - `PyodideEngine` sends commands to `BrowserSession` in browser-only mode.
-- Symbols, labels, colours, and visible tool choices live in JavaScript.
+- Symbols, labels, colours, and visible tool choices live in the frontend, not
+  in the serialized state. Within the frontend they are split once more: the
+  renderer decides *which* presentation a cell gets, and the stylesheet decides
+  what that presentation looks like in the active theme. The clue ramp is the
+  worked example — `render.js` sets a `--clue-t` in `[0, 1]` per cell and
+  `game.css` turns it into a colour, because the same hue has to be drawn light
+  on a dark tile and dark on a light one, and only CSS knows which theme is on.
 - Feature flags travel in a separate application-config object.
+- The board sizes itself to the width it is given, not to the viewport.
+  `render.js` publishes the column count as `--cols`; `game.css` divides the
+  board container's own inline size by it to pick a tile size, between a
+  comfortable maximum and a readable minimum, and scrolls the board sideways
+  only when even the minimum does not fit. Every offered board size must remain
+  fully reachable at every supported width.
+- No layout may depend on a hard-coded header height. The header is sticky and
+  occupies its real height, whatever the width makes that.
+- Colour is declared once. `:root` and `html.light` in `base.css` are the only
+  places a colour value is written; every other rule refers to a token. A
+  literal outside those two blocks is either a black or white alpha used as a
+  shadow or scrim, or a bug -- it is a colour that cannot follow the theme.
 - Shared Jinja templates remain the visible-page source of truth. The static
   build renders them at build time with only small browser-specific hooks.
 

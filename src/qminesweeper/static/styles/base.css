@@ -17,34 +17,113 @@
     --box-overlay: rgba(26, 28, 51, 0.55);
     --radius: 6px;
 
-    --header-height: 56px;
+    /* Text drawn on top of an --accent fill. Both themes' accents are blues of
+       very different lightness, so this flips: dark ink on the dark theme's
+       pale blue, white on the light theme's deeper one. It replaces `--black`
+       and `--white`, which were referenced in three places and defined in
+       none -- an undefined var() makes the whole declaration invalid, so the
+       active tool button was inheriting --fg onto its own accent fill at about
+       1.9:1. */
+    --on-accent: #0b1b33;
+
+    /* One hairline. There were five spellings of this before: var(--fg) at full
+       strength, a bare #dce3ec, a color-mix of --fg, var(--tile-muted), and a
+       raw rgba in the header. */
+    --border: rgba(232, 232, 232, 0.22);
+
+    /* The winning result message. Its counterpart is --boom, which the board's
+       mines already use; the message used to hard-code the light theme's red,
+       so on the dark theme a loss was announced in a different red from the
+       mine that caused it. */
+    --win: #57c95e;
+
+    /* The two entanglement-probe regions. Deliberately the same on both themes:
+       they are identity colours for A and B, not part of the surface palette,
+       and they are drawn as rings rather than text. */
+    --probe-a: #38bdf8;
+    --probe-b: #f59e0b;
+
+    --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.25);
+
     --header-bg: rgba(32, 36, 49, 0.95);
 
-    --tile: clamp(20px, 6vw, 40px);
+    /* Tile size is not fixed here: game.css derives it from the width the board
+       container actually has, so a wide board shrinks its cells to fit instead
+       of overflowing the page. These are only the bounds that derivation is
+       held between -- the comfortable maximum, and the floor below which a
+       cell stops being readable and the board scrolls sideways instead. */
+    --tile-max: 40px;
+    --tile-min: 16px;
     --tile-gap: clamp(1px, 0.4vw, 3px);
+
+    /* Clue colour ramp: low clues green, high clues red, as before. The hue
+       sweep is the palette; what lives here is the lightness and chroma that
+       hue is drawn at, because those are what have to differ between the
+       themes -- the same colour cannot read on a near-black and a near-white
+       tile. game.css builds the final colour from these plus the per-cell
+       --clue-t that render.js sets.
+
+       --clue-l-drop is how much lightness the ramp sheds on the way to red. A
+       saturated red does not exist at the lightness a green wants; holding one
+       lightness across the whole sweep ends it at a pale salmon instead. */
+    --clue-l: 0.87;
+    --clue-l-drop: 0.17;
+    --clue-c: 0.18;
 }
 
 /* ---------- Light theme: variables only ---------- */
 html.light {
-    --bg: #f7f9fc;
+    /* The three board greys used to sit within about three percent luminance of
+       each other, which left the grid invisible: you could only tell where a
+       cell was by whether it had a number in it. They are now spread out, and
+       ordered the way the dark theme orders them -- the page is the ground, an
+       unexplored cell sits proud of it, and an explored cell is sunk below it. */
+    --bg: #e6ebf3;
     --fg: #1e1e1e;
-    --muted: #666;
-    --tile-muted: #bfc7d1;
+    --muted: #5c636e;
+    --tile-muted: #9ba7b9;
     --pin: #d99000;
     --boom: #e64545;
-    --zero-bg: #eaeef5;
-    --btn-bg: #eef1f5;
-    --btn-bg-hover: #d4deec;
+    --zero-bg: #d7dfea;
+    --btn-bg: #fbfcfe;
+    --btn-bg-hover: #edf2fa;
     --accent: #3f7ad6;
     --accent-hover: #5f95ea;
-    --header-bg: rgba(255, 255, 255, 0.75);
-    --box-overlay: rgba(183, 191, 216, 0.35);
+    --header-bg: rgba(255, 255, 255, 0.82);
+    --box-overlay: rgba(255, 255, 255, 0.62);
+    --on-accent: #ffffff;
+    --border: #dce3ec;
+    --win: #2e7d32;
+    --shadow-subtle: 0 1px 2px rgba(30, 45, 80, 0.10);
+
+    /* Much darker than the dark theme's: these sit on a near-white tile, where
+       the dark theme's bright ramp washes out. Only a small lightness drop is
+       needed on the way to red, because these are dark colours on a light
+       ground and red is already at home at this lightness.
+
+       The exact lightness is a judgement call, not a free choice. A green light
+       enough to look green cannot reach 4.5:1 on any light background -- the
+       contrast equation has no solution above about L 0.52 -- so holding strict
+       AA across the whole ramp forces the middle of it into olive and khaki.
+       This sits just below that line. The numbers are set for the explored
+       cell's background, not the page's, because that is what clue text is
+       actually drawn on: clues from about 1.5 up clear 4.5:1 there, and the
+       lowest bottom out at 4.2:1, carried by semibold digits on a tile at least
+       16px square. The alternative considered was keeping AA and desaturating
+       the yellow band to slate, which is accessible but much less colourful. */
+    --clue-l: 0.50;
+    --clue-l-drop: 0.06;
+    --clue-c: 0.19;
 }
 
 /* ---------- Layout ---------- */
+/* No height: 100% here. It used to be harmless, but it caps the body's box at
+   the viewport, and a sticky header can only stay pinned for as long as its
+   containing block lasts -- on a page taller than the screen the header would
+   scroll away partway down. min-height on body below still guarantees a
+   full-height page, and html's background paints the canvas regardless. */
 html,
 body {
-    height: 100%;
     margin: 0;
 }
 
@@ -69,7 +148,7 @@ body {
 
 main {
     flex: 1;
-    padding: var(--header-height) 24px 0;
+    padding: 16px 24px 0;
     max-width: 1000px;
     width: 100%;
     margin: 0 auto;
@@ -94,11 +173,14 @@ h2 {
 }
 
 /* ---------- Header ---------- */
+/* Sticky, not fixed. A fixed header is out of flow, so the page has to be
+   pushed down by a hard-coded --header-height -- and that number was a lie at
+   any width where the header wrapped to two lines, which put the first row of
+   content underneath it. Sticky keeps the header on screen while occupying its
+   own real height, whatever that turns out to be. */
 .app-header {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -115,6 +197,9 @@ h2 {
     font-size: clamp(1.2rem, 3vw, 1.4rem);
     font-weight: 600;
     color: var(--accent);
+    /* The title is one line at every width. Wrapping it broke the header's
+       height and orphaned the bomb glyph onto a line of its own. */
+    white-space: nowrap;
 }
 
 .header-right {
@@ -147,7 +232,7 @@ h2 {
 /* Light: component overrides */
 body.light .app-header {
     background: var(--header-bg);
-    border-bottom: 1px solid rgba(180, 200, 220, 0.4);
+    border-bottom: 1px solid var(--border);
 }
 
 body.light .app-header h1 {
@@ -166,7 +251,7 @@ body.light .header-action:hover {
 
 #toggle-help.active {
     background-color: var(--accent);
-    color: var(--bg);
+    color: var(--on-accent);
     box-shadow: 0 0 6px var(--accent);
     border-radius: 4px;
 }
@@ -206,7 +291,6 @@ body.light .header-action:hover {
 /* ---------- States ---------- */
 .btn:hover {
     background: var(--btn-bg-hover);
-    color: var(--white);
 }
 
 .btn:active {
@@ -234,15 +318,15 @@ select:focus-visible {
 .btn.active {
     outline: 2px solid var(--accent);
     background: var(--accent);
-    color: var(--black);
+    color: var(--on-accent);
 }
 
 /* ---------- Light Theme Overrides ---------- */
 body.light .btn {
     background: var(--btn-bg);
-    border: 1px solid #dce3ec;
+    border: 1px solid var(--border);
     color: var(--fg);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-subtle);
 }
 
 body.light .btn:hover {
@@ -252,9 +336,9 @@ body.light .btn:hover {
 }
 
 body.light .btn.active {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
 }
 
 /* ---------- Forms ---------- */
@@ -440,23 +524,23 @@ select:focus-visible {
 }
 
 /* ---------- Responsive tweaks ---------- */
-@media (max-width: 480px) {
-    main {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
+/* The header's three groups stop fitting on one line well before the 480px
+   phone breakpoint below: the title alone is ~250px at its full size, and the
+   player count and the icon row take the rest. Compact it from 600px down, and
+   drop the player count -- the least load-bearing of the three -- rather than
+   let the row wrap. */
+@media (max-width: 600px) {
     .app-header {
-        padding: 8px 10px;
+        padding: 8px 12px;
         gap: 8px;
     }
 
-    .header-left {
-        font-size: 0.78rem;
+    .app-header h1 {
+        font-size: 1.05rem;
     }
 
-    .app-header h1 {
-        font-size: 1rem;
+    .header-left {
+        display: none;
     }
 
     .header-right {
@@ -467,6 +551,21 @@ select:focus-visible {
         width: 32px;
         height: 32px;
         font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    main {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .app-header {
+        padding: 8px 10px;
+    }
+
+    .app-header h1 {
+        font-size: 1rem;
     }
 
     .board-container {
@@ -492,7 +591,7 @@ select:focus-visible {
 
 @media (max-width: 360px) {
     main {
-        padding: 4px;
+        padding: 12px 4px 0;
     }
 
     .board button {

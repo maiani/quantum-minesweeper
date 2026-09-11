@@ -67,6 +67,53 @@ All notable changes to this project will be documented in this file.
 
 ### Interface, documentation, and fixes
 
+- Fixed board layout so every column of every offered board size is visible and
+  clickable at every width. Tile size is now derived from the width the board
+  container actually has rather than from the viewport, so wide boards shrink
+  their cells to fit instead of being clipped by the page, and small boards on a
+  phone grow to fill the screen instead of leaving a third of it empty. A board
+  that cannot fit even at the minimum readable tile size now scrolls sideways.
+- Fixed the page header overlapping the first row of content between roughly 480
+  and 600 pixels wide, where the header wrapped to two lines but the page was
+  still offset by a fixed 56 pixels. The header is now sticky and takes its real
+  height, the title no longer wraps, and the online-player count gives way on
+  narrow screens rather than forcing the row to wrap.
+- Reworked the clue colour ramp. It keeps its green-for-low, red-for-high
+  reading, but is now drawn per theme, so clues are legible on the light theme
+  where the previous ramp fell to roughly 1.7:1 contrast. Contrast against the
+  explored cell a clue is actually drawn on is now at least 5.8:1 on the dark
+  theme and at least 4.2:1 on the light one, where a green light enough to read
+  as green cannot reach the 4.5:1 AA threshold on any light background; clue
+  digits are semibold to carry the difference. The ramp also spans the clue
+  range boards actually produce instead of the theoretical maximum, so
+  neighbouring values such as 1 and 2 are told apart at a glance.
+- Made explored and unexplored cells read as different surfaces. Previously
+  only a zero clue changed a cell's background, so a revealed clue was drawn on
+  exactly the same tile as the unexplored cell beside it. Every explored cell,
+  clue and mine included, is now recessed and every unexplored one raised, in
+  both themes. The board no longer flattens into the explored colour when the
+  game ends.
+- Consolidated the colour system. Every colour literal outside the two theme
+  blocks is gone, replaced by new `--on-accent`, `--border`, `--win`,
+  `--probe-a`, `--probe-b`, and `--shadow-subtle` tokens, and three properties
+  that were referenced but never defined are gone with them: `--white`,
+  `--black`, and an undefined `--shadow-subtle`, each of which silently
+  invalidated its declaration. Selected tool buttons had therefore been
+  inheriting the foreground colour onto their own accent fill at about 1.9:1;
+  buttons had no shadow; and hover had no colour change. Fixed with them: the
+  loss message now uses the same red each theme draws mines in instead of
+  hard-coding the light theme's, the win message has a token rather than a
+  fixed green shared by both themes, and the status-counter hover tint and
+  admin table no longer paint dark-theme colours onto the light theme. The help
+  sidebar's dead `#2d3c58` rule, overridden where it stood, is removed.
+- Made the light theme's help sidebar as translucent as the dark theme's. It
+  was pinned at 0.95 alpha against the dark theme's 0.55, so the same panel
+  read as frosted glass on one theme and a solid wall on the other.
+- Rebalanced the light theme, whose page, tile, and explored-cell greys sat
+  within about three percent luminance of each other and left the grid
+  effectively invisible. The three surfaces are now clearly separated and
+  ordered as the dark theme orders them, on a slightly blue ground that lets
+  cards, the header, and the board read as distinct layers.
 - Refined the shared UI with grouped mine and entanglement counters, contextual
   help fixes, a shared About overlay, the WINQ and theme-aware Nordita footer
   logos, and README project, status, and play badges.
