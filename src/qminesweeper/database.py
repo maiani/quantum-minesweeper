@@ -93,7 +93,8 @@ class SQLiteStore:
                   resets       INTEGER NOT NULL DEFAULT 0,
                   moves_measures   INTEGER NOT NULL DEFAULT 0,
                   moves_gates      INTEGER NOT NULL DEFAULT 0,
-                  source       TEXT NOT NULL DEFAULT 'server'
+                  source       TEXT NOT NULL DEFAULT 'server',
+                  app_version  TEXT NOT NULL DEFAULT ''
                 )
                 """
             )
@@ -107,30 +108,85 @@ class SQLiteStore:
                 )
                 """
             )
-            self._migrate_add_source()
+            self._migrate_add_columns()
 
-    def _migrate_add_source(self) -> None:
-        """Add the `source` column to databases created before it existed.
+    # Columns added to `games` after the table first shipped, with the DDL that
+    # appends them to an existing database. Each default is chosen so that rows
+    # written before the column existed keep a truthful value:
+    #
+    #   source       Rows written by the server are authoritative because the
+    #                server ran the game; rows reported by a browser-only
+    #                session are client-asserted. They share this table so the
+    #                dashboard and CSV export keep working unchanged, and this
+    #                column is what lets any analysis separate the two. Existing
+    #                rows predate browser reporting, so 'server' is correct.
+    #   app_version  Which release produced the row, so a behaviour change can
+    #                be read against the version it shipped in. Older rows have
+    #                no recorded version, and '' says exactly that rather than
+    #                attributing them to whichever release did the migration.
+    #
+    # Keep this list in the same order as the CREATE TABLE above, so a migrated
+    # database and a freshly created one agree on column order and the CSV
+    # export has one stable header.
+    _ADDED_COLUMNS: tuple[tuple[str, str], ...] = (
+        ("source", "TEXT NOT NULL DEFAULT 'server'"),
+        ("app_version", "TEXT NOT NULL DEFAULT ''"),
+    )
 
-        Rows written by the server are authoritative because the server ran the
-        game; rows reported by a browser-only session are client-asserted. They
-        share this table so the dashboard and CSV export keep working unchanged,
-        and this column is what lets any analysis separate the two. Existing
-        rows predate browser reporting, so 'server' is the correct backfill.
-        """
+    def _migrate_add_columns(self) -> None:
+        """Append any `games` columns missing from an older database file."""
         cur = self._db.execute("PRAGMA table_info(games)")
-        if any(str(row["name"]) == "source" for row in cur.fetchall()):
-            return
+        existing = {str(row["name"]) for row in cur.fetchall()}
+        for name, ddl in self._ADDED_COLUMNS:
+            if name in existing:
+                continue
+            try:
+                self._db.execute(f"ALTER TABLE games ADD COLUMN {name} {ddl}")
+                log.info(f"Migrated games table: added {name} column")
+            except sqlite3.Error as e:
+                # Never let analytics break startup. Unlike CREATE TABLE IF NOT
+                # EXISTS, an ALTER always writes, so a read-only database file
+                # would otherwise take the whole server down on a schema it
+                # could previously open. Such a database cannot accept any write
+                # anyway, so the game keeps running and every write logs its own
+                # failure.
+                log.error(f"Could not add games.{name} column, analytics writes will fail: {e}")
+
+    def normalize_column_values(self, column: str, mapping: Dict[str, str]) -> int:
+        """Rewrite legacy spellings in one `games` column. Returns rows changed.
+
+        Purely mechanical: the caller owns the vocabulary and passes the old
+        value -> new value map, so this module keeps knowing nothing about game
+        rules. `column` is interpolated into the statement because SQLite cannot
+        bind an identifier, so it is checked against the real table definition
+        first and an unknown name is refused rather than executed.
+
+        Runs on every startup and is idempotent: once a value has been rewritten
+        it no longer matches any key, so later runs update nothing.
+        """
+        if column not in self.game_columns():
+            log.error(f"Refusing to normalize unknown games column {column!r}")
+            return 0
+        changes = {old: new for old, new in mapping.items() if old != new}
+        if not changes:
+            return 0
         try:
-            self._db.execute("ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'server'")
-            log.info("Migrated games table: added source column")
-        except sqlite3.Error as e:
-            # Never let analytics break startup. Unlike CREATE TABLE IF NOT
-            # EXISTS, an ALTER always writes, so a read-only database file would
-            # otherwise take the whole server down on a schema it could
-            # previously open. Such a database cannot accept any write anyway,
-            # so the game keeps running and every write logs its own failure.
-            log.error(f"Could not add games.source column, analytics writes will fail: {e}")
+            with self._lock, self._db:
+                total = 0
+                for old, new in changes.items():
+                    # The identifier is interpolated, the values are bound;
+                    # `column` was checked against the table above.
+                    cur = self._db.execute(
+                        f"UPDATE games SET {column}=? WHERE {column}=?",
+                        (new, old),
+                    )
+                    total += cur.rowcount
+            if total:
+                log.info(f"Normalized {total} legacy games.{column} value(s)")
+            return total
+        except Exception as e:
+            log.exception(f"DB normalize_column_values failed column={column}: {e}")
+            return 0
 
     # --- lifecycle ---
     def game_created(
@@ -147,6 +203,7 @@ class SQLiteStore:
         moveset: str,
         prep_circuit: list[tuple[str, list[int]]],
         source: str = "server",
+        app_version: str = "",
     ):
         """Insert a new game row with explicit ONGOING status and zeroed counters."""
         try:
@@ -155,9 +212,9 @@ class SQLiteStore:
                     """
                     INSERT OR REPLACE INTO games
                     (game_id,user_id,created_at,last_seen,rows,cols,mines,ent_level,win_cond,moveset,
-                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates,source)
+                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates,source,app_version)
                     VALUES
-                    (?,?,?,?,?,?,?,?,?,?,?, 'ONGOING', NULL, 0, 0, 0, ?)
+                    (?,?,?,?,?,?,?,?,?,?,?, 'ONGOING', NULL, 0, 0, 0, ?, ?)
                     """,
                     (
                         game_id,
@@ -172,6 +229,7 @@ class SQLiteStore:
                         moveset,
                         json.dumps(prep_circuit),
                         source,
+                        app_version,
                     ),
                 )
         except Exception as e:
@@ -204,8 +262,8 @@ class SQLiteStore:
                     """
                     INSERT OR REPLACE INTO games
                     (game_id,user_id,created_at,last_seen,rows,cols,mines,ent_level,win_cond,moveset,
-                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates,source)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'browser')
+                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates,source,app_version)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'browser', ?)
                     """,
                     (
                         row["game_id"],
@@ -224,6 +282,7 @@ class SQLiteStore:
                         row.get("resets", 0),
                         row.get("moves_measures", 0),
                         row.get("moves_gates", 0),
+                        row.get("app_version") or "",
                     ),
                 )
             return True

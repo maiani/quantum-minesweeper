@@ -21,6 +21,11 @@
 <link rel="apple-touch-icon" href="{{ STATIC_BASE | default('/static') }}/icons/icon-192.png">
 <script>
   window.QMS_BROWSER_BUILD = {{ build_id | tojson }};
+  // The release this app was built from, reported with game statistics so a
+  // row can be read against the version whose behaviour produced it. Distinct
+  // from QMS_BROWSER_BUILD above, which appends a content fingerprint for cache
+  // busting and is not a version number.
+  window.QMS_VERSION = {{ version | tojson }};
   // Where this build reports game statistics. Null unless the build was made
   // with QMS_BROWSER_ANALYTICS_URL set, in which case analytics.js stays inert.
   window.QMS_ANALYTICS_URL = {{ ANALYTICS_URL | tojson }};

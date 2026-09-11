@@ -89,13 +89,19 @@ Common flags:
 - `QMS_BACKEND` - simulator backend: `chppy`, `stim`, or `qiskit`. Local config defaults to `chppy`; `scripts/deploy.sh` defaults deployed server runs to `stim`. This picks the simulator the server computes with; it does not change where the game runs.
 - `QMS_ENABLE_BROWSER_APP` - offer the installable browser app at `/app/` (default on). When offered it becomes the landing: `/` redirects to `/app/`, so the game runs in the visitor's browser and works offline, and the server-rendered game stays at `/setup`. With this off, `/` goes to `/setup` as before and `/app/` is hidden. It needs a bundle, which the Docker image builds; `QMS_BROWSER_DIST_DIR` points at one for a non-Docker run.
 - `QMS_ENABLE_BROWSER_ANALYTICS` - accept game statistics from browser-only sessions at `POST /analytics` (default on), so a deployment collects the same statistics however its players play. Rows are stored alongside server games with `source='browser'`, since they are client-asserted rather than observed by the server. Set to 0 to collect nothing from browser play. `QMS_ANALYTICS_ALLOWED_ORIGINS` is only needed when the app is hosted on a different origin than this server.
-- `QMS_BROWSER_ANALYTICS_URL` - where a browser build sends its reports (default `/analytics`, relative, so a build reports to whichever origin serves it). Set it empty to build an app that reports nothing.
+- `QMS_BROWSER_ANALYTICS_URL` - where a browser build sends its reports (default `/analytics`, relative, so a build reports to whichever origin serves it). Set it empty to build an app that reports nothing. A reporting build also keeps a random per-install id in `localStorage` and sends it as `user_id`, so repeat play is countable as it is for server games; a build with no endpoint creates no such id.
 - `QMS_ANALYTICS_RATE_LIMIT_PER_MINUTE` / `QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE`
   - per-process request limits for the public browser-statistics endpoint
   (defaults 60 per client and 600 total).
 - `QMS_ANALYTICS_MAX_BROWSER_ROWS` / `QMS_ANALYTICS_RETENTION_DAYS` - retain at
   most the newest 50,000 browser-reported games and no more than 365 days by
   default. Server-observed rows are not removed by this policy.
+
+Every game row also records `app_version`, the release that produced it, and
+stores `win_cond` / `moveset` as enum names (`CLEAR`, `TWO_QUBIT`) whichever
+runtime wrote it, so those columns can be grouped across the whole history.
+Rows written before either change are migrated on startup; older rows keep an
+empty `app_version`, since their version was never recorded.
 - `QMS_ENABLE_AUTH`  - enable HTTP basic auth
 - `QMS_USER` / `QMS_PASS` - credentials for basic auth
 - `QMS_ADMIN_PASS` - admin dashboard password; leave unset to disable admin routes

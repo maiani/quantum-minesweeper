@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Game statistics
+
+- Recorded the application version on every game row. Server rows carry the
+  running `qminesweeper.__version__`; browser rows carry the version baked into
+  the build, read from JS because the browser loads the package as plain source
+  and its installed metadata is unavailable there.
+- Gave browser-only sessions a pseudonymous install id, kept in `localStorage`
+  and reported as `user_id`, so repeat play is countable the way the server
+  build already counts it through its `qmsuser` cookie. It is created only when
+  the build was configured with a reporting endpoint, and unavailable storage
+  degrades to no id rather than a fresh one per page load.
+- Stored one vocabulary per rules column. `win_cond` and `moveset` previously
+  held enum names from the server and setup-form keys from the browser, so the
+  columns could not be grouped; browser reports are now normalized at ingest and
+  existing rows are rewritten once at startup.
+
 ## [0.4.0] - 2026-09-11
 
 ### Browser application and statistics

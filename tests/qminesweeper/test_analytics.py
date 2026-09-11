@@ -16,7 +16,7 @@ import pytest
 
 from qminesweeper.auth import BasicAuthMiddleware
 from qminesweeper.database import SQLiteStore
-from qminesweeper.engine import MAX_DIM, MAX_ENT_LEVEL
+from qminesweeper.engine import MAX_DIM, MAX_ENT_LEVEL, MOVE_SETS
 from qminesweeper.server import (
     ANALYTICS_MAX_BODY_BYTES,
     ANALYTICS_MAX_GAMES,
@@ -40,6 +40,7 @@ def _game(**overrides) -> dict:
         "ent_level": 2,
         "win_cond": "identify",
         "moveset": "two_extended",
+        "app_version": "0.4.0",
         "status": "WIN",
         "prep_circuit": [["H", [0]], ["CX", [0, 1]]],
         "resets": 1,
@@ -155,6 +156,81 @@ def test_malformed_reports_are_rejected(override):
 def test_non_object_report_is_rejected():
     with pytest.raises(ValueError):
         _validate_analytics_game(["not", "an", "object"])
+
+
+# ---------- one vocabulary per rules column ----------
+def test_form_keys_are_stored_as_enum_names():
+    """Browser reports speak the setup-form vocabulary; the table stores enum names."""
+    row = _validate_analytics_game(_game(win_cond="clear", moveset="two"))
+    assert row["win_cond"] == "CLEAR"
+    assert row["moveset"] == "TWO_QUBIT"
+
+
+def test_enum_names_are_accepted_unchanged():
+    """So a row read back out of the table, or a CSV export, can be posted again."""
+    row = _validate_analytics_game(_game(win_cond="SANDBOX", moveset="ONE_QUBIT_COMPLETE"))
+    assert row["win_cond"] == "SANDBOX"
+    assert row["moveset"] == "ONE_QUBIT_COMPLETE"
+
+
+def test_rejected_vocabulary_names_both_spellings():
+    with pytest.raises(ValueError, match="TWO_QUBIT_EXTENDED.*two_extended"):
+        _validate_analytics_game(_game(moveset="everything"))
+
+
+def test_legacy_rows_are_normalized_in_place(store):
+    """The backfill rewrites rows written before ingest normalized them."""
+    store.game_created(
+        game_id="legacy", user_id="u", ts="2026-09-09T10:00:00", rows=4, cols=4,
+        mines=2, ent_level=1, win_cond="clear", moveset="two", prep_circuit=[],
+    )
+    changed = store.normalize_column_values("moveset", {key: member.name for key, member in MOVE_SETS.items()})
+    assert changed == 1
+    assert store.recent_games(limit=1)[0]["moveset"] == "TWO_QUBIT"
+
+
+def test_normalizing_is_idempotent(store):
+    store.game_created(
+        game_id="legacy", user_id="u", ts="2026-09-09T10:00:00", rows=4, cols=4,
+        mines=2, ent_level=1, win_cond="clear", moveset="two", prep_circuit=[],
+    )
+    mapping = {key: member.name for key, member in MOVE_SETS.items()}
+    store.normalize_column_values("moveset", mapping)
+    assert store.normalize_column_values("moveset", mapping) == 0
+
+
+def test_normalizing_refuses_an_unknown_column(store):
+    """SQLite cannot bind an identifier, so the name must be checked, not executed."""
+    assert store.normalize_column_values("moveset; DROP TABLE games", {"a": "b"}) == 0
+    assert store.game_columns() != []
+
+
+# ---------- app version ----------
+def test_reported_version_is_stored(store):
+    store.ingest_game(_validate_analytics_game(_game(app_version="0.4.0")))
+    assert store.recent_games(limit=1)[0]["app_version"] == "0.4.0"
+
+
+def test_missing_version_is_stored_as_empty(store):
+    row = _game()
+    row.pop("app_version")
+    store.ingest_game(_validate_analytics_game(row))
+    assert store.recent_games(limit=1)[0]["app_version"] == ""
+
+
+def test_server_rows_record_the_running_version(store):
+    store.game_created(
+        game_id="s1", user_id="u", ts="2026-09-09T10:00:00", rows=4, cols=4,
+        mines=2, ent_level=1, win_cond="CLEAR", moveset="CLASSIC", prep_circuit=[],
+        app_version="1.2.3+local",
+    )
+    assert store.recent_games(limit=1)[0]["app_version"] == "1.2.3+local"
+
+
+@pytest.mark.parametrize("bad", ["a b", "0.4.0;drop", "v" * 65, "<script>"])
+def test_malformed_versions_are_rejected(bad):
+    with pytest.raises(ValueError):
+        _validate_analytics_game(_game(app_version=bad))
 
 
 # ---------- storage invariants ----------

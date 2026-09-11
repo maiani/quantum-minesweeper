@@ -23,7 +23,13 @@
   // Optional game-statistics reporting. window.QMS_ANALYTICS_URL is baked in by
   // the build and is unset by default, in which case this call leaves analytics
   // disabled and nothing is ever queued or sent.
-  if (window.QMSAnalytics) window.QMSAnalytics.configure(window.QMS_ANALYTICS_URL);
+  //
+  // The version is passed in from JS rather than read from the Python record
+  // because the browser build copies the package as plain source files instead
+  // of installing it, so `qminesweeper.__version__` resolves to its
+  // "0.0.0+dev" fallback inside Pyodide. window.QMS_VERSION is baked in by the
+  // build and is the real release string.
+  if (window.QMSAnalytics) window.QMSAnalytics.configure(window.QMS_ANALYTICS_URL, window.QMS_VERSION);
 
   // Online-player count. The server sends it back with each accepted report, so
   // the header slot stays empty until this app is actually reporting — which is

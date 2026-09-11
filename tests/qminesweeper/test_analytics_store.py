@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import sqlite3
 import threading
 from types import SimpleNamespace
 
@@ -40,6 +41,7 @@ EXPECTED_COLUMNS = [
     "moves_measures",
     "moves_gates",
     "source",
+    "app_version",
 ]
 
 
@@ -283,3 +285,39 @@ def test_summary_is_atomic_against_concurrent_status_writes(store: SQLiteStore):
     assert not any(thread.is_alive() for thread in threads)
     assert torn == [], f"summary() observed a torn snapshot: {torn[:3]}"
     assert store.summary()["total_games"] == total
+
+
+def test_older_database_gains_the_added_columns(tmp_path):
+    """A database file created before `source` and `app_version` still opens.
+
+    The columns are appended in place and existing rows take the declared
+    defaults: 'server', because every row predating browser reporting was
+    observed by the server, and '' for the version, which says the row has no
+    recorded version rather than attributing it to the migrating release.
+    """
+    path = tmp_path / "legacy.sqlite"
+    legacy = sqlite3.connect(str(path))
+    with legacy:
+        legacy.execute(
+            """
+            CREATE TABLE games (
+              game_id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT NOT NULL,
+              last_seen TEXT NOT NULL, rows INTEGER NOT NULL, cols INTEGER NOT NULL,
+              mines INTEGER NOT NULL, ent_level INTEGER NOT NULL, win_cond TEXT NOT NULL,
+              moveset TEXT NOT NULL, prep_circuit TEXT NOT NULL, status TEXT, ended_at TEXT,
+              resets INTEGER NOT NULL DEFAULT 0, moves_measures INTEGER NOT NULL DEFAULT 0,
+              moves_gates INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        legacy.execute(
+            "INSERT INTO games VALUES ('old','u','2026-01-01T00:00:00','2026-01-01T00:00:00',"
+            "4,4,2,1,'CLEAR','CLASSIC','[]','WIN','2026-01-01T00:00:00',0,0,0)"
+        )
+    legacy.close()
+
+    store = SQLiteStore(path)
+    assert store.game_columns() == EXPECTED_COLUMNS
+    row = store.recent_games(limit=1)[0]
+    assert row["source"] == "server"
+    assert row["app_version"] == ""

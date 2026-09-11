@@ -151,6 +151,18 @@ STATIC_DIR = BASE_DIR / "static"
 DOCS_DIR = BASE_DIR / "docs"
 
 STATS_DB = get_store()
+# One vocabulary per rules column. Server rows have always stored the enum name
+# ("TWO_QUBIT"); browser reports used to store the setup-form key ("two"), which
+# is what the page asks the engine for. New reports are normalized at ingest by
+# _analytics_rules_name, and this rewrites the rows written before that, so
+# grouping by these columns sees one spelling over the whole history.
+#
+# The map is derived from the shared vocabularies rather than written out, so it
+# cannot drift from the rules, and the store applies it without knowing what the
+# values mean.
+for _column, _vocabulary in (("win_cond", WIN_CONDITIONS), ("moveset", MOVE_SETS)):
+    STATS_DB.normalize_column_values(_column, {key: member.name for key, member in _vocabulary.items()})
+
 # Environment variables provide deployment defaults. Values saved through the
 # admin dashboard deliberately override only its allowlisted product settings,
 # and live in the same durable SQLite volume as game statistics.
@@ -425,6 +437,9 @@ ANALYTICS_MAX_COUNTER = 1_000_000
 ANALYTICS_STATUSES = {"ONGOING", "WIN", "LOST", "ABANDONED"}
 ANALYTICS_FUTURE_SKEW = timedelta(minutes=5)
 _ANALYTICS_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# Version strings carry dots and PEP 440 local segments ("0.4.0+dev"), so they
+# need their own pattern rather than the identifier one above.
+_ANALYTICS_VERSION_RE = re.compile(r"^[A-Za-z0-9_.+-]{1,64}$")
 # Gate names come from QuantumGate so the route accepts exactly the vocabulary
 # the simulators implement, and gains new gates automatically.
 _ANALYTICS_GATE_NAMES = {gate.value for gate in QuantumGate}
@@ -522,6 +537,31 @@ def _analytics_circuit(raw: Any, n_cells: int) -> list[list[Any]]:
     return out
 
 
+def _analytics_rules_name(value: Any, field: str, mapping: Dict[str, Any]) -> str:
+    """Normalize one rules-vocabulary field to the enum name stored in `games`.
+
+    Two runtimes write the same column and they speak different vocabularies.
+    The server records `WinCondition`/`MoveSet` enum names ("TWO_QUBIT"), while
+    a browser report carries the setup-form key from `engine.MOVE_SETS` ("two"),
+    because that is what the page asked the engine for. Storing both spellings
+    would make the column impossible to group by, so the form key is mapped
+    through the shared vocabulary here and the enum name is what lands in the
+    database. Enum names are the rules' own identity; the form keys are a UI
+    surface that may be renamed.
+
+    The canonical name is accepted as input too, so a row read back out of the
+    table (or a CSV export) can be posted again unchanged.
+    """
+    if isinstance(value, str):
+        member = mapping.get(value)
+        if member is not None:
+            return str(member.name)
+        if value in {member.name for member in mapping.values()}:
+            return value
+    accepted = sorted(set(mapping) | {member.name for member in mapping.values()})
+    raise ValueError(f"{field} must be one of {accepted}")
+
+
 def _validate_analytics_game(raw: Any) -> Dict[str, Any]:
     """Return one normalized game row, or raise ValueError describing the fault."""
     if not isinstance(raw, dict):
@@ -542,12 +582,12 @@ def _validate_analytics_game(raw: Any) -> Dict[str, Any]:
     # game itself would reject.
     validate_setup_params(rows, cols, mines, ent_level)
 
-    win_cond = raw.get("win_cond")
-    if win_cond not in WIN_CONDITIONS:
-        raise ValueError(f"win_cond must be one of {sorted(WIN_CONDITIONS)}")
-    moveset = raw.get("moveset")
-    if moveset not in MOVE_SETS:
-        raise ValueError(f"moveset must be one of {sorted(MOVE_SETS)}")
+    win_cond = _analytics_rules_name(raw.get("win_cond"), "win_cond", WIN_CONDITIONS)
+    moveset = _analytics_rules_name(raw.get("moveset"), "moveset", MOVE_SETS)
+
+    app_version = raw.get("app_version") or ""
+    if not isinstance(app_version, str) or (app_version and not _ANALYTICS_VERSION_RE.match(app_version)):
+        raise ValueError("app_version must be 1-64 characters of [A-Za-z0-9_.+-]")
 
     status = raw.get("status")
     if status is not None and status not in ANALYTICS_STATUSES:
@@ -580,6 +620,7 @@ def _validate_analytics_game(raw: Any) -> Dict[str, Any]:
         "ent_level": ent_level,
         "win_cond": win_cond,
         "moveset": moveset,
+        "app_version": app_version,
         "status": status,
         "prep_circuit": _analytics_circuit(raw.get("prep_circuit") or [], rows * cols),
         "resets": _analytics_int(raw.get("resets", 0), "resets", low=0, high=ANALYTICS_MAX_COUNTER),
@@ -789,6 +830,7 @@ async def setup_post(
         win_cond=win.name,
         moveset=mv.name,
         prep_circuit=board.preparation_circuit,
+        app_version=__version__,
     )
     STATS_DB.heartbeat(game_id=game_id, ts=ts)
 
@@ -953,6 +995,7 @@ async def game_post(
             win_cond=cfg["win"].name,
             moveset=cfg["moves"].name,
             prep_circuit=board2.preparation_circuit,
+            app_version=__version__,
         )
         STATS_DB.heartbeat(game_id=new_game_id, ts=ts)
         return RedirectResponse(f"/game?game_id={new_game_id}", status_code=303)

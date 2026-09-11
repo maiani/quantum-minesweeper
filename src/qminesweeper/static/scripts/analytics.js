@@ -18,25 +18,37 @@
 //  3. IDEMPOTENT. The queue is keyed by game_id, so a game reported while
 //     ongoing is replaced by its later state rather than duplicated, and the
 //     server upserts, so a client that resends after a failed flush is safe.
+//  4. PSEUDONYMOUS. Reports carry a random per-install id so repeat play is
+//     countable, matching what the server build gets from its qmsuser cookie.
+//     It is generated here rather than in the Python record because it is a
+//     property of this browser, not of the game; it is only ever created when
+//     an endpoint is configured, and it identifies nothing beyond itself.
 //
 // Nothing here ever throws into the caller: analytics must not be able to break
 // gameplay, so every operation is wrapped and failures are at most a console
 // warning.
 
 const QMS_ANALYTICS_KEY = "qms.analytics.queue.v1";
+const QMS_ANALYTICS_UID_KEY = "qms.analytics.uid.v1";
 // Matches the server's per-batch cap (ANALYTICS_MAX_GAMES in server.py). Older
 // entries are dropped first if the queue somehow grows past it while offline.
 const QMS_ANALYTICS_MAX_QUEUE = 50;
 
 const QMSAnalytics = {
   url: null,
+  version: "",
+  userId: "",
   _flushing: false,
 
-  // Called once at startup with the endpoint the build was configured with.
-  // Absent or empty leaves analytics disabled for the life of the page.
-  configure(url) {
+  // Called once at startup with the endpoint and the app version the build was
+  // configured with. An absent or empty endpoint leaves analytics disabled for
+  // the life of the page, and nothing below it runs -- including creating the
+  // install id, so a build that reports nothing also stores no identifier.
+  configure(url, version) {
     this.url = typeof url === "string" && url.trim() ? url.trim() : null;
+    this.version = typeof version === "string" ? version.trim() : "";
     if (!this.url) return;
+    this.userId = this._resolveUserId();
     // Flush anything left over from a previous visit, then whenever the browser
     // regains connectivity.
     window.addEventListener("online", () => this.flush());
@@ -76,14 +88,65 @@ const QMSAnalytics = {
     }
   },
 
+  // --- install identity ------------------------------------------------------
+
+  // The random id this install reports as. Created on first use and kept in
+  // localStorage, so repeat play by the same browser is countable the way the
+  // server build counts it through its qmsuser cookie.
+  //
+  // An empty string is a valid answer and the server stores it as "no user",
+  // which is the honest result when storage is unavailable (private browsing,
+  // storage disabled). Minting a fresh id per page load instead would be worse
+  // than nothing: every visit would look like a new player and inflate any
+  // unique-player count.
+  _resolveUserId() {
+    try {
+      const stored = localStorage.getItem(QMS_ANALYTICS_UID_KEY);
+      // Re-check the shape rather than trusting whatever is under the key: the
+      // server rejects a whole report whose user_id does not match its id
+      // pattern, so a hand-edited or corrupt value would silently lose games.
+      if (typeof stored === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(stored)) return stored;
+      const minted = this._randomId();
+      localStorage.setItem(QMS_ANALYTICS_UID_KEY, minted);
+      return minted;
+    } catch (err) {
+      return "";
+    }
+  },
+
+  // A random id in the character set the server's id pattern accepts.
+  // randomUUID needs a secure context, which the installed app always has but a
+  // plain-http test server may not, so fall back to random bytes and finally to
+  // Math.random rather than letting identity depend on how the page is served.
+  _randomId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+      const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    return "r" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  },
+
   // --- public API ------------------------------------------------------------
 
   // Queue one game record (the dict BrowserSession.analytics_record produces),
   // replacing any earlier report of the same game, then try to send.
+  //
+  // The record describes the game and is built in Python; who played it and
+  // which build ran it are properties of this browser, so they are stamped on
+  // here. Stamping at queue time rather than at send time means a report keeps
+  // the version that actually produced it even if it is only flushed after an
+  // update.
   record(row) {
     if (!this.enabled || !row || !row.game_id) return;
-    const queue = this._read().filter((entry) => entry.game_id !== row.game_id);
-    queue.push(row);
+    const entry = Object.assign({}, row, {
+      user_id: this.userId,
+      app_version: this.version,
+    });
+    const queue = this._read().filter((queued) => queued.game_id !== entry.game_id);
+    queue.push(entry);
     // Keep the newest entries if the queue overflows after a long offline run.
     this._write(queue.slice(-QMS_ANALYTICS_MAX_QUEUE));
     this.flush();

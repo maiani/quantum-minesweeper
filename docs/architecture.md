@@ -163,6 +163,24 @@ a server that has opted in.
 - `POST /analytics` accepts a batch. It is unauthenticated by necessity, so it
   validates strictly, reusing `validate_setup_params` and the `WIN_CONDITIONS` /
   `MOVE_SETS` / `QuantumGate` vocabularies rather than restating any limits.
+- `win_cond` and `moveset` are stored as enum names. The server has always
+  written those; a browser report carries the setup-form key it asked the engine
+  for, so ingest maps it through the shared vocabulary. Enum names are the
+  rules' identity, while the form keys are a UI surface that may be renamed. A
+  startup pass rewrites rows written before this, so the column has one spelling
+  over the whole history and can be grouped.
+- `app_version` records which release produced a row. The server writes its
+  running version; the browser writes the version baked into the build, passed
+  in from JS because the build copies the package as source rather than
+  installing it, so `__version__` resolves to its development fallback inside
+  Pyodide. Rows predating the column keep `''`, which says "no recorded
+  version" rather than attributing them to the migrating release.
+- `user_id` is a random per-install id the client keeps in `localStorage`,
+  matching in kind and granularity what the server build gets from its `qmsuser`
+  cookie. It is minted only when the build has a reporting endpoint, so a build
+  that reports nothing also stores no identifier, and unavailable storage
+  reports no id rather than a fresh one per page load, which would make every
+  visit look like a new player.
 - Per-client and global sliding-window limits bound request rate. Timestamps
   must be ordered and cannot be materially future-dated. Browser rows are
   pruned by retention age and capped to the newest configured count.
