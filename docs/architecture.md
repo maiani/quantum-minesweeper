@@ -1,6 +1,6 @@
 # Architecture
 
-_Last reviewed: 2026-09-08_
+_Last reviewed: 2026-09-11_
 
 This document records stable implementation boundaries, completed design
 decisions, and constraints that hold indefinitely. Active work belongs in
@@ -35,7 +35,9 @@ Quantum Minesweeper is one product with three entry paths:
 - Browser-only mode runs the same Python rules in Pyodide on `ChppyBackend`.
 
 The server and browser modes share the game contract, renderer, templates,
-styles, documentation, and terminology.
+styles, documentation, and terminology. The browser build takes the deployment's
+product choices — tutorial and survey links, reset policy — so an installed app
+matches the site it came from.
 
 ### Shared game contract
 
@@ -62,6 +64,34 @@ and removed because it duplicated existing state.
 
 There is no separate `/api/*` game-state namespace and no second browser
 frontend.
+
+### Configuration ownership
+
+`Settings` is the only owner of application defaults and validates closed
+choices such as backend and reset policy. Environment variables and `.env`
+provide startup values. A CLI `--backend` override is written to
+`QMS_BACKEND` before Uvicorn imports the application, so reload subprocesses
+see the same choice instead of inheriting an ambiguous in-memory mutation.
+
+One immutable `ProductConfig` snapshot projects those validated values into
+the two existing consumer contracts: uppercase keys for Jinja and lowercase
+keys for `render.js`. The different casing is an adapter detail, not two
+configuration sources. Game state remains separate and contains no
+presentation or deployment settings.
+
+The admin dashboard owns an explicit allowlist of product settings. Saving the
+form replaces that snapshot atomically in the same SQLite database as game
+statistics; it never writes credentials, paths, backend selection, external
+URLs, or operational limits. Persisted values override environment defaults on
+the next process start. Their durability therefore follows `QMS_DB_PATH`: a
+local database or mounted `/data` volume survives restarts, while `/tmp` does
+not survive replacement of a container instance.
+
+Server-rendered pages read the live settings directly. The installed app uses
+its bundled snapshot offline, but refreshes game-affecting product choices
+(reset policy, survey action, and entanglement probes) from public
+`/app/config` before a new game. This changes deployment behavior without an
+image or PWA rebuild and deliberately does not rewrite an active game's rules.
 
 ### Footer logos
 
@@ -103,6 +133,47 @@ this application, kept ready to branch out into its own repository.
 absorbs any mismatch. That boundary is why the package keeps its own copies of
 the gate-arity sets and the subset validator instead of importing the shared
 definitions. `AGENTS.md` owns the rule to follow when changing it.
+
+### Browser analytics
+
+A browser-only session has no server recording what it plays. `BrowserSession`
+therefore keeps a per-game record with the same fields and the same rules as the
+server's analytics row — pins uncounted, a reset zeroing the move counters, the
+outcome observed on the move that ends the game — and the page may report it to
+a server that has opted in.
+
+- `POST /analytics` accepts a batch. It is unauthenticated by necessity, so it
+  validates strictly, reusing `validate_setup_params` and the `WIN_CONDITIONS` /
+  `MOVE_SETS` / `QuantumGate` vocabularies rather than restating any limits.
+- Per-client and global sliding-window limits bound request rate. Timestamps
+  must be ordered and cannot be materially future-dated. Browser rows are
+  pruned by retention age and capped to the newest configured count.
+- Reports are idempotent: the client resends after being offline, and a game
+  reported while ongoing is reported again when it ends.
+- Rows land in `games` with `source='browser'`, and a browser report can never
+  overwrite a row the server wrote, so a client cannot rewrite real history by
+  guessing a `game_id`.
+- A partly-valid batch stores what it can. A client cannot repair a rejected
+  row, so dropping the good ones with it would lose data for nothing.
+- `QMS_ENABLE_BROWSER_ANALYTICS` is on by default, and the client is inert
+  unless the build was given `QMS_BROWSER_ANALYTICS_URL`.
+
+Server rows are authoritative because the server ran the game; browser rows are
+client-asserted. Keep them distinguishable, and do not merge them in analysis
+without saying which is which.
+
+The ingest reply carries the active-game count, which is how the browser app
+shows the same online-players counter the server pages render. It rides on that
+response rather than a separate endpoint deliberately: a client learns the
+number only while it is itself reporting, so the count always includes players
+like it, and the counter cannot appear on a build that contributes nothing to
+it. Reading the count is kept strictly separate from the queue decision, which
+is made from the status alone, so a malformed reply can never cause a client to
+resend data the server already stored.
+
+Without reporting there is no honest number to show. A browser game has no
+`last_seen` unless it is reported, so a counter fed from anywhere else would
+count only server-side players — nearly none, once `/` lands on the app.
 
 ### Seeded sampling is per-backend
 
@@ -194,6 +265,49 @@ Entropy is evaluated only for an active selection, after edits or completed
 moves. The frontend invalidates pending results when selections or game state
 change, so an older response cannot replace a newer diagnostic.
 
+## Distributing the installable app from the server
+
+A deployment can hand out the browser build at `/app/`, so a visitor installs it
+and keeps playing offline. When it is offered, it becomes the landing: `/`
+redirects to `/app/`, and play happens in the visitor's browser rather than on
+the server. The server-rendered game remains at `/setup` and is unchanged. Both
+write to the same analytics table, distinguished by `source`.
+
+That redirect is a 307. The target follows a setting the admin dashboard can
+change, and a permanent redirect would be cached by browsers and keep sending
+visitors to `/app/` after it was switched off. Crawlers are pointed at `/setup`
+by the sitemap, since `/app/` is a client-rendered shell with nothing to index.
+
+Two consequences of making the app the landing are worth keeping in view. Every
+first visit pays the Pyodide and numpy download before the first game, which the
+service worker then caches. And analytics shift from server-authoritative rows
+to client-asserted analytics, which only arrives from players who are online, so
+completeness and provenance both change.
+
+- `QMS_ENABLE_BROWSER_APP` decides whether the app is offered, and so also
+  where `/` lands. It is enforced per request rather than only at startup, so
+  the admin dashboard can turn it off without a restart.
+- `QMS_BROWSER_DIST_DIR` says where the bundle is. The Docker image builds one
+  and sets this itself; a deployment without a bundle has nothing to offer, and
+  the flag alone cannot conjure one.
+- `/app` and `/app/*` are exempt from Basic Auth. A service worker cannot answer
+  a Basic Auth challenge, so an installed app behind the site password fails its
+  update fetches. The password still guards the server-run game and admin.
+- The bundle's paths are all relative, so it works unchanged under the prefix,
+  and its service worker scopes to `/app/` rather than the whole site.
+
+Serving it from the same origin is what keeps analytics simple: no CORS, and the
+bundle points at the relative `/analytics`, so one image works on any host.
+
+Keeping an installed app current rests on the service worker being network-first
+for same-origin files. An online player always receives the newest `index.html`,
+whose build id changes the worker's URL, which installs the new worker, which
+drops old caches and reloads open pages. Two things support that: the worker is
+registered with `updateViaCache: "none"` so the HTTP cache can never serve a
+stale worker script, and the page checks for an update when it becomes visible
+and hourly while it stays open, because the browser otherwise only looks on
+navigation and an installed app may go days without one.
+
 ## Browser-only distribution
 
 `src/qminesweeper/browser.py` owns an in-memory `BrowserSession`. Setup, move,
@@ -214,6 +328,12 @@ frontend persists this snapshot in `localStorage`.
 The service worker uses network-first caching for same-origin application files
 and cache-first behavior for versioned cross-origin Pyodide assets. The static
 bundle requires no FastAPI server, database, or Cloud Run deployment.
+When served by the application at `/app/`, it also refreshes visible product
+game-affecting choices from the public, same-origin `/app/config` response
+before a new game starts and when it returns to Setup. This lets the admin
+change probes, reset policy, and the post-game survey action without rebuilding
+the Docker image or PWA. Offline and standalone builds retain their bundled
+choices, and an active game retains the setup rules with which it was created.
 
 ## Packaging outputs
 

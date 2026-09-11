@@ -39,6 +39,7 @@ EXPECTED_COLUMNS = [
     "resets",
     "moves_measures",
     "moves_gates",
+    "source",
 ]
 
 
@@ -114,7 +115,11 @@ def test_download_db_exports_rows_in_column_order(store: SQLiteStore, monkeypatc
 
 
 def _read_streaming_body(response) -> str:
-    """Drain a StreamingResponse's async body iterator into one string."""
+    """Read either a plain or streaming response body."""
+
+    if hasattr(response, "body"):
+        body = response.body
+        return body if isinstance(body, str) else body.decode("utf-8")
 
     async def collect() -> str:
         chunks = []
@@ -142,6 +147,16 @@ def test_recent_games_returns_plain_dicts(store: SQLiteStore):
     (row,) = store.recent_games()
 
     assert type(row) is dict
+
+
+def test_admin_settings_round_trip_as_an_atomic_snapshot(store: SQLiteStore):
+    first = {"ENABLE_HELP": False, "RESET_POLICY": "never"}
+    second = {"ENABLE_HELP": True, "ENABLE_ENTANGLEMENT_PROBES": False}
+
+    assert store.save_app_settings(first)
+    assert store.load_app_settings() == first
+    assert store.save_app_settings(second)
+    assert store.load_app_settings() == second
 
 
 # ---------- concurrency ----------

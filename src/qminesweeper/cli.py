@@ -41,11 +41,13 @@ def webui(
     Reads defaults from the environment and settings; CLI options override them
     for this run.
     """
-    settings = get_settings()
-
     if backend is not None:
         try:
-            settings.BACKEND = normalize_backend(backend)
+            # Uvicorn reload imports the application in a child process. An
+            # in-memory mutation disappears there, while an environment
+            # override has the same meaning in both the parent and reloader.
+            os.environ["QMS_BACKEND"] = normalize_backend(backend)
+            get_settings.cache_clear()
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
 
@@ -54,7 +56,7 @@ def webui(
         host=host or "0.0.0.0",
         port=port or int(os.getenv("PORT", "8080")),
         reload=reload,
-        reload_dirs=["qminesweeper"],
+        reload_dirs=["src/qminesweeper"],
     )
 
 

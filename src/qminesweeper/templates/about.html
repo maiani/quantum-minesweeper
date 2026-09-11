@@ -17,6 +17,17 @@
   {{ docs.about | safe }}
 </div>
 
+{% if FEATURES.ENABLE_BROWSER_APP %}
+<div class="setup-expl">
+  <h2>Play offline</h2>
+  <p>
+    There is an installable version that runs entirely in your browser, with no
+    server. Open <a href="/app/">the offline app</a> and install it from your
+    browser's menu to keep playing without a connection.
+  </p>
+</div>
+{% endif %}
+
 <div class="setup-actions">
   <a href="{{ SETUP_HREF | default('/setup') }}" class="btn"
      onclick="if (history.length > 1) { history.back(); return false; }">Back</a>

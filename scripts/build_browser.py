@@ -33,7 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from qminesweeper import __version__  # noqa: E402
 from qminesweeper.docs_render import load_docs  # noqa: E402
 from qminesweeper.settings import get_settings  # noqa: E402
-from qminesweeper.view_context import build_config, build_features  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
@@ -121,13 +120,16 @@ def main() -> None:
         autoescape=select_autoescape(["html"]),
     )
     docs = load_docs(DOCS_DIR)
+    _settings = get_settings()
+    product = _settings.product_config()
     template_context = {
         "BASE_URL": None,
         "STATIC_BASE": "static",
-        # Browser build uses the shared shape with its fixed product defaults
-        # (help on, about on, no tutorial/survey, reset always allowed).
-        "FEATURES": build_features(),
-        "config": build_config(),
+        # Both consumer mappings come from one validated product snapshot. The
+        # app-link projection is forced unavailable because this build *is* the
+        # installable app and must not advertise a link back to itself.
+        "FEATURES": product.template_features(browser_app_available=False),
+        "config": product.game_config(),
         "docs": docs,
         "game_id": None,
         "version": __version__,
@@ -137,7 +139,10 @@ def main() -> None:
         "ABOUT_HREF": "about.html",
         "SETUP_HREF": "index.html",
         "build_id": cache_id,
-        "GA_MEASUREMENT_ID": get_settings().GA_MEASUREMENT_ID,
+        "GA_MEASUREMENT_ID": _settings.GA_MEASUREMENT_ID,
+        # Unset unless the build explicitly configures one, so an ordinary
+        # browser build reports nothing.
+        "ANALYTICS_URL": _settings.BROWSER_ANALYTICS_URL,
     }
     index_html = env.get_template("browser_index.html").render(**template_context)
     (DIST / "index.html").write_text(index_html, encoding="utf-8")

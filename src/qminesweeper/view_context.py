@@ -1,18 +1,15 @@
-# qminesweeper/view_context.py
-"""Builders for the Jinja template context shared by the two runtimes.
+"""One product configuration, projected into template and browser contracts.
 
-Both the FastAPI server (`server.py`) and the static browser build
-(`scripts/build_browser.py`) render the same templates and need the same context
-*shape* — the feature-flag dict and the small app-config blob. Defining that
-shape once, here, keeps the two runtimes from drifting: adding a flag is a
-one-line change in one place instead of two that silently fall out of sync.
-
-Framework-free on purpose (no FastAPI or settings imports) so the build script
-can import it under the same constraints as engine.py. Callers pass the values
-they have; the browser-build defaults live in the signatures.
+The application owns configuration in :class:`qminesweeper.settings.Settings`.
+Its ``product_config()`` method takes one validated snapshot and returns the
+framework-free value object below. Jinja's historical uppercase keys and the
+JavaScript renderer's lowercase keys are consumer adapters, not independent
+sources of defaults.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from qminesweeper.engine import PROBE_REGION_DEFAULT, PROBE_REGION_LIMIT
 from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES
@@ -26,57 +23,56 @@ def _gate_arities() -> dict[str, int]:
     }
 
 
-def build_features(
-    *,
-    enable_help: bool = True,
-    enable_tutorial: bool = False,
-    tutorial_url: str | None = None,
-    enable_survey: bool = False,
-    survey_url: str | None = None,
-    enable_about: bool = True,
-    reset_policy: str = "any",
-    enable_entanglement_probes: bool = True,
-) -> dict:
-    """The feature-flag dict templates read as ``FEATURES`` (header, setup, game).
+@dataclass(frozen=True)
+class ProductConfig:
+    """Validated product choices shared by server pages and the browser app."""
 
-    Defaults are the browser build's fixed product choices; the server overrides
-    them from settings.
-    """
-    return {
-        "ENABLE_HELP": enable_help,
-        "ENABLE_TUTORIAL": enable_tutorial,
-        "TUTORIAL_URL": tutorial_url,
-        "ENABLE_SURVEY": enable_survey,
-        "SURVEY_URL": survey_url,
-        "ENABLE_ABOUT": enable_about,
-        "RESET_POLICY": reset_policy,
-        # Whether the deployment has the probe at all. The two constants beside
-        # it are the game's own tiers, which the setup form renders as choices:
-        # how many regions exist to offer, and which count setup starts from.
-        "ENABLE_ENTANGLEMENT_PROBES": bool(enable_entanglement_probes),
-        "PROBE_REGION_LIMIT": PROBE_REGION_LIMIT,
-        "PROBE_REGION_DEFAULT": PROBE_REGION_DEFAULT,
-    }
+    enable_help: bool
+    enable_about: bool
+    enable_tutorial: bool
+    tutorial_url: str | None
+    enable_survey: bool
+    survey_url: str | None
+    reset_policy: str
+    enable_entanglement_probes: bool
+    enable_browser_app: bool
 
+    def template_features(self, *, browser_app_available: bool) -> dict:
+        """Project into the legacy uppercase mapping consumed by Jinja."""
+        return {
+            "ENABLE_HELP": self.enable_help,
+            "ENABLE_TUTORIAL": self.enable_tutorial,
+            "TUTORIAL_URL": self.tutorial_url,
+            "ENABLE_SURVEY": self.enable_survey,
+            "SURVEY_URL": self.survey_url,
+            "ENABLE_ABOUT": self.enable_about,
+            "RESET_POLICY": self.reset_policy,
+            "ENABLE_ENTANGLEMENT_PROBES": self.enable_entanglement_probes,
+            "PROBE_REGION_LIMIT": PROBE_REGION_LIMIT,
+            "PROBE_REGION_DEFAULT": PROBE_REGION_DEFAULT,
+            "ENABLE_BROWSER_APP": self.enable_browser_app and browser_app_available,
+        }
 
-def build_config(
-    *,
-    reset_policy: str = "any",
-    enable_survey: bool = False,
-    survey_url: str | None = None,
-    entanglement_probes: bool = True,
-    two_area_probes: bool = False,
-) -> dict:
-    """The small app-config blob inlined into the game shell (``config``).
+    def browser_product(self) -> dict:
+        """Product choices needed by browser setup before a new game."""
+        return {
+            "entanglement_probes": self.enable_entanglement_probes,
+            "probe_region_default": PROBE_REGION_DEFAULT,
+        }
 
-    Gate arity is semantic configuration, not presentation: JavaScript owns
-    labels and layout but uses this derived mapping when constructing commands.
-    """
-    return {
-        "reset_policy": reset_policy,
-        "enable_survey": enable_survey,
-        "survey_url": survey_url,
-        "gate_arities": _gate_arities(),
-        "entanglement_probes": entanglement_probes,
-        "two_area_probes": two_area_probes,
-    }
+    def game_config(
+        self,
+        *,
+        entanglement_probes: bool | None = None,
+        two_area_probes: bool = False,
+    ) -> dict:
+        """Project into the lowercase contract consumed by ``render.js``."""
+        probes = self.enable_entanglement_probes if entanglement_probes is None else entanglement_probes
+        return {
+            "reset_policy": self.reset_policy,
+            "enable_survey": self.enable_survey,
+            "survey_url": self.survey_url,
+            "gate_arities": _gate_arities(),
+            "entanglement_probes": probes,
+            "two_area_probes": two_area_probes,
+        }

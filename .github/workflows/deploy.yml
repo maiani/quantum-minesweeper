@@ -46,7 +46,7 @@ jobs:
 
       - name: Run lint
         run: |
-          python -m ruff check qminesweeper tests scripts
+          python -m ruff check src tests scripts
 
       - name: Run tests
         run: |
@@ -73,6 +73,14 @@ jobs:
       QMS_RESET_POLICY: ${{ vars.QMS_RESET_POLICY || 'sandbox' }}
       QMS_ENABLE_SURVEY: ${{ vars.QMS_ENABLE_SURVEY || '0' }}
       QMS_SURVEY_URL: ${{ vars.QMS_SURVEY_URL }}
+      QMS_ENABLE_ENTANGLEMENT_PROBES: ${{ vars.QMS_ENABLE_ENTANGLEMENT_PROBES || '1' }}
+      QMS_ENABLE_BROWSER_ANALYTICS: ${{ vars.QMS_ENABLE_BROWSER_ANALYTICS || '1' }}
+      QMS_ANALYTICS_ALLOWED_ORIGINS: ${{ vars.QMS_ANALYTICS_ALLOWED_ORIGINS }}
+      QMS_ANALYTICS_RATE_LIMIT_PER_MINUTE: ${{ vars.QMS_ANALYTICS_RATE_LIMIT_PER_MINUTE || '60' }}
+      QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE: ${{ vars.QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE || '600' }}
+      QMS_ANALYTICS_MAX_BROWSER_ROWS: ${{ vars.QMS_ANALYTICS_MAX_BROWSER_ROWS || '50000' }}
+      QMS_ANALYTICS_RETENTION_DAYS: ${{ vars.QMS_ANALYTICS_RETENTION_DAYS || '365' }}
+      QMS_ENABLE_BROWSER_APP: ${{ vars.QMS_ENABLE_BROWSER_APP || '1' }}
       QMS_BASE_URL: ${{ vars.QMS_BASE_URL }}
       QMS_BUCKET: ${{ vars.QMS_BUCKET }}
       CLOUD_RUN_MEMORY: ${{ vars.CLOUD_RUN_MEMORY || '512Mi' }}

@@ -52,6 +52,22 @@
     Enable Entanglement Probes
   </label>
   <br>
+  {# The installable browser app. The switch only means anything when the image
+     actually ships a bundle, so say which case this deployment is in rather
+     than showing a toggle that cannot do anything. #}
+  {% if browser_app_available %}
+  <label>
+    <input type="checkbox" name="ENABLE_BROWSER_APP" value="1"
+           {% if browser_app_enabled %}checked{% endif %}>
+    Offer the installable browser app at <code>/app/</code>
+  </label>
+  {% else %}
+  <p class="muted">
+    Installable browser app: not available — this image ships no browser bundle
+    (set <code>QMS_BROWSER_DIST_DIR</code> to one).
+  </p>
+  {% endif %}
+  <br>
   <label>
     Reset policy:
     <select name="RESET_POLICY">

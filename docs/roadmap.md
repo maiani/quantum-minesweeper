@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-09-08_
+_Last updated: 2026-09-11_
 
 This is the source of truth for active work and task status, and the only
 current-work list in the repository.
@@ -64,16 +64,6 @@ None open.
   mutation.
 - [ ] Align Cloud Run concurrency, Uvicorn worker assumptions, and documented
   server guarantees with the chosen model.
-
-### Configuration ownership
-
-- [ ] Validate backend and reset-policy values with typed settings.
-- [ ] Consolidate application defaults across `Settings`, `.env_example`, shell
-  scripts, deployment workflow, and README where practical.
-- [ ] Remove mutable-import ambiguity from CLI backend overrides and Uvicorn
-  reload behavior.
-- [ ] Decide whether admin feature-setting changes are intentionally ephemeral;
-  document or persist them accordingly.
 
 ### Frontend correctness and help
 

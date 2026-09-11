@@ -50,7 +50,7 @@
     </div>
   </form>
 
-  {% if not is_browser_setup and FEATURES.ENABLE_SURVEY %}
+  {% if FEATURES.ENABLE_SURVEY %}
   <p style="text-align:center">
   Please help our research by compiling the
   <a href="{{ FEATURES.SURVEY_URL }}">
@@ -103,21 +103,22 @@
        the per-game tier, offered up to what the game implements. Simple Setup
        picks PROBE_REGION_DEFAULT for entangled boards; choosing here overrides
        that for this game. #}
-    {% if FEATURES.ENABLE_ENTANGLEMENT_PROBES %}
     {% set region_labels = {
          0: "0 - no probes",
          1: "1 - one area against the rest",
          2: "2 - two areas, shared information",
        } %}
+    <div id="probe-regions-advanced" {% if not FEATURES.ENABLE_ENTANGLEMENT_PROBES %}hidden{% endif %}>
     <label for="probe-regions">Entanglement probe regions:</label>
-    <select id="probe-regions" name="entanglement_probe_regions">
+    <select id="probe-regions" name="entanglement_probe_regions"
+            {% if not FEATURES.ENABLE_ENTANGLEMENT_PROBES %}disabled{% endif %}>
       {% for n in range(0, FEATURES.PROBE_REGION_LIMIT + 1) %}
-      <option value="{{ n }}" {% if n == FEATURES.PROBE_REGION_DEFAULT %}selected{% endif %}>
+      <option value="{{ n }}" {% if FEATURES.ENABLE_ENTANGLEMENT_PROBES and n == FEATURES.PROBE_REGION_DEFAULT %}selected{% endif %}>
         {{ region_labels.get(n, n ~ " regions") }}
       </option>
       {% endfor %}
     </select>
-    {% endif %}
+    </div>
 
     <div class="setup-actions">
       <button type="submit" class="btn">Start Game</button>
@@ -139,8 +140,24 @@
 
   // The region count Simple Setup gives an entangled board, or 0 where the
   // deployment has no entanglement probes at all.
-  const PROBE_REGIONS_DEFAULT =
+  let PROBE_REGIONS_DEFAULT =
     {{ (FEATURES.PROBE_REGION_DEFAULT if FEATURES.ENABLE_ENTANGLEMENT_PROBES else 0) | tojson }};
+
+  // The browser app starts with its bundled product choices, then replaces them
+  // with /app/config when it is served by FastAPI. Standalone/offline builds
+  // keep this value, while a deployment can change future browser games without
+  // rebuilding the PWA.
+  window.QMSApplyBrowserProductConfig = function (product) {
+    const enabled = Boolean(product && product.entanglement_probes);
+    PROBE_REGIONS_DEFAULT = enabled ? Number(product.probe_region_default || 0) : 0;
+    const setting = document.getElementById("probe-regions-advanced");
+    const select = document.getElementById("probe-regions");
+    if (setting) setting.hidden = !enabled;
+    if (select) {
+      select.disabled = !enabled;
+      if (enabled) select.value = String(PROBE_REGIONS_DEFAULT);
+    }
+  };
 
   function applySelections() {
     const size = document.getElementById("board-size").value.split("x");

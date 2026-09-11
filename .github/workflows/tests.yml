@@ -26,7 +26,7 @@ jobs:
 
       - name: Run Ruff
         run: |
-          python -m ruff check qminesweeper tests scripts
+          python -m ruff check src tests scripts
 
   test:
     runs-on: ubuntu-latest

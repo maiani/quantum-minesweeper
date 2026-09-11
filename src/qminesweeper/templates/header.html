@@ -1,8 +1,11 @@
 <header class="app-header">
   <div class="header-left">
-    {# Online player count is a server-side analytics feature; the browser-only
-       build has no server tracking it, so hide it there (keep the slot for layout). #}
-    {% if not browser_build %}Online players: {{ online_count() }}{% endif %}
+    {# The server renders the count directly. The browser build gets an empty
+       slot that browser-main.js fills from the analytics response, so the
+       counter appears only while the app is reporting and therefore counted
+       itself; it stays hidden offline and when reporting is switched off. #}
+    {% if browser_build %}<span id="qms-online-count" hidden></span>
+    {% else %}Online players: {{ online_count() }}{% endif %}
   </div>
 
   <div class="header-center">

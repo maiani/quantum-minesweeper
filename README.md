@@ -5,6 +5,12 @@
 <h1 align="center">Quantum Minesweeper</h1>
 
 <p align="center">
+  <a href="https://qminesweeper.andreamaiani.com/">
+    <img src="https://img.shields.io/badge/Play_Quantum_Minesweeper-6C5CE7?style=for-the-badge" alt="Play Quantum Minesweeper">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://github.com/maiani/quantum-minesweeper/actions/workflows/tests.yml"><img src="https://github.com/maiani/quantum-minesweeper/actions/workflows/tests.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/maiani/quantum-minesweeper/releases"><img src="https://img.shields.io/github/v/tag/maiani/quantum-minesweeper?label=release&sort=semver" alt="Latest release"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
@@ -73,19 +79,36 @@ python -m pip install .
 
 ### Configuration 
 
-Configuration is centralized with Pydantic Settings and loaded from environment variables (and .env in dev).
+Configuration is centralized in typed Pydantic settings and loaded from
+environment variables (and `.env` in development). Settings changed through
+the admin dashboard are persisted in the configured SQLite database and
+override those startup defaults; operational values such as credentials,
+paths, backend choice, URLs, and ingest limits remain environment-owned.
 
 Common flags:
-- `QMS_BACKEND` - simulator backend: `chppy`, `stim`, or `qiskit`. Local config defaults to `chppy`; `scripts/deploy.sh` defaults deployed server runs to `stim`.
+- `QMS_BACKEND` - simulator backend: `chppy`, `stim`, or `qiskit`. Local config defaults to `chppy`; `scripts/deploy.sh` defaults deployed server runs to `stim`. This picks the simulator the server computes with; it does not change where the game runs.
+- `QMS_ENABLE_BROWSER_APP` - offer the installable browser app at `/app/` (default on). When offered it becomes the landing: `/` redirects to `/app/`, so the game runs in the visitor's browser and works offline, and the server-rendered game stays at `/setup`. With this off, `/` goes to `/setup` as before and `/app/` is hidden. It needs a bundle, which the Docker image builds; `QMS_BROWSER_DIST_DIR` points at one for a non-Docker run.
+- `QMS_ENABLE_BROWSER_ANALYTICS` - accept game statistics from browser-only sessions at `POST /analytics` (default on), so a deployment collects the same statistics however its players play. Rows are stored alongside server games with `source='browser'`, since they are client-asserted rather than observed by the server. Set to 0 to collect nothing from browser play. `QMS_ANALYTICS_ALLOWED_ORIGINS` is only needed when the app is hosted on a different origin than this server.
+- `QMS_BROWSER_ANALYTICS_URL` - where a browser build sends its reports (default `/analytics`, relative, so a build reports to whichever origin serves it). Set it empty to build an app that reports nothing.
+- `QMS_ANALYTICS_RATE_LIMIT_PER_MINUTE` / `QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE`
+  - per-process request limits for the public browser-statistics endpoint
+  (defaults 60 per client and 600 total).
+- `QMS_ANALYTICS_MAX_BROWSER_ROWS` / `QMS_ANALYTICS_RETENTION_DAYS` - retain at
+  most the newest 50,000 browser-reported games and no more than 365 days by
+  default. Server-observed rows are not removed by this policy.
 - `QMS_ENABLE_AUTH`  - enable HTTP basic auth
 - `QMS_USER` / `QMS_PASS` - credentials for basic auth
 - `QMS_ADMIN_PASS` - admin dashboard password; leave unset to disable admin routes
 - `QMS_ENABLE_HELP` - render the in-app Help sidebar toggle
 - `QMS_ENABLE_TUTORIAL` / `QMS_TUTORIAL_URL` - show a Tutorial link
 - `QMS_ENABLE_SURVEY` / `QMS_SURVEY_URL` - show a Survey link
+- `QMS_RESET_POLICY` - allow resets in `never`, `sandbox`, or `any` games
 - `QMS_ENABLE_ENTANGLEMENT_PROBES` - whether the entanglement probe exists in
   this deployment (default on). How many regions a game gets is a separate
-  per-game choice in Setup, not a deployment setting
+  per-game choice in Setup, not a deployment setting. The installed browser
+  app refreshes this and the reset/survey game configuration from `/app/config`
+  before it starts a new game, so an admin change needs no image or PWA rebuild;
+  offline play retains the bundled choices.
 - `QMS_BASE_URL` can be set for absolute paths.
   
 Create a `.env` from the supplied `.env_example` in local development.

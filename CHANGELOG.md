@@ -4,83 +4,80 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- Merged the companion paper's staging copy into the canonical
-  `manuscript/qminesweeper.tex`, which now supersedes it, and pointed the
-  manuscript repository at the authors' Overleaf project. `AGENTS.md` records
-  the single-source rule that replaces the staging workflow.
-- Fixed `StimBackend.random_clifford_circuit` dropping the `seed` keyword its
-  `QuantumBackend` base class declares, which raised `TypeError` on any caller
-  that passed one, and added a conformance test covering every backend.
-- Made `ChppyBackend.random_clifford_circuit` honour `seed`, giving in-backend
-  reproducibility without disturbing the global NumPy stream that unseeded calls
-  and the golden export tests use. Stim still cannot seed, so `seed` remains
-  best-effort and per-backend, and cross-backend seeded reproducibility is now
-  recorded as deliberately deferred in `architecture.md`.
-- Extracted the stabilizer tableau into `chppy`, an independent vendored package
-  under `src/chppy/`, kept ready to branch out into its own repository. It has no
-  references to the rest of the code and its own test suite in `tests/chppy/`,
-  checked against independently computed reference values.
-- **Breaking:** renamed the pure-Python backend from `purepy` to `chppy`, after
-  the library it adapts. `QMS_BACKEND=purepy` and `--backend purepy` are no
-  longer accepted and now raise an unknown-backend error; use `chppy`.
-  `PurePyBackend`/`PurePyState` became `ChppyBackend`/`ChppyState`. Deployments
-  are unaffected: `scripts/deploy.sh` defaults to `stim`.
-- Moved the packages under `src/` and split tests to match, as
-  `tests/qminesweeper/` and `tests/chppy/`. The game's pytest fixtures moved to
-  `tests/qminesweeper/conftest.py` so the chppy suite no longer imports the
-  application, and the browser bundle now serves both packages from `dist/py/`
-  with its module manifest at that root.
-- Added default-on web entanglement probes with cell, drag-rectangle, and
-  shift-click selection, and an optional two-area mutual-information comparison
-  in Advanced Setup. Region editing is one exclusive selection mode alongside
-  the move tools and shares their hint line, leaving the probe panel as a
-  readout. Probe rules are preserved by reset, new-same, and browser
-  save/restore.
-- Added `QMS_ENABLE_ENTANGLEMENT_PROBES`, a deployment switch for the
-  entanglement probe, also on the admin dashboard. It bounds every game built,
-  including new-same.
-- Made the number of probe regions a single per-game setup choice (0, 1, or 2)
-  instead of two independent flags. Simple Setup enables probes wherever
-  entanglement can appear, at Level 2 and above and in Sandbox; Advanced Setup
-  sets any count.
-- Added non-destructive subset entropy to the PurePy, Stim, and Qiskit state
-  APIs, with independent implementations and backend parity coverage.
-- Distinguished the single-cell entropy sum from region entropy and mutual
-  information in the interface and teaching material.
-- Replaced the status bar's text labels with a mine emoji and an
-  interlocked-rings icon, keeping the expectation brackets on ⟨💣⟩, grouped the
-  two counters above the board instead of at the page edges (where the help
-  sidebar covered the right-hand one), and moved their names and the bit unit
-  into the help pane and tooltips.
-- Moved admin analytics reads and CSV export behind public, lock-guarded
-  `SQLiteStore` methods, so routes no longer reach into the private database
-  connection and concurrent reads cannot observe a torn counter snapshot.
-- Fixed the contextual help panel swapping back to the activated topic as soon
-  as the pointer moved into it, which made a hovered topic unreadable past its
-  first screenful. Arming a mode, including a probe region, now also sets the
-  topic that hovering returns to.
-- Fixed the analytics CSV export to emit column headers when no games exist.
-- Replaced the browser build's plain loading text with a staged progress bar for
-  the Pyodide boot, and locked the setup form while a game starts.
-- Added the WINQ funder logo to the shared footer.
-- Replaced the raster Nordita footer logo with an inlined single-colour SVG that
-  follows the active theme.
-- Added a project logo and status badges to the README.
-- Added PWA icons, install metadata, and a content-fingerprinted service worker
-  to the static browser build.
-- Added optional analytics configuration to generated browser pages.
-- Refactored FastAPI application context into `qminesweeper/server.py` and the
-  shared `view_context.py` module.
-- Added a shared About overlay for server and browser-only modes.
-- Moved project architecture and planning documentation to
-  `docs/architecture.md` and `docs/roadmap.md` and refreshed their status.
-- Replaced the Makefile command wrapper with a locked Pixi development
-  environment and native tasks.
-- Fixed the installed `qminesweeper` command to use the same package-owned
-  Typer application as `python -m qminesweeper`.
-- Unified TUI command parsing and move prompts with the shared engine rules,
-  synchronized frontend gate arity, and kept `CZ` in the extended two-qubit
-  move set.
+### Browser application and statistics
+
+- Added an installable, offline-capable PWA at `/app/`, built into the Docker
+  image and controlled by `QMS_ENABLE_BROWSER_APP`. When enabled it becomes the
+  temporary redirect target for `/`; the server-rendered game remains at
+  `/setup`. The app routes are exempt from Basic Auth so service-worker updates
+  work, while the server game and admin remain protected.
+- Added optional browser-game statistics through `POST /analytics`.
+  `BrowserSession` records the same fields and counting rules as server games,
+  queues reports while offline, and stores them as client-asserted
+  `source='browser'` rows that cannot overwrite server-owned games. The ingest
+  response also supplies the online-player count shown by reporting clients.
+- Hardened the public statistics endpoint with strict shared-vocabulary
+  validation, ordered and future-bounded timestamps, per-client and global rate
+  limits, retention pruning, and a maximum browser-row count. Rate-limited and
+  server-error responses retain the browser queue for retry.
+- Added PWA icons, install metadata, a content-fingerprinted service worker,
+  network-first application updates, and explicit update checks on visibility
+  changes and every hour. Pyodide startup now has staged progress feedback and
+  locks setup controls against duplicate starts.
+
+### Configuration and architecture
+
+- Made typed `Settings` the configuration owner: backend and reset policy use
+  closed values, and one immutable product snapshot drives the uppercase Jinja
+  and lowercase JavaScript projections. CLI backend overrides now survive
+  Uvicorn reload.
+- Persisted the admin-owned feature snapshot in SQLite. `/app/config` propagates
+  probe availability, reset policy, and survey behavior to new PWA games without
+  an image rebuild; offline play retains the bundled snapshot.
+- Moved both packages to `src/`, split application and standalone-library tests,
+  and made the browser bundle serve `qminesweeper` and `chppy` from one module
+  manifest. FastAPI context now lives in `server.py`, with shared presentation
+  projections in `view_context.py`.
+- Replaced the Makefile wrapper with locked Pixi tasks, unified the installed
+  and module CLI entrypoints, and aligned TUI parsing, frontend gate arity, and
+  the extended two-qubit `CZ` move with shared definitions.
+
+### Entanglement probes
+
+- Added default-on, read-only region probes with cell, rectangle, and
+  shift-click selection. Setup chooses zero, one, or two regions; the second
+  enables mutual information. Probe rules survive reset, new-same, and browser
+  save/restore, while `QMS_ENABLE_ENTANGLEMENT_PROBES` bounds every new game.
+- Added independently implemented, non-destructive subset entropy to the chppy,
+  Stim, and Qiskit state APIs with parity coverage. The UI and teaching material
+  distinguish region entropy and mutual information from the existing sum of
+  single-cell entropies.
+
+### Backends
+
+- Extracted the NumPy stabilizer tableau into the independently tested, vendored
+  `chppy` package, kept free of application dependencies and terminology.
+- **Breaking:** renamed the pure-Python backend from `purepy` to `chppy`.
+  `QMS_BACKEND=purepy`, `--backend purepy`, `PurePyBackend`, and `PurePyState`
+  are no longer supported; use their chppy equivalents. Deployed servers still
+  default to Stim.
+- Fixed `StimBackend.random_clifford_circuit` accepting but dropping `seed`, and
+  made `ChppyBackend` honor it without disturbing the global NumPy stream. Seeds
+  remain best-effort and backend-specific because Stim cannot seed this routine.
+
+### Interface, documentation, and fixes
+
+- Refined the shared UI with grouped mine and entanglement counters, contextual
+  help fixes, a shared About overlay, the WINQ and theme-aware Nordita footer
+  logos, and README project, status, and play badges.
+- Put admin statistics reads and CSV export behind lock-guarded `SQLiteStore`
+  methods. Empty databases now render a useful dashboard state and CSV header.
+- Fixed CI and deploy lint paths after the `src/` migration, isolated tests from
+  developer databases, and included the license in Docker packaging stages.
+- Consolidated architecture and active planning into `docs/architecture.md` and
+  `docs/roadmap.md`. The companion paper now uses
+  `manuscript/qminesweeper.tex` as its single canonical source, with its
+  repository connected to the authors' Overleaf project.
 
 ## [0.3.0] - 2026-06-02
 - Added a static browser-only build that runs Quantum Minesweeper in Pyodide on the PurePy backend.

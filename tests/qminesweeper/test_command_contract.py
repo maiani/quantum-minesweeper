@@ -11,7 +11,7 @@ import pytest
 from qminesweeper.engine import command_tokens_for_moveset, parse_command
 from qminesweeper.game import ALLOWED_MOVES, Action, MoveSet
 from qminesweeper.quantum_backend import ONE_QUBIT_GATES, TWO_QUBIT_GATES, QuantumGate
-from qminesweeper.view_context import build_config
+from qminesweeper.settings import Settings
 
 ROOT = Path(__file__).parents[2]
 RENDER_JS = ROOT / "src" / "qminesweeper" / "static" / "scripts" / "render.js"
@@ -60,7 +60,7 @@ def test_frontend_tools_match_move_set_legality():
 
 def test_every_frontend_gate_has_shared_arity_and_parses_with_it():
     exposed = set().union(*_frontend_tool_rows().values())
-    arities = build_config()["gate_arities"]
+    arities = Settings(_env_file=None).product_config().game_config()["gate_arities"]
 
     assert set(arities) == {gate.value.upper() for gate in QuantumGate}
     for token in exposed:

@@ -92,12 +92,45 @@ class SQLiteStore:
                   ended_at     TEXT,
                   resets       INTEGER NOT NULL DEFAULT 0,
                   moves_measures   INTEGER NOT NULL DEFAULT 0,
-                  moves_gates      INTEGER NOT NULL DEFAULT 0
+                  moves_gates      INTEGER NOT NULL DEFAULT 0,
+                  source       TEXT NOT NULL DEFAULT 'server'
                 )
                 """
             )
             self._db.execute("CREATE INDEX IF NOT EXISTS idx_games_user ON games(user_id)")
             self._db.execute("CREATE INDEX IF NOT EXISTS idx_games_last_seen ON games(last_seen)")
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS app_settings (
+                  key   TEXT PRIMARY KEY,
+                  value TEXT NOT NULL
+                )
+                """
+            )
+            self._migrate_add_source()
+
+    def _migrate_add_source(self) -> None:
+        """Add the `source` column to databases created before it existed.
+
+        Rows written by the server are authoritative because the server ran the
+        game; rows reported by a browser-only session are client-asserted. They
+        share this table so the dashboard and CSV export keep working unchanged,
+        and this column is what lets any analysis separate the two. Existing
+        rows predate browser reporting, so 'server' is the correct backfill.
+        """
+        cur = self._db.execute("PRAGMA table_info(games)")
+        if any(str(row["name"]) == "source" for row in cur.fetchall()):
+            return
+        try:
+            self._db.execute("ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'server'")
+            log.info("Migrated games table: added source column")
+        except sqlite3.Error as e:
+            # Never let analytics break startup. Unlike CREATE TABLE IF NOT
+            # EXISTS, an ALTER always writes, so a read-only database file would
+            # otherwise take the whole server down on a schema it could
+            # previously open. Such a database cannot accept any write anyway,
+            # so the game keeps running and every write logs its own failure.
+            log.error(f"Could not add games.source column, analytics writes will fail: {e}")
 
     # --- lifecycle ---
     def game_created(
@@ -113,6 +146,7 @@ class SQLiteStore:
         win_cond: str,
         moveset: str,
         prep_circuit: list[tuple[str, list[int]]],
+        source: str = "server",
     ):
         """Insert a new game row with explicit ONGOING status and zeroed counters."""
         try:
@@ -121,9 +155,9 @@ class SQLiteStore:
                     """
                     INSERT OR REPLACE INTO games
                     (game_id,user_id,created_at,last_seen,rows,cols,mines,ent_level,win_cond,moveset,
-                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates)
+                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates,source)
                     VALUES
-                    (?,?,?,?,?,?,?,?,?,?,?, 'ONGOING', NULL, 0, 0, 0)
+                    (?,?,?,?,?,?,?,?,?,?,?, 'ONGOING', NULL, 0, 0, 0, ?)
                     """,
                     (
                         game_id,
@@ -137,10 +171,92 @@ class SQLiteStore:
                         win_cond,
                         moveset,
                         json.dumps(prep_circuit),
+                        source,
                     ),
                 )
         except Exception as e:
             log.exception(f"DB game_created failed gid={game_id}: {e}")
+
+    def ingest_game(self, row: Dict[str, Any]) -> bool:
+        """Upsert one browser-reported game row. Returns True if it was stored.
+
+        A browser-only session has no server to record its progress, so it
+        reports the whole row rather than incremental events. That makes the
+        write idempotent, which matters because a client that was offline may
+        flush the same report more than once, and a game reported while ongoing
+        is later reported again when it ends.
+
+        The row is client-asserted: anyone can post to the ingest endpoint. Two
+        things follow. It is always stored with ``source='browser'`` so analysis
+        can separate it from server-authoritative rows, and it will never
+        overwrite a row the server wrote, so a client cannot rewrite real game
+        history by guessing a ``game_id``. Field validation belongs to the
+        endpoint; this method owns the storage invariants.
+        """
+        try:
+            with self._lock, self._db:
+                cur = self._db.execute("SELECT source FROM games WHERE game_id = ?", (row["game_id"],))
+                existing = cur.fetchone()
+                if existing is not None and str(existing["source"]) != "browser":
+                    log.warning(f"Refused browser analytics for server-owned game {row['game_id']}")
+                    return False
+                self._db.execute(
+                    """
+                    INSERT OR REPLACE INTO games
+                    (game_id,user_id,created_at,last_seen,rows,cols,mines,ent_level,win_cond,moveset,
+                     prep_circuit,status,ended_at,resets,moves_measures,moves_gates,source)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'browser')
+                    """,
+                    (
+                        row["game_id"],
+                        row.get("user_id") or "",
+                        row["created_at"],
+                        row["last_seen"],
+                        row["rows"],
+                        row["cols"],
+                        row["mines"],
+                        row["ent_level"],
+                        row["win_cond"],
+                        row["moveset"],
+                        json.dumps(row.get("prep_circuit") or []),
+                        row.get("status"),
+                        row.get("ended_at"),
+                        row.get("resets", 0),
+                        row.get("moves_measures", 0),
+                        row.get("moves_gates", 0),
+                    ),
+                )
+            return True
+        except Exception as e:
+            log.exception(f"DB ingest_game failed gid={row.get('game_id')}: {e}")
+            return False
+
+    def prune_browser_analytics(self, *, max_rows: int, retention_days: int) -> int:
+        """Bound client-asserted analytics by age and newest-row count."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff_iso = cutoff.isoformat()
+        try:
+            with self._lock, self._db:
+                old = self._db.execute(
+                    "DELETE FROM games WHERE source='browser' AND last_seen < ?",
+                    (cutoff_iso,),
+                ).rowcount
+                excess = self._db.execute(
+                    """
+                    DELETE FROM games
+                    WHERE source='browser' AND game_id NOT IN (
+                      SELECT game_id FROM games
+                      WHERE source='browser'
+                      ORDER BY last_seen DESC
+                      LIMIT ?
+                    )
+                    """,
+                    (max_rows,),
+                ).rowcount
+                return old + excess
+        except Exception as e:
+            log.exception(f"DB prune_browser_analytics failed: {e}")
+            return 0
 
     def heartbeat(self, *, game_id: str, ts: str):
         """Update last_seen for a game (no-op on error)."""
@@ -325,6 +441,34 @@ class SQLiteStore:
         except Exception as e:
             log.exception(f"DB export_games failed: {e}")
             return columns, []
+
+    # --- persisted application settings ---
+    def load_app_settings(self) -> Dict[str, Any]:
+        """Return dashboard-owned settings, ignoring malformed stored values."""
+        out: Dict[str, Any] = {}
+        try:
+            with self._lock:
+                rows = self._db.execute("SELECT key, value FROM app_settings").fetchall()
+            for row in rows:
+                try:
+                    out[str(row["key"])] = json.loads(str(row["value"]))
+                except (TypeError, ValueError):
+                    log.warning(f"Ignoring malformed persisted setting {row['key']!r}")
+        except Exception as e:
+            log.exception(f"DB load_app_settings failed: {e}")
+        return out
+
+    def save_app_settings(self, values: Dict[str, Any]) -> bool:
+        """Atomically replace the dashboard-owned settings snapshot."""
+        try:
+            rows = [(str(key), json.dumps(value)) for key, value in values.items()]
+            with self._lock, self._db:
+                self._db.execute("DELETE FROM app_settings")
+                self._db.executemany("INSERT INTO app_settings (key, value) VALUES (?, ?)", rows)
+            return True
+        except Exception as e:
+            log.exception(f"DB save_app_settings failed: {e}")
+            return False
 
 
 # ---------- Singleton accessor ----------

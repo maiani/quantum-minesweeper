@@ -9,13 +9,21 @@ JS `PyodideEngine` (static/scripts/pyodide-engine.js) drives this and feeds the
 result to the same `render.js`.
 
 It is deliberately framework-free and Stim-free — only board/game/engine +
-`ChppyBackend` — so it imports and runs under Pyodide. There is no server,
-no auth, and no analytics DB here; just one game at a time. The page keeps that
-game in memory while running and can export/import a small versioned snapshot so
-the browser build can restore after a reload.
+`ChppyBackend` — so it imports and runs under Pyodide. There is no server, no
+auth, and no database here; just one game at a time. The page keeps that game in
+memory while running and can export/import a small versioned snapshot so the
+browser build can restore after a reload.
+
+It does keep a per-game analytics record mirroring the row the server writes for
+its own games, so a browser-only session can report the same statistics when the
+page is configured to and has connectivity. Nothing here transmits: the record
+is data the page may choose to send. See `analytics_record`.
 """
 
 from __future__ import annotations
+
+from datetime import datetime, timezone
+from uuid import uuid4
 
 import numpy as np
 
@@ -46,6 +54,43 @@ class BrowserSession:
         self._board = None
         self._game = None
         self._params: tuple | None = None  # remembered for new_same
+        self._analytics: dict | None = None
+
+    # ---------- analytics ----------
+    # A browser-only session has no server recording what it plays. These
+    # helpers keep the same fields the server's analytics row holds, with the
+    # same rules: pins are not counted, a reset zeroes the move counters and
+    # increments `resets`, and the outcome is observed on the move that ends the
+    # game. Keeping the semantics identical is what makes the two sources
+    # comparable once reported.
+
+    @staticmethod
+    def _now() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _touch(self) -> None:
+        """Stamp activity and capture a terminal outcome, as the server does."""
+        if self._analytics is None:
+            return
+        now = self._now()
+        self._analytics["last_seen"] = now
+        if self._game is not None and self._analytics["status"] == "ONGOING":
+            if self._game.status == GameStatus.WIN:
+                self._analytics.update(status="WIN", ended_at=now)
+            elif self._game.status == GameStatus.LOST:
+                self._analytics.update(status="LOST", ended_at=now)
+
+    def analytics_record(self) -> dict | None:
+        """The current game's statistics, shaped like the server's row.
+
+        Returns a copy, so a caller holding it while play continues does not see
+        it mutate underneath, and None before the first game.
+        """
+        if self._analytics is None:
+            return None
+        record = dict(self._analytics)
+        record["prep_circuit"] = [[gate, list(targets)] for gate, targets in record["prep_circuit"]]
+        return record
 
     # ---------- lifecycle ----------
     def setup(
@@ -73,6 +118,31 @@ class BrowserSession:
         )
         self._params = (rows, cols, mines, ent_level, win, moves, entanglement_probes, two_area_probes)
         self._board, self._game = board, game
+
+        # Resolve the vocabulary the same way build_game did above, so the
+        # record says which rules actually applied rather than what was asked.
+        win_key = win.lower() if win.lower() in WIN_CONDITIONS else "identify"
+        moves_key = moves.lower() if moves.lower() in MOVE_SETS else "classic"
+        now = self._now()
+        self._analytics = {
+            # A fresh id per game, as the server mints one per /setup. Distinct
+            # from the fixed serialization id, which the save format depends on.
+            "game_id": str(uuid4()),
+            "created_at": now,
+            "last_seen": now,
+            "ended_at": None,
+            "rows": int(rows),
+            "cols": int(cols),
+            "mines": int(mines),
+            "ent_level": int(ent_level),
+            "win_cond": win_key,
+            "moveset": moves_key,
+            "status": "ONGOING",
+            "prep_circuit": board.preparation_circuit,
+            "resets": 0,
+            "moves_measures": 0,
+            "moves_gates": 0,
+        }
         return self.state()
 
     def new_same(self) -> dict:
@@ -86,15 +156,32 @@ class BrowserSession:
         """Apply a move-command string ('2,3', 'X 1,1', 'CX 1,1 2,2'). No-op on error."""
         self._require_game()
         try:
-            apply_command(self._board, self._game, parse_command(cmd))
+            command = parse_command(cmd)
+            apply_command(self._board, self._game, command)
+            if self._analytics is not None:
+                # Counted only after the command applied, and pins never count.
+                if command.kind == "measure":
+                    self._analytics["moves_measures"] += 1
+                elif command.kind == "gate":
+                    self._analytics["moves_gates"] += 1
         except Exception:
             # Mirror the server: an illegal/garbled command is a silent no-op.
             pass
+        self._touch()
         return self.state()
 
     def reset(self) -> dict:
         self._require_game()
         apply_command(self._board, self._game, Command("reset"))
+        if self._analytics is not None:
+            self._analytics.update(
+                resets=self._analytics["resets"] + 1,
+                moves_measures=0,
+                moves_gates=0,
+                status="ONGOING",
+                ended_at=None,
+                last_seen=self._now(),
+            )
         return self.state()
 
     # ---------- read ----------
@@ -154,6 +241,12 @@ class BrowserSession:
                 "z": state.z.tolist(),
                 "r": state.r.tolist(),
             },
+            # Optional, and deliberately not a version bump: a save written
+            # before this field existed still restores, and import treats a
+            # missing record as "this game does not report". Carrying it keeps a
+            # reloaded game's id and counters, so reporting it again updates the
+            # same row rather than creating a second one for the same game.
+            "analytics": self.analytics_record(),
         }
 
     def import_save(self, snapshot: dict) -> dict:
@@ -212,7 +305,22 @@ class BrowserSession:
             raise ValueError(f"malformed browser save: {e}") from e
         self._board = board
         self._game = game
+        self._analytics = self._restored_analytics(snapshot.get("analytics"))
         return self.state()
+
+    @staticmethod
+    def _restored_analytics(saved: object) -> dict | None:
+        """Accept an analytics record from a save, or None if it is absent or unusable.
+
+        Saves written before analytics existed simply have no record. Rather
+        than mint a fresh one, which would restart the counters and report
+        numbers known to be wrong, such a game reports nothing.
+        """
+        if not isinstance(saved, dict) or not saved.get("game_id"):
+            return None
+        record = dict(saved)
+        record["prep_circuit"] = [(str(gate), [int(t) for t in targets]) for gate, targets in record["prep_circuit"]]
+        return record
 
     def _require_game(self) -> None:
         if self._game is None:

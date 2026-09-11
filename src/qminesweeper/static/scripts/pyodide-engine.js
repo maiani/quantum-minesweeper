@@ -177,6 +177,16 @@ class PyodideEngine {
     return state;
   }
 
+  // The current game's statistics, shaped like the row the server writes for
+  // its own games. Null before the first game. Used only by analytics.js, which
+  // is inert unless the build was given an endpoint.
+  async analyticsRecord() {
+    await this.ready();
+    const record = this.session.analytics_record();
+    if (!record) return null;
+    return this._toState(record);
+  }
+
   async exportSave() {
     await this.ready();
     return this._toState(this.session.export_save());

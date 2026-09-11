@@ -8,7 +8,9 @@
 //      browser game when one exists;
 //   3. wires the setup form and intercepts the Reset/New-Game/New-Setup actions
 //      (render.js builds those as a POST to /game, which doesn't exist here).
-//   4. persists the current browser game to localStorage after each change.
+//   4. persists the current browser game to localStorage after each change, and
+//      hands its statistics to analytics.js, which does nothing unless the build
+//      was configured with a reporting endpoint.
 //
 // Loaded only by the static build, AFTER render.js, tools.js, and
 // pyodide-engine.js, and after Pyodide's loader script.
@@ -17,6 +19,24 @@
 (function () {
   const PY_BASE = "py/"; // relative -> works at any hosting base path
   const SAVE_KEY = "qms_browser_save_v1";
+
+  // Optional game-statistics reporting. window.QMS_ANALYTICS_URL is baked in by
+  // the build and is unset by default, in which case this call leaves analytics
+  // disabled and nothing is ever queued or sent.
+  if (window.QMSAnalytics) window.QMSAnalytics.configure(window.QMS_ANALYTICS_URL);
+
+  // Online-player count. The server sends it back with each accepted report, so
+  // the header slot stays empty until this app is actually reporting — which is
+  // also what makes the number honest, since it then counts players like this
+  // one. It keeps its last value while offline rather than flashing to zero.
+  window.addEventListener("qms:online", function (event) {
+    const slot = document.getElementById("qms-online-count");
+    if (!slot) return;
+    const count = event.detail && event.detail.online;
+    if (typeof count !== "number") return;
+    slot.textContent = "Online players: " + count;
+    slot.hidden = false;
+  });
 
   const engine = new PyodideEngine({
     pyBaseURL: PY_BASE,
@@ -32,6 +52,36 @@
     return state;
   };
   window.GameEngine = engine; // tools.js's sendCmd reads this
+
+  // Product choices (currently the entanglement-probe switch) are dynamic when
+  // this bundle is served by FastAPI. A standalone or offline PWA simply keeps
+  // the safe bundled defaults. We never alter an active game's rules: the
+  // refreshed choice applies only before a new browser game starts.
+  let activeGame = false;
+  let productConfigRequest = null;
+  async function refreshProductConfig() {
+    if (activeGame) return;
+    try {
+      const response = await fetch("/app/config", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (!payload || typeof payload !== "object" || !payload.product || !payload.config) return;
+      if (window.QMSApplyBrowserProductConfig) window.QMSApplyBrowserProductConfig(payload.product);
+      if (window.GameRenderer) window.GameRenderer.mergeConfig(payload.config);
+    } catch (err) {
+      // Expected for standalone and offline builds; bundled defaults stay live.
+    }
+  }
+  function loadProductConfig() {
+    if (!productConfigRequest) productConfigRequest = refreshProductConfig();
+    return productConfigRequest;
+  }
+  loadProductConfig();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !activeGame) {
+      productConfigRequest = refreshProductConfig();
+    }
+  });
 
   const loading = document.getElementById("loading");
   const setupPanel = document.getElementById("browser-setup");
@@ -186,6 +236,21 @@
     } catch (err) {
       console.warn("could not save browser game", err);
     }
+    await reportCurrentGame();
+  }
+
+  // Hand the current game's statistics to the analytics queue. This runs at the
+  // same points the save does, so a game is reported as it progresses and again
+  // when it ends; the queue replaces earlier reports of the same game and the
+  // server upserts, so the repetition costs nothing. Inert unless the build was
+  // configured with an endpoint, and never allowed to disturb play.
+  async function reportCurrentGame() {
+    if (!window.QMSAnalytics || !window.QMSAnalytics.enabled) return;
+    try {
+      window.QMSAnalytics.record(await engine.analyticsRecord());
+    } catch (err) {
+      console.warn("could not report game statistics", err);
+    }
   }
 
   function clearSavedGame() {
@@ -227,11 +292,21 @@
     for (const btn of setupPanel.querySelectorAll("button")) btn.disabled = busy;
   };
 
-  async function startGame(params) {
+  async function startGame(form) {
     setSetupBusy(true);
     showLoading("Starting game…");
     try {
+      // Fetch afresh here: an administrator may have changed the setting after
+      // the page first loaded but before this player presses Start Game.
+      productConfigRequest = refreshProductConfig();
+      await productConfigRequest;
+      // The runtime config may have arrived while the player was looking at the
+      // setup form. Recompute the simple form now so its hidden region count
+      // follows the newly received product rule.
+      if (form.closest("#simple-setup") && window.applySelections) applySelections();
+      const params = paramsFromSetupForm(form);
       const state = await engine.setup(params);
+      activeGame = true;
       await persistCurrentGame();
       window.GameRenderer.applyState(state);
       highlightTool();
@@ -271,6 +346,8 @@
         window.GameRenderer.clearProbes();
         localStorage.setItem("qms_tool", "M");
         clearSavedGame();
+        activeGame = false;
+        productConfigRequest = refreshProductConfig();
         showSetup();
       }
     } catch (err) {
@@ -283,7 +360,7 @@
     setupPanel.addEventListener("submit", async (event) => {
       event.preventDefault();
       resetToolSelection();
-      await startGame(paramsFromSetupForm(event.target));
+      await startGame(event.target);
     });
   }
 
@@ -313,6 +390,7 @@
       showLoading("Restoring saved game…");
       const restored = await restoreSavedGame();
       if (restored) {
+        activeGame = true;
         window.GameRenderer.applyState(restored);
         highlightTool();
         hideLoading();

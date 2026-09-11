@@ -21,14 +21,45 @@
 <link rel="apple-touch-icon" href="{{ STATIC_BASE | default('/static') }}/icons/icon-192.png">
 <script>
   window.QMS_BROWSER_BUILD = {{ build_id | tojson }};
+  // Where this build reports game statistics. Null unless the build was made
+  // with QMS_BROWSER_ANALYTICS_URL set, in which case analytics.js stays inert.
+  window.QMS_ANALYTICS_URL = {{ ANALYTICS_URL | tojson }};
   // Register the service worker so the app is installable and runs offline after
   // the first online launch (it caches Pyodide + numpy as they download).
+  //
+  // Keeping an INSTALLED app up to date needs two things beyond registration.
+  // The worker itself handles the rest: it is network-first for our own files,
+  // so an online player always receives the newest index.html, whose build id
+  // changes this script URL and so installs the new worker, which then drops
+  // old caches and reloads open pages.
+  //
+  //   1. updateViaCache "none": never let the HTTP cache answer for sw.js or its
+  //      imports. Otherwise a cached worker script can keep an installed app on
+  //      an old build even though the server has a newer one.
+  //   2. An explicit update() check. The browser only looks for a new worker on
+  //      navigation, and an installed app is often left open for days without
+  //      one, so check when it becomes visible again and periodically while it
+  //      stays open.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       const swURL = "sw.js?v=" + encodeURIComponent(window.QMS_BROWSER_BUILD);
-      navigator.serviceWorker.register(swURL).catch(function (err) {
-        console.warn("service worker registration failed", err);
-      });
+      navigator.serviceWorker
+        .register(swURL, { updateViaCache: "none" })
+        .then(function (registration) {
+          // Cheap: a conditional request the server answers with 304 when the
+          // worker is unchanged. Failures are ignored, since being offline is
+          // the ordinary reason and there is nothing to do about it.
+          const checkForUpdate = function () {
+            registration.update().catch(function () {});
+          };
+          document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible") checkForUpdate();
+          });
+          setInterval(checkForUpdate, 60 * 60 * 1000);
+        })
+        .catch(function (err) {
+          console.warn("service worker registration failed", err);
+        });
     });
   }
 </script>
@@ -69,5 +100,6 @@
 <script src="{{ STATIC_BASE | default('/static') }}/scripts/render.js"></script>
 <script src="{{ STATIC_BASE | default('/static') }}/scripts/tools.js"></script>
 <script src="{{ STATIC_BASE | default('/static') }}/scripts/pyodide-engine.js"></script>
+<script src="{{ STATIC_BASE | default('/static') }}/scripts/analytics.js"></script>
 <script src="{{ STATIC_BASE | default('/static') }}/scripts/browser-main.js"></script>
 {% endblock %}

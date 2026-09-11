@@ -84,13 +84,51 @@ def test_admin_authed_rejects_token_signed_with_other_secret():
 
 
 # ---------- public SEO URL shape ----------
-def test_home_redirects_to_stable_setup_url():
-    request = SimpleNamespace(cookies={}, url=SimpleNamespace(scheme="http"))
+def _home_request() -> SimpleNamespace:
+    return SimpleNamespace(cookies={}, url=SimpleNamespace(scheme="http"))
 
-    resp = asyncio.run(home(request))
+
+def test_home_redirects_to_stable_setup_url():
+    """Without the installable app, the server-rendered game is the landing."""
+    resp = asyncio.run(home(_home_request()))
 
     assert resp.status_code == 307
     assert resp.headers["location"] == "/setup"
+
+
+def test_home_lands_on_the_browser_app_when_it_is_offered(monkeypatch):
+    """A deployment offering the app sends visitors there, so play runs in their browser."""
+    from qminesweeper import server
+
+    monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", True)
+    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", True)
+
+    resp = asyncio.run(home(_home_request()))
+
+    assert resp.headers["location"] == "/app/"
+    # 307, not 301: the target follows a runtime setting, and a cached permanent
+    # redirect would keep sending visitors to /app/ after it was switched off.
+    assert resp.status_code == 307
+
+
+def test_home_stays_on_the_server_game_when_the_app_is_switched_off(monkeypatch):
+    """The bundle may exist while the deployment chooses not to offer it."""
+    from qminesweeper import server
+
+    monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", True)
+    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", False)
+
+    assert asyncio.run(home(_home_request())).headers["location"] == "/setup"
+
+
+def test_home_stays_on_the_server_game_when_no_bundle_exists(monkeypatch):
+    """The switch cannot conjure a bundle, so it must not redirect to nothing."""
+    from qminesweeper import server
+
+    monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", False)
+    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", True)
+
+    assert asyncio.run(home(_home_request())).headers["location"] == "/setup"
 
 
 def test_setup_uses_stable_public_links():

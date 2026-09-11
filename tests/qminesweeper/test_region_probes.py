@@ -180,22 +180,34 @@ def test_probe_rules_narrow_stored_flags_to_a_region_limit():
 
 def test_setup_tiers_reach_templates():
     from qminesweeper.engine import PROBE_REGION_DEFAULT, PROBE_REGION_LIMIT
-    from qminesweeper.view_context import build_features
+    from qminesweeper.settings import Settings
 
-    features = build_features()
+    features = Settings(_env_file=None).product_config().template_features(browser_app_available=False)
     # The deployment switch is a boolean; the region counts are game tiers the
     # setup form renders as choices.
     assert features["ENABLE_ENTANGLEMENT_PROBES"] is True
     assert features["PROBE_REGION_LIMIT"] == PROBE_REGION_LIMIT
     assert features["PROBE_REGION_DEFAULT"] == PROBE_REGION_DEFAULT
     assert PROBE_REGION_DEFAULT <= PROBE_REGION_LIMIT
-    assert build_features(enable_entanglement_probes=False)["ENABLE_ENTANGLEMENT_PROBES"] is False
+    disabled = Settings(_env_file=None, ENABLE_ENTANGLEMENT_PROBES=False)
+    assert disabled.product_config().template_features(browser_app_available=False)[
+        "ENABLE_ENTANGLEMENT_PROBES"
+    ] is False
 
 
 def test_settings_enable_probes_by_default():
     from qminesweeper.settings import Settings
 
     assert Settings(_env_file=None).ENABLE_ENTANGLEMENT_PROBES is True
+
+
+def test_browser_app_config_follows_the_live_probe_switch(monkeypatch):
+    """A deployed PWA refreshes this response before it starts a new game."""
+    monkeypatch.setattr(server.settings, "ENABLE_ENTANGLEMENT_PROBES", False)
+    body = server.browser_app_config().body
+    config = json.loads(body)
+    assert config["product"]["entanglement_probes"] is False
+    assert config["config"]["entanglement_probes"] is False
 
 
 @pytest.mark.parametrize(

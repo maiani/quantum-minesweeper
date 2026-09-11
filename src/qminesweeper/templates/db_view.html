@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<h2>Last {{ rows|length }} Games</h2>
+<h2>Game Statistics</h2>
 
 <div class="admin-links">
   <ul>
@@ -21,10 +21,13 @@
 
 <hr>
 
+{% if rows %}
+<p>Showing the {{ rows|length }} most recent games.</p>
+
 <div class="admin-controls">
   <input type="text" id="table-filter" placeholder="Filter rows...">
   <div id="column-toggles">
-    {% for col in rows[0].keys() if col != 'prep_circuit' %}
+    {% for col in columns if col != 'prep_circuit' %}
       <label>
         <input type="checkbox" class="col-toggle" data-col="{{ loop.index0 }}" checked>
         {{ col }}
@@ -37,7 +40,7 @@
   <table class="admin-table" id="games-table">
     <thead>
       <tr>
-        {% for col in rows[0].keys() if col != 'prep_circuit' %}
+        {% for col in columns if col != 'prep_circuit' %}
           <th class="sortable" data-col="{{ loop.index0 }}">{{ col }}</th>
         {% endfor %}
       </tr>
@@ -53,7 +56,18 @@
     </tbody>
   </table>
 </div>
+{% else %}
+<div class="setup-expl">
+  <h3>No game statistics yet</h3>
+  <p>
+    Completed and in-progress games will appear here after someone starts
+    playing. The CSV download is already available and includes its column
+    headers even while the database is empty.
+  </p>
+</div>
+{% endif %}
 
+{% if rows %}
 <script>
 // --- Filtering ---
 document.getElementById("table-filter").addEventListener("keyup", function() {
@@ -107,4 +121,5 @@ document.querySelectorAll("#games-table th.sortable").forEach(th => {
   });
 });
 </script>
+{% endif %}
 {% endblock %}
