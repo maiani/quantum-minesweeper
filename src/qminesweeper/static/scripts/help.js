@@ -194,7 +194,7 @@
     // Both listeners are on `document` and find their target with closest(),
     // rather than being attached to each [help-id] element on load. That is
     // what makes contextual help work for parts of the page JavaScript draws
-    // later or redraws: the status counters and probe panel (rendered from game
+    // later or redraws: the status counters and probe row (rendered from game
     // state, and in the browser build only once Pyodide has booted), the tool
     // buttons, and the board. Elements bound individually at load time would
     // lose their help the moment they were replaced.

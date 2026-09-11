@@ -93,6 +93,31 @@ All notable changes to this project will be documented in this file.
   clue and mine included, is now recessed and every unexplored one raised, in
   both themes. The board no longer flattens into the explored colour when the
   game ends.
+- Compacted the entanglement probe from a five-block panel to a single row,
+  164px down to 42px. The heading duplicated the contextual help the section
+  already opens on hover, and the counts line restated the buttons above it, so
+  each region's size now rides on its own button and the readout sits at the end
+  of the same row. It names its quantity as S(A : rest) or I(A : B), the
+  notation the help pane and the paper already use, instead of a sentence. The
+  move tools sit 122px higher as a result, back above the fold on a laptop, and
+  the row holds to one line down to phone width.
+- Fixed the region drag preview and its anchor ring being drawn in the same
+  blue whichever region was armed, so editing region B looked identical to
+  editing region A. Both now take the armed region's own colour.
+- Stopped the setup page inviting players to a survey that was never
+  configured: the invitation now needs a URL as well as the feature switch,
+  matching the game-over survey button and the header's tutorial link, which
+  already required both.
+- Replaced the footer's "GitHub" text with the GitHub mark, inlined and painted
+  in `currentColor` like the Nordita logo so it follows the footer's link colour
+  on both themes.
+- Fixed Advanced Setup, where every input and select had collapsed to about
+  30px wide and showed only the first character of its value. The entanglement
+  probe setting is wrapped in a div so the deployment switch can hide it, and
+  that wrapper was a grid item in the form's max-content label column, sized to
+  the widest option text inside it; the value column got what was left. Form
+  fields also take the full column now rather than four fifths of it, which was
+  truncating the longest option mid-word.
 - Consolidated the colour system. Every colour literal outside the two theme
   blocks is gone, replaced by new `--on-accent`, `--border`, `--win`,
   `--probe-a`, `--probe-b`, and `--shadow-subtle` tokens, and three properties

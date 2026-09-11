@@ -94,6 +94,23 @@ body.light .setup-expl {
   margin: 1rem 0;
 }
 
+/* The entanglement-probe setting is wrapped in a div so the deployment switch
+   can hide the whole row at once. That wrapper was itself a grid item, sitting
+   in the label column, and a grid column sized to max-content takes the widest
+   thing in it -- here the longest option text of the select inside the
+   wrapper, around 380px. It pushed the value column down to what was left of a
+   484px form, collapsing every input and select in Advanced Setup to about
+   30px. display: contents removes the wrapper from the layout so its label and
+   select sit in the two columns like every other row. The [hidden] rule at the
+   top of this file still hides it: display:none !important outranks this. */
+#probe-regions-advanced {
+  display: contents;
+}
+
+.setup-survey {
+  text-align: center;
+}
+
 .setup-actions {
   grid-column: 1 / -1;
   display: flex;
@@ -108,9 +125,13 @@ body.light .setup-expl {
   opacity: 0.9;
 }
 
+/* Full column, not 80%. The widest option text ("2 - two areas, shared
+   information") did not fit in four fifths of it and was truncated mid-word,
+   and the narrow-screen rules below already give these fields the full width. */
 .setup-form input[type="number"],
 .setup-form select {
-  width: 80%;
+  width: 100%;
+  box-sizing: border-box;
   padding: 8px 10px;
   border-radius: var(--radius);
   border: 1px solid transparent;
@@ -197,12 +218,6 @@ body.light .setup-form select {
 
   .setup-form label {
     justify-self: start;
-  }
-
-  .setup-form input[type="number"],
-  .setup-form select {
-    width: 100%;
-    box-sizing: border-box;
   }
 
   .setup-actions {

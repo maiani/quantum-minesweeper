@@ -15,7 +15,13 @@
       </a>
     · <a href="https://github.com/maiani/quantum-minesweeper/releases/tag/v{{ version }}" target="_blank" rel="noopener noreferrer">v{{ version }}</a>
    
-    · <a href="https://github.com/maiani/quantum-minesweeper" target="_blank" rel="noopener noreferrer">GitHub</a>
+    {# The mark rather than the word: it is the one link here whose destination is
+       universally recognised from its logo, and the row is tight. The accessible
+       name and tooltip carry what the word used to say. #}
+    · <a href="https://github.com/maiani/quantum-minesweeper" target="_blank" rel="noopener noreferrer"
+         class="footer-icon" aria-label="Source code on GitHub" title="Source code on GitHub">
+      {% include "_github_icon.svg" %}
+      </a>
    
     · <span>MIT License</span> 
   

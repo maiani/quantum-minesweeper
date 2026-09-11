@@ -411,12 +411,29 @@ body.light .btn.active {
     width: auto;
 }
 
+/* The GitHub mark. Sized in em so it stays in proportion to the footer text it
+   sits between, and painted in currentColor by the SVG itself, so it follows
+   the footer link colour and its accent on hover like the Nordita logo does. */
+.footer-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: -0.18em;
+}
+
+.footer-icon svg {
+    display: block;
+    width: 1.15em;
+    height: 1.15em;
+}
+
 /* Logos are not text: the footer's link underline (see .footer a:hover below)
-   would cut straight through them. Two shapes to cover, because the logo class
-   sits in a different place in each: on the link itself for Nordita, whose SVG
-   is inlined, and on the <img> inside the link for WINQ. */
+   would cut straight through them. Three shapes to cover, because the class
+   sits in a different place in each: on the link itself for Nordita and for the
+   GitHub mark, whose SVGs are inlined, and on the <img> inside the link for
+   WINQ. */
 .footer a.footer-logo:hover,
-.footer a.footer-logo-link:hover {
+.footer a.footer-logo-link:hover,
+.footer a.footer-icon:hover {
     text-decoration: none;
 }
 

@@ -241,8 +241,12 @@ Editing a region is a frontend selection mode, like the move tools it sits
 beside: exactly one of them is armed, and it decides what a cell click does.
 Arming a region clears the tool row's highlight, choosing a tool drops the
 armed region, and both share the one hint line under the move buttons. The
-probe panel is therefore a readout — region sizes and the entropy or mutual
-information — and never a second place to look for what a click will do.
+probe row is therefore a readout — each region's size on its own button, and
+the entropy or mutual information at the end of the row — and never a second
+place to look for what a click will do. It is one row by constraint: it sits
+between the board and the move tools, so height spent there is height the tools
+lose, and it names its quantity in the same notation as the help pane and the
+paper rather than in a sentence.
 
 `StabilizerQuantumState.entanglement_entropy(subset)` returns the von Neumann
 entropy of the selected reduced state in bits. The complete state is pure,

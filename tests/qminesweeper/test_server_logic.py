@@ -140,6 +140,27 @@ def test_setup_uses_stable_public_links():
     assert "/about?game_id" not in html
 
 
+def test_setup_survey_needs_both_the_switch_and_a_url():
+    # The switch being on does not mean a URL was configured, and an invitation
+    # pointing at nothing is worse than no invitation. The game-over survey
+    # button in render.js requires both, and so does the header's tutorial link.
+    features = templates.env.globals["FEATURES"]
+    original = dict(features)
+
+    def render(*, enabled, url):
+        features.update({"ENABLE_SURVEY": enabled, "SURVEY_URL": url})
+        return templates.env.get_template("_setup_content.html").render()
+
+    try:
+        assert "Post Game Survey" in render(enabled=True, url="https://example.test/survey")
+        assert "Post Game Survey" not in render(enabled=True, url=None)
+        assert "Post Game Survey" not in render(enabled=True, url="")
+        assert "Post Game Survey" not in render(enabled=False, url="https://example.test/survey")
+    finally:
+        features.clear()
+        features.update(original)
+
+
 def test_header_renders_about_link():
     # The game now links to a clean /about (no game_id) — the about page's Back
     # button returns to the game via history, so no per-game URL is minted.

@@ -206,7 +206,7 @@
   content: "";
   position: absolute;
   inset: -4px;
-  border: 2px dashed var(--accent);
+  border: 2px dashed var(--probe-active, var(--accent));
   border-radius: 8px;
   pointer-events: none;
 }
@@ -223,9 +223,9 @@
 /* The rectangle under the pointer, before release. The extra class in the
    selector keeps this ahead of the themed .board button fills below. */
 .board.probe-selecting button.probe-preview {
-  outline: 3px dashed var(--accent);
+  outline: 3px dashed var(--probe-active, var(--accent));
   outline-offset: -3px;
-  background: color-mix(in srgb, var(--accent) 30%, var(--btn-bg)) !important;
+  background: color-mix(in srgb, var(--probe-active, var(--accent)) 30%, var(--btn-bg)) !important;
 }
 
 /* A drag that started on an already-selected cell erases instead of draws. */
@@ -247,20 +247,62 @@
   line-height: 1.2;
 }
 
-.probe-panel {
-  margin: 0.75rem 0 1rem;
-  padding: 0.8rem;
+/* ---------- Entanglement probe ----------
+   One row: controls at the start, readout at the end. It replaces a five-block
+   panel (heading, button row, counts line, result line, breakdown line) that
+   stood 164px tall between the board and the move tools and pushed them off a
+   laptop screen. Three of those blocks only restated the others: the heading
+   repeated the contextual help the row already opens on hover, and the counts
+   line repeated the buttons above it. */
+.probe-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.6rem 0 0.8rem;
+  padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--box-overlay);
 }
 
-.probe-panel h3,
-.probe-panel p { margin: 0.3rem 0; }
-.probe-controls { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
-.probe-controls .active { outline: 2px solid var(--accent); }
-.probe-result { min-height: 1.4em; }
-.probe-breakdown { color: var(--muted); font-size: 0.9rem; }
+/* Sized here rather than with the shared .btn.tool class, which tools.js owns:
+   see probeButton() in render.js. */
+.probe-bar .btn {
+  gap: 0.4em;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  min-width: 34px;
+}
+
+.probe-count {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pushes the readout to the far end while the row fits on one line, and simply
+   collapses when it wraps. */
+.probe-spacer {
+  flex: 1 1 0;
+}
+
+.probe-result {
+  font-variant-numeric: tabular-nums; /* the number must not jitter as it changes */
+}
+
+.probe-breakdown {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* The breakdown is supplementary: the three entropies the mutual information is
+   built from. On a narrow screen it would take a wrapped line of its own, which
+   is exactly the height this redesign set out to recover. */
+@media (max-width: 720px) {
+  .probe-breakdown {
+    display: none;
+  }
+}
 
 /* Light: board buttons. Only the shadow differs here -- backgrounds come from
    the shared rules above, so the raised/recessed distinction is stated once.

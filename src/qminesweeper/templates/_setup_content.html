@@ -50,8 +50,11 @@
     </div>
   </form>
 
-  {% if FEATURES.ENABLE_SURVEY %}
-  <p style="text-align:center">
+  {# Both conditions, as the game-over survey button and the header's tutorial
+     link already do: the switch being on does not mean a URL was configured,
+     and without one this rendered an invitation pointing at nothing. #}
+  {% if FEATURES.ENABLE_SURVEY and FEATURES.SURVEY_URL %}
+  <p class="setup-survey">
   Please help our research by compiling the
   <a href="{{ FEATURES.SURVEY_URL }}">
     Post Game Survey

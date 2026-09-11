@@ -260,6 +260,13 @@ function renderBoard(state) {
   // tile, and it disappears with the table on the next render.
   if (_probeEdit) {
     table.classList.add("probe-selecting");
+    // The drag preview and the anchor ring are drawn in the armed region's own
+    // colour, so a rectangle being dragged out looks like what it is about to
+    // become. Without this both regions previewed in the same blue and B gave
+    // no hint that it was B you were editing. setProbeEdit() rebuilds the board
+    // whenever the armed region changes, so this is set once per render; the
+    // preview classes the drag adds later inherit it from the table.
+    table.style.setProperty("--probe-active", _probeEdit === "B" ? "var(--probe-b)" : "var(--probe-a)");
     table.addEventListener("pointerdown", onBoardPointerDown);
   }
   // Moves now go through the JS engine (fetch), so no hidden form is needed.
@@ -526,13 +533,31 @@ function stopProbeEditing() {
   renderProbePanel();
 }
 
-function probeButton(text, mode) {
+// One region button. The cell count rides on the button rather than on a line
+// of its own: "Region A: 4 cells" under a button labelled "Region A" said the
+// same thing twice and cost a row of the panel to do it. The count is
+// aria-hidden because the button's aria-label already spells it out.
+//
+// Deliberately not `.btn.tool`. tools.js owns every button with that class and
+// clears `active` from all of them when a move tool is chosen, which would
+// strip the armed region's highlight. The compact sizing comes from
+// `.probe-bar .btn` in game.css instead.
+function probeButton(mode) {
+  const size = mode === "A" ? _probeA.size : _probeB.size;
+  const armed = _probeEdit === mode;
   return el("button", {
-    type: "button", class: `btn${_probeEdit === mode ? " active" : ""}`,
-    text, "aria-pressed": _probeEdit === mode ? "true" : "false",
+    type: "button", class: `btn${armed ? " active" : ""}`,
+    "aria-pressed": armed ? "true" : "false",
+    // The visible label is a bare letter, so spell it out for screen readers,
+    // which no longer have a counts line to read.
+    "aria-label": `Region ${mode}, ${size} cell${size === 1 ? "" : "s"}`,
+    title: `Edit region ${mode}`,
     "data-probe-mode": mode,
     onclick: () => setProbeEdit(mode),
-  });
+  }, [
+    `Region ${mode}`,
+    el("span", { class: "probe-count", text: String(size), "aria-hidden": "true" }),
+  ]);
 }
 
 // Rewrite the shared hint line alone. The drag preview updates on every pointer
@@ -557,9 +582,13 @@ function renderProbePanel() {
     host.replaceChildren();
     return;
   }
-  const controls = [probeButton("Region A", "A")];
-  if (_config.two_area_probes) controls.push(probeButton("Region B", "B"));
-  controls.push(el("button", { type: "button", class: "btn", text: "Clear regions", onclick: clearProbes }));
+  const controls = [probeButton("A")];
+  if (_config.two_area_probes) controls.push(probeButton("B"));
+  controls.push(el("button", {
+    type: "button", class: "btn", text: "Clear",
+    "aria-label": "Clear probe regions", title: "Clear probe regions",
+    onclick: clearProbes,
+  }));
 
   const result = _probeResult;
   const error = _probeError;
@@ -568,28 +597,37 @@ function renderProbePanel() {
   // hint line, and what any of it *means* to the help pane
   // (static/help/region-probe) — neither is panel text.
   const pairMode = Boolean(_config.two_area_probes && _probeA.size && _probeB.size);
-  const label = pairMode ? "Shared information between A and B" : "Entanglement with the rest of the board";
+  // The quantity is named in the notation the help pane and the paper use. The
+  // sentence-long labels this replaces ("Entanglement with the rest of the
+  // board: …") were the reason the readout needed a line to itself.
+  const label = pairMode ? "I(A : B)" : "S(A : rest)";
   // The parts a two-region result is built from.
   let breakdown = null;
   let primary;
   if (error) {
     primary = `Probe unavailable: ${error}`;
   } else if (result && pairMode && result.mutual_information !== null) {
-    primary = `${label}: ${formatBits(result.mutual_information)}`;
+    primary = `${label} = ${formatBits(result.mutual_information)}`;
     breakdown = `S(A) ${formatBits(result.entropy_a)} · S(B) ${formatBits(result.entropy_b)} · S(A ∪ B) ${formatBits(result.entropy_union)}`;
   } else if (result) {
-    primary = `${label}: ${formatBits(result.entropy_a)}`;
+    primary = `${label} = ${formatBits(result.entropy_a)}`;
   } else if (!_probeA.size) {
-    primary = `${label}: —`;
+    primary = `${label} = —`;
   } else {
-    primary = `${label}: ${_mutationPending ? "waiting for the move…" : "calculating…"}`;
+    // Both transient states are kept short: a row that grows to two lines and
+    // back while a move resolves is the jitter this redesign set out to remove.
+    primary = `${label} = ${_mutationPending ? "waiting…" : "calculating…"}`;
   }
-  host.replaceChildren(el("section", { class: "probe-panel", "help-id": "region-probe", "aria-label": "Entanglement probe" }, [
-    el("h3", { text: "Entanglement probe" }),
-    el("div", { class: "probe-controls" }, controls),
-    el("p", { class: "probe-counts", text: `Region A: ${_probeA.size} cell${_probeA.size === 1 ? "" : "s"}${_config.two_area_probes ? ` · Region B: ${_probeB.size} cell${_probeB.size === 1 ? "" : "s"}` : ""}` }),
-    el("p", { class: "probe-result", "aria-live": "polite", text: primary }),
-    breakdown ? el("p", { class: "probe-breakdown", text: breakdown }) : null,
+  // One row: the region buttons, then the readout pushed to the far end. The
+  // row carries no visible title of its own — the buttons name themselves, and
+  // the section keeps its aria-label, so hovering it still opens
+  // static/help/region-probe, which is where what any of it *means* belongs.
+  // How to select cells stays in the hint line, as before.
+  host.replaceChildren(el("section", { class: "probe-bar", "help-id": "region-probe", "aria-label": "Entanglement probe" }, [
+    ...controls,
+    el("span", { class: "probe-spacer", "aria-hidden": "true" }),
+    el("span", { class: "probe-result", "aria-live": "polite", text: primary }),
+    breakdown ? el("span", { class: "probe-breakdown", text: breakdown }) : null,
   ]));
   syncToolUi();
 }
