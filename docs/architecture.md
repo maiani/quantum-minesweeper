@@ -330,6 +330,17 @@ stale worker script, and the page checks for an update when it becomes visible
 and hourly while it stays open, because the browser otherwise only looks on
 navigation and an installed app may go days without one.
 
+Network-first is not sufficient on its own, because the worker's `fetch()` reads
+through the HTTP cache like any other. Both static mounts therefore serve
+`Cache-Control: no-cache`, which stores the file but requires revalidation.
+Without it Starlette sends only `etag` and `last-modified`, and a browser with
+no explicit freshness invents one of roughly a tenth of the file's age: a bundle
+that had been live two months was treated as fresh for days, so an installed
+client kept serving the old build across reloads after a deploy. That failure
+was reproduced and is covered by a test; the etag makes the revalidation cost an
+empty 304, and offline play is unaffected because it is served from the worker's
+Cache Storage rather than from the mount.
+
 ## Browser-only distribution
 
 `src/qminesweeper/browser.py` owns an in-memory `BrowserSession`. Setup, move,

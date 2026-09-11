@@ -104,6 +104,14 @@ All notable changes to this project will be documented in this file.
 - Fixed the region drag preview and its anchor ring being drawn in the same
   blue whichever region was armed, so editing region B looked identical to
   editing region A. Both now take the armed region's own colour.
+- Fixed installed PWAs staying on an old build after a deploy. The bundle was
+  served with `etag` and `last-modified` but no `Cache-Control`, and a browser
+  with no explicit freshness invents one of roughly a tenth of the file's age,
+  so a bundle that had been live a couple of months was treated as fresh for
+  days. The service worker is network-first, but its `fetch()` reads through
+  that same HTTP cache, which defeated the update path entirely. Both static
+  mounts now send `Cache-Control: no-cache` — store, but revalidate — so an
+  unchanged file still costs only an empty 304 and offline play is untouched.
 - Stopped the setup page inviting players to a survey that was never
   configured: the invitation now needs a URL as well as the feature switch,
   matching the game-over survey button and the header's tutorial link, which

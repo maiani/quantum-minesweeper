@@ -140,6 +140,33 @@ def test_setup_uses_stable_public_links():
     assert "/about?game_id" not in html
 
 
+def test_static_mounts_ask_browsers_to_revalidate(tmp_path):
+    """Without Cache-Control a browser invents its own freshness window, roughly
+    a tenth of the file's age. That breaks PWA updates outright: the service
+    worker is network-first, but its fetch() reads through the HTTP cache, so a
+    bundle that had been live a couple of months kept installed clients on the
+    old build for days after a deploy. `no-cache` means "store, but revalidate",
+    so an unchanged file still costs only an empty 304.
+    """
+    from qminesweeper.server import RevalidatingStaticFiles
+
+    (tmp_path / "asset.txt").write_text("hello")
+    files = RevalidatingStaticFiles(directory=str(tmp_path))
+    scope = {"type": "http", "method": "GET", "headers": []}
+
+    fresh = asyncio.run(files.get_response("asset.txt", scope))
+    assert fresh.status_code == 200
+    assert fresh.headers["cache-control"] == "no-cache"
+
+    # The revalidation itself must carry it too, or the 304 reintroduces the
+    # heuristic for the next request.
+    etag = fresh.headers["etag"].encode()
+    conditional = {"type": "http", "method": "GET", "headers": [(b"if-none-match", etag)]}
+    not_modified = asyncio.run(files.get_response("asset.txt", conditional))
+    assert not_modified.status_code == 304
+    assert not_modified.headers["cache-control"] == "no-cache"
+
+
 def test_setup_survey_needs_both_the_switch_and_a_url():
     # The switch being on does not mean a URL was configured, and an invitation
     # pointing at nothing is worse than no invitation. The game-over survey

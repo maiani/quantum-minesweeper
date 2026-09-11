@@ -218,7 +218,32 @@ def browser_app_config():
     return JSONResponse({"product": product.browser_product(), "config": product.game_config()})
 
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+class RevalidatingStaticFiles(StaticFiles):
+    """StaticFiles that asks the browser to revalidate instead of guessing.
+
+    Starlette sends `etag` and `last-modified` but no `Cache-Control`. With no
+    explicit freshness a browser invents one -- roughly a tenth of the file's
+    age -- so a bundle that has been live for a couple of months is treated as
+    fresh for days, and a newly deployed one is not fetched at all. That is not
+    a theoretical risk for the PWA: its service worker is network-first, but its
+    `fetch()` reads through the same HTTP cache, so a heuristically fresh entry
+    defeats the whole update path and the installed app stays on the old build
+    until the invented window expires.
+
+    `no-cache` does not mean "do not store" -- it means "store, but revalidate
+    before reusing". Paired with the etag Starlette already sends, an unchanged
+    file costs one conditional request answered with an empty 304, and offline
+    play is unaffected because that is served from the service worker's Cache
+    Storage, not from here.
+    """
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/static", RevalidatingStaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Mounted whenever a bundle exists; QMS_ENABLE_BROWSER_APP is enforced per
 # request below, so the admin dashboard can turn it off without a restart.
@@ -227,7 +252,11 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # sits at /app/sw.js and therefore scopes to /app/, leaving the routes at /
 # untouched.
 if BROWSER_APP_AVAILABLE:
-    app.mount("/app", StaticFiles(directory=str(BROWSER_DIST_DIR), html=True), name="browser_app")
+    app.mount(
+        "/app",
+        RevalidatingStaticFiles(directory=str(BROWSER_DIST_DIR), html=True),
+        name="browser_app",
+    )
     log.info(f"Serving the installable browser app from {BROWSER_DIST_DIR} at /app/")
 
 # --------- Long-lived (optional) user cookie ONLY ---------
