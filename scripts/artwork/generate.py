@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -405,6 +406,16 @@ def _png_pixels(path: Path) -> bytes:
     return result.stdout
 
 
+def _png_size(path: Path) -> tuple[int, int] | None:
+    """Read PNG dimensions from the IHDR chunk without optional dependencies."""
+    if not path.exists():
+        return None
+    header = path.read_bytes()[:24]
+    if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        return None
+    return struct.unpack(">II", header[16:24])
+
+
 def _write() -> None:
     for path, content in _svg_outputs().items():
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -417,10 +428,15 @@ def _write() -> None:
 
 def _check() -> None:
     stale = [path for path, expected in _svg_outputs().items() if not path.exists() or path.read_text() != expected]
+    can_rasterize = bool(_rasterizer(ICON_SVG, Path("unused.png"), 1, 1))
     with tempfile.TemporaryDirectory(prefix="qms-artwork-") as directory:
         temporary = Path(directory)
         svg_outputs = _svg_outputs()
         for source, tracked, width, height in RASTER_TARGETS:
+            if not can_rasterize:
+                if _png_size(tracked) != (width, height):
+                    stale.append(tracked)
+                continue
             temporary_source = temporary / source.name
             temporary_source.write_text(svg_outputs[source], encoding="utf-8")
             rendered = temporary / tracked.name
@@ -430,6 +446,8 @@ def _check() -> None:
     if stale:
         names = ", ".join(str(path.relative_to(ROOT)) for path in stale)
         raise SystemExit(f"Generated artwork is stale: {names}. Run `pixi run icons`.")
+    if not can_rasterize:
+        print("No SVG rasterizer found; checked tracked PNG presence and dimensions.")
     print("Generated artwork is current.")
 
 
