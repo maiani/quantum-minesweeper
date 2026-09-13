@@ -1,6 +1,6 @@
 # Architecture
 
-_Last reviewed: 2026-09-11_
+_Last reviewed: 2026-09-13_
 
 This document records stable implementation boundaries, completed design
 decisions, and constraints that hold indefinitely. Active work belongs in
@@ -126,6 +126,14 @@ mark box were fitted to the official raster logo. WINQ's logo stays a small
 
 Changing either logo is an asset change, not a layout change. Colour belongs in
 `base.css`; the SVG geometry should be left alone.
+
+### Game artwork
+
+`scripts/artwork/generate.py` is the editable source for the game mark. Its
+favicon bomb geometry is reused unchanged inside the Pin-help flag and the PWA
+icon; those contexts may only position or scale it. The favicon, help SVG, PWA
+SVG, and raster icons are tracked generated outputs. Run `pixi run icons` after
+changing their Python source, and do not hand-edit the generated artwork.
 
 ## Simulator backends
 

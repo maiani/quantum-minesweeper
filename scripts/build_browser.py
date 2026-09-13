@@ -42,7 +42,7 @@ DIST = ROOT / "dist"
 DOCS_DIR = PKG / "docs"
 PWA_DIR = ROOT / "scripts" / "pwa"  # manifest + service-worker sources (emitted at dist root)
 
-# PWA icons the manifest references (rasterised from icon.svg by make_icons.py).
+# PWA icons the manifest references (rasterised by artwork/generate.py).
 PWA_ICONS = ["icon-192.png", "icon-512.png"]
 
 # Pure-Python modules the in-browser engine needs (numpy-only), as paths
@@ -161,7 +161,7 @@ def main() -> None:
     # Fail loudly if they are missing rather than shipping a broken install.
     missing = [name for name in PWA_ICONS if not (DIST / "static" / "icons" / name).exists()]
     if missing:
-        raise SystemExit(f"Missing PWA icons {missing}; run: python scripts/make_icons.py")
+        raise SystemExit(f"Missing PWA icons {missing}; run: pixi run icons")
 
     files = sum(1 for _ in DIST.rglob("*") if _.is_file())
     print(f"Built {DIST.relative_to(ROOT)}/ ({files} files).")

@@ -86,6 +86,16 @@ body.admin-page #toggle-help {
   min-height: 60px;
 }
 
+/* Every topic owns the same visual stage. Empty visual fragments deliberately
+   leave this space blank so switching topics never shifts the explanation. */
+#help-visual {
+  box-sizing: border-box;
+  height: clamp(320px, 50vh, 420px);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
 #gate-animation {
   background: var(--fg);
   width: 90%;
@@ -111,11 +121,11 @@ body.light .help-card {
 }
 
 .gate-visual {
-  height: 50vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: auto;
+  width: 100%;
 }
 
 .gate-visual img {
@@ -130,6 +140,14 @@ body.light .help-card {
   gap: 0.5em;
   margin-top: 0.5em;
   justify-content: center;
+}
+
+/* Match the gate illustrations' width so Pin does not read as a secondary or
+   thumbnail-sized action in the same Help pane. */
+.pin-move-visual {
+  width: 90%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 /* Inline/mobile Help panel (togglable) */

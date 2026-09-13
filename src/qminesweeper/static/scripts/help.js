@@ -19,7 +19,10 @@
   }
 
   // --- Restore saved state ---
-  const wasOpen = localStorage.getItem(KEY) === "1";
+  // Help starts closed until the player explicitly enables it. Preserve that
+  // choice on later visits so the toggle and pane always agree.
+  const savedOpen = localStorage.getItem(KEY);
+  const wasOpen = savedOpen === "1";
   panel.classList.toggle("active", wasOpen);
   panel.setAttribute("aria-hidden", wasOpen ? "false" : "true");
   if (toggleBtn) {

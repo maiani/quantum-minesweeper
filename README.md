@@ -184,6 +184,10 @@ simulator dependencies, Node.js, and the SVG tooling used to regenerate PWA
 icons. Exact versions are recorded in `pixi.lock`. `pixi run check` runs Ruff,
 pytest, and syntax checks over every frontend JavaScript file.
 
+Artwork generators live under `scripts/artwork/`. The favicon bomb, Pin-help
+flag, and installable app icons currently share the geometry in
+`scripts/artwork/generate.py`; run `pixi run icons` after changing it.
+
 If Pixi is unavailable, a conventional editable install remains supported:
 
 ```bash

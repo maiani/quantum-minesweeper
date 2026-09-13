@@ -50,7 +50,8 @@ dev = [
   "stim>=1.13,<2",
   "qiskit>=1.2,<3",
   "ruff>=0.6",
-  "pre-commit>=3"
+  "pre-commit>=3",
+  "svg.py>=1.10,<2"
 ]
 
 [project.urls]
@@ -131,7 +132,7 @@ test = { cmd = "pytest", description = "Run the Python test suite" }
 js-check = { cmd = "python scripts/check_js.py", description = "Check JavaScript syntax" }
 check = { depends-on = ["lint", "test", "js-check"], description = "Run lint, tests, and JavaScript checks" }
 package = { cmd = "python -m build --no-isolation --outdir build/packages", description = "Build the wheel and source distribution" }
-icons = { cmd = "python scripts/make_icons.py", description = "Regenerate PWA icons" }
+icons = { cmd = "python scripts/artwork/generate.py", description = "Regenerate SVG artwork and PWA icons" }
 browser = { cmd = "python scripts/build_browser.py", description = "Build the browser-only PWA" }
 docker-build = { cmd = "bash ./scripts/build.sh", description = "Build the local Docker image" }
 docker-run = { cmd = "bash ./scripts/run_local.sh", depends-on = ["docker-build"], description = "Build and run the local Docker image" }
