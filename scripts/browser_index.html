@@ -18,7 +18,8 @@
    block, so it is unaffected. #}
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#17191e">
-<link rel="apple-touch-icon" href="{{ STATIC_BASE | default('/static') }}/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180"
+      href="{{ STATIC_BASE | default('/static') }}/icons/apple-touch-icon-180.png">
 <script>
   window.QMS_BROWSER_BUILD = {{ build_id | tojson }};
   // The release this app was built from, reported with game statistics so a

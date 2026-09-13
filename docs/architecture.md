@@ -134,6 +134,10 @@ favicon bomb geometry is reused unchanged inside the Pin-help flag and the PWA
 icon; those contexts may only position or scale it. The favicon, help SVG, PWA
 SVG, and raster icons are tracked generated outputs. Run `pixi run icons` after
 changing their Python source, and do not hand-edit the generated artwork.
+The same generator owns an opaque mask-safe mobile master, Android adaptive
+foreground/background/monochrome layers, Apple and Play Store exports, and crop
+previews. Native packaging may consume those outputs but must not fork their
+geometry.
 
 ## Simulator backends
 

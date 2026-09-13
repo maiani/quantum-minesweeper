@@ -43,7 +43,13 @@ DOCS_DIR = PKG / "docs"
 PWA_DIR = ROOT / "scripts" / "pwa"  # manifest + service-worker sources (emitted at dist root)
 
 # PWA icons the manifest references (rasterised by artwork/generate.py).
-PWA_ICONS = ["icon-192.png", "icon-512.png"]
+PWA_ICONS = [
+    "icon-192.png",
+    "icon-512.png",
+    "icon-maskable-192.png",
+    "icon-maskable-512.png",
+    "apple-touch-icon-180.png",
+]
 
 # Pure-Python modules the in-browser engine needs (numpy-only), as paths
 # relative to dist/py. They are package-qualified because the bundle ships two

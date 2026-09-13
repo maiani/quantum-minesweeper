@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-09-13
+
+### Artwork and contextual help
+
+- Reworked the game mark around a compact bomb-and-Bloch-sphere motif and used
+  one Python-generated vector source for the favicon, PWA icons, and the Pin
+  move's flag illustration. The Pin visual now has a distinct pole and base,
+  more breathing room around the mark, and a shorter, simpler fuse.
+- Added a fixed visual stage to contextual help so gate and move illustrations
+  keep a consistent size, while tools without artwork reserve the same space.
+  The help pane remains closed when a game opens; players can reveal it with
+  the existing help control.
+- Added an app-store-ready icon kit: a 1024-pixel master, Play Store artwork,
+  Apple touch icon, maskable PWA variants, Android adaptive foreground and
+  background layers, a monochrome Android layer, and crop previews. The
+  installable manifest now has a stable id and advertises the maskable icons.
+- Moved artwork generation into `scripts/artwork/`, documented the workflow,
+  and added drift and dimension checks so every exported SVG and PNG can be
+  regenerated consistently with `pixi run icons`.
+
 ## [0.4.1] - 2026-09-11
 
 ### Game statistics
