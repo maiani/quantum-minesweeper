@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: prefix-dev/setup-pixi@v0.10.1
+      - uses: prefix-dev/setup-pixi@v0.10.2
         with:
           # `locked: false` lets pixi re-solve when pixi.lock has fallen behind
           # pyproject.toml instead of failing the job. Dependency bumps (which
