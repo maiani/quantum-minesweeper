@@ -1,23 +1,25 @@
-<h1> Hadamard gate </h1>
+<h1>Hadamard gate</h1>
 
 <div>
   <p>
-    The <dfn>Hadamard gate</dfn> creates superposition:
+    H moves a cell between certainty and an even chance. A cell that is
+    definitely safe or definitely a mine becomes a 50/50 cell, and a 50/50 cell
+    becomes definite.
   </p>
   <p>
-    $$
-    |0\rangle \to |+\rangle
-    $$
+    $$ |0\rangle \to |+\rangle \qquad |+\rangle \to |0\rangle $$
   </p>
   <p>
-    $$
-    |1\rangle \to |-\rangle
-    $$
+    $$ |1\rangle \to |-\rangle \qquad |-\rangle \to |1\rangle $$
   </p>
   <p>
-    It maps Z-basis $\leftrightarrow$ X-basis and is key for generating entanglement.
+    This is how a superposition gets defused: bring a cell to $|+\rangle$, apply
+    H, and it is certainly safe. Land on $|-\rangle$ instead and H makes it a
+    certain mine, so watch the clue numbers before you commit.
   </p>
   <p>
-    The H-gate can also be seen as a 180$^\circ$ rotation about the axis defined by the vector $\frac{1}{\sqrt{2}}(1,0,1)$.
+    Formally, a 180$^\circ$ rotation about the axis halfway between x and z,
+    $\tfrac{1}{\sqrt{2}}(1,0,1)$. It exchanges the two axes, which is also why
+    it is the usual first step in building entanglement.
   </p>
 </div>

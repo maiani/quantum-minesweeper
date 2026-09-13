@@ -389,7 +389,7 @@
   setGameSlotsHidden(true);
   // The engine's own stage reports take over the message as soon as the boot
   // starts; this is only what the user sees for the first few milliseconds.
-  showLoading("Loading the Python runtime…");
+  showLoading("Loading the quantum simulator…");
   engine
     .ready()
     .then(async () => {
@@ -407,6 +407,6 @@
     })
     .catch((err) => {
       console.error(err);
-      showLoadingError("Failed to load the runtime: " + err);
+      showLoadingError("Could not start the simulator: " + err);
     });
 })();

@@ -1,20 +1,21 @@
-<h1> Z gate </h1>
+<h1>Z gate</h1>
 
 <div>
   <p>
-    The <dfn>Z gate</dfn> rotates by 180$^\circ$ about the "z-axis" defined by the states $|0\rangle$ and $|1\rangle$:
+    Z never changes a mine probability — not on the cell you apply it to, and
+    not anywhere else on the board. Apply it on its own and no number moves.
   </p>
   <p>
-    $$
-    |+\rangle \to |-\rangle
-    $$
+    $$ |+\rangle \to |-\rangle \qquad |-\rangle \to |+\rangle $$
   </p>
   <p>
-    $$
-    |-\rangle \to |+\rangle
-    $$
+    What it does change is <em>which</em> superposition the cell is in, and that
+    decides what the next gate will do. H turns $|+\rangle$ into a certainly
+    safe cell, but turns $|-\rangle$ into a certain mine.
   </p>
   <p>
-    The Z gate has no effect on the states $|0\rangle$ and $|1\rangle$. We say that these are "eigenstates" of the Z gate.
+    $|0\rangle$ and $|1\rangle$ are left completely alone; they are the
+    <dfn>eigenstates</dfn> of Z. Formally, a 180$^\circ$ rotation about the
+    "z-axis", the axis through $|0\rangle$ and $|1\rangle$.
   </p>
 </div>

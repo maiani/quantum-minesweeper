@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Player-facing text
+
+- Rewrote the setup guides, contextual help, and in-game labels for players
+  meeting quantum mechanics for the first time. Wording is plain, notation is
+  never used before it is explained, and each gate page now leads with what the
+  gate does to the board rather than with its Bloch-sphere rotation.
+- Added the missing `CX`, `CY`, `CZ`, and `SWAP` help pages. Those four buttons
+  are on screen from Level 2 up, where the game introduces entanglement, but the
+  help pane answered "No description" for all of them.
+- Corrected the S-dagger page, which listed the S gate's mappings, and the S
+  page, which showed only the two states S leaves alone and so read as a no-op.
+- Removed the stray backtick that rendered as literal text in the Hadamard
+  visual, and gave every gate page the same caption above its state buttons.
+- The game-over heading now follows the outcome instead of reading "Game Over"
+  over a win, and the action buttons say what each one replaces: "Reset Board",
+  "New Board", "Change Settings".
+- Settled on "region" for probe selections, matching the board's own buttons,
+  and on "opened" for measured cells.
+
+### Fixed
+
+- The inline (mobile) help panel removes the header's accent fill, but its
+  "Help" heading kept `--on-accent`, the colour meant to sit on that fill. In
+  the dark theme it rendered near-black on the near-black page at 1.14:1. The
+  existing correction was scoped to `body.light`; it now applies to both themes.
+
 ### Deployment
 
 - Replaced the browser-app on/off switch with an explicit `QMS_WEB_MODE` choice:

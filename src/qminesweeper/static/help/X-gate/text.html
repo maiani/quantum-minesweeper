@@ -1,12 +1,19 @@
-<h1> X gate </h1>
+<h1>X gate</h1>
 
 <div>
   <p>
-    The <dfn>X gate</dfn> rotates by 180$^\circ$ about the "x-axis" defined by the states $|+\rangle$ and $|-\rangle$:
+    Swaps mine and empty. A cell that certainly holds a mine becomes certainly
+    safe, and a certainly safe cell becomes a mine.
   </p>
   <p>
-  It can transform an empty cell, $|0\rangle$, to a mine-filled cell, $|1\rangle$, and vice-versa.
-    $$ | 0 \rangle \to | 1 \rangle$$
-    $$ | 1 \rangle \to | 0 \rangle$$
+    $$ |0\rangle \to |1\rangle \qquad |1\rangle \to |0\rangle $$
+  </p>
+  <p>
+    On a cell with an even chance of holding a mine, X changes nothing you can
+    see: the odds come out the same either way.
+  </p>
+  <p>
+    Formally, a 180$^\circ$ rotation about the "x-axis", the axis through
+    $|+\rangle$ and $|-\rangle$. It is the quantum version of NOT.
   </p>
 </div>

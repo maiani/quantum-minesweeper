@@ -207,10 +207,11 @@ def test_setup_survey_needs_both_the_switch_and_a_url():
         return templates.env.get_template("_setup_content.html").render()
 
     try:
-        assert "Post Game Survey" in render(enabled=True, url="https://example.test/survey")
-        assert "Post Game Survey" not in render(enabled=True, url=None)
-        assert "Post Game Survey" not in render(enabled=True, url="")
-        assert "Post Game Survey" not in render(enabled=False, url="https://example.test/survey")
+        assert 'class="setup-survey"' in render(enabled=True, url="https://example.test/survey")
+        assert "https://example.test/survey" in render(enabled=True, url="https://example.test/survey")
+        assert 'class="setup-survey"' not in render(enabled=True, url=None)
+        assert 'class="setup-survey"' not in render(enabled=True, url="")
+        assert 'class="setup-survey"' not in render(enabled=False, url="https://example.test/survey")
     finally:
         features.clear()
         features.update(original)

@@ -51,7 +51,7 @@ def test_classical_mine_count_still_exact() -> None:
 def test_no_trivial_product_mines_level1(Backend: type[QuantumBackend]):
     """
     Level=1 stabilizer 'mines' are single-qubit stabilizers.
-    We still require the sampler to avoid collapsing to the trivial |0...0> state
+    We still require the sampler to avoid collapsing to the trivial |0...0⟩ state
     on the touched indices (i.e., identity Clifford).
     """
     board = QMineSweeperBoard(4, 4, Backend())
@@ -61,10 +61,10 @@ def test_no_trivial_product_mines_level1(Backend: type[QuantumBackend]):
     idxs = touched_indices(board)
     assert len(idxs) == nb, "Sampler must touch exactly nmines indices"
 
-    # If every touched index has <Z>=+1, that suggests |0...0> on that subset.
+    # If every touched index has ⟨Z⟩=+1, that suggests |0...0⟩ on that subset.
     expZ = board.board_expectations("Z").ravel()
     assert not all(abs(float(expZ[i]) - 1.0) < 1e-9 for i in idxs), (
-        "Group collapsed to |0...0> (identity Clifford), which should be excluded"
+        "Group collapsed to |0...0⟩ (identity Clifford), which should be excluded"
     )
 
 

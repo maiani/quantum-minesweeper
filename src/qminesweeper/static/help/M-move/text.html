@@ -1,11 +1,17 @@
-<h1> Measurement move </h1>
+<h1>Measure</h1>
 
 <div>
   <p>
-    The <dfn>Measurement move</dfn> explores a cell and reveals its content.
-    If the measurement observes a mine outcome, the game is over.
-    If the cell is empty, it will be marked as explored and a clue will appear
-    showing how many mines you should expect nearby. A mine in an equal
-    superposition contributes 0.5 to that total.
+    <dfn>Measuring</dfn> a cell opens it and forces it to settle on one
+    outcome: mine or no mine. If it settles on a mine, the game is over.
+  </p>
+  <p>
+    If it is safe, the cell stays open and shows a clue — how many mines to
+    expect in the cells touching it. A neighbour that is half likely to be a
+    mine adds 0.5, so clues are often fractions.
+  </p>
+  <p>
+    Measuring is the one move you cannot undo. An opened cell has settled for
+    good, and gates no longer work on it.
   </p>
 </div>

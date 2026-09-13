@@ -26,12 +26,12 @@
     <!-- Difficulty (now includes Sandbox as Lv S) -->
     <label for="difficulty">Difficulty:</label>
     <select id="difficulty" name="difficulty">
-      <option value="S">Sandbox mode</option>
-      <option value="0">Lv. 0 - Classical Minesweeper</option>
-      <option value="1" selected>Lv. 1 - Defuse Quantum Mines</option>
-      <option value="2">Lv. 2 - Defuse Entangled Quantum Mines (pairs)</option>
-      <option value="3">Lv. 3 - Defuse Entangled Quantum Mines (3-body entanglement)</option>
-      <option value="4">Lv. 4 - Defuse Entangled Quantum Mines (4-body entanglement)</option>
+      <option value="S">Sandbox — free play, no winning or losing</option>
+      <option value="0">Level 0 — Classical Minesweeper</option>
+      <option value="1" selected>Level 1 — Mines in superposition</option>
+      <option value="2">Level 2 — Entangled mines, in pairs</option>
+      <option value="3">Level 3 — Entangled mines, in threes</option>
+      <option value="4">Level 4 — Entangled mines, in fours</option>
     </select>
 
     <!-- Hidden real inputs -->
@@ -55,11 +55,11 @@
      and without one this rendered an invitation pointing at nothing. #}
   {% if FEATURES.ENABLE_SURVEY and FEATURES.SURVEY_URL %}
   <p class="setup-survey">
-  Please help our research by compiling the
+  Played a few games? Our
   <a href="{{ FEATURES.SURVEY_URL }}">
-    Post Game Survey
+    post-game survey
   </a>
-  after you played some times!
+  takes a couple of minutes and genuinely helps our research.
   </p>
   {% endif %}
 
@@ -107,9 +107,9 @@
        picks PROBE_REGION_DEFAULT for entangled boards; choosing here overrides
        that for this game. #}
     {% set region_labels = {
-         0: "0 - no probes",
-         1: "1 - one area against the rest",
-         2: "2 - two areas, shared information",
+         0: "0 — no probe",
+         1: "1 — one region against the rest",
+         2: "2 — two regions, shared information",
        } %}
     <div id="probe-regions-advanced" {% if not FEATURES.ENABLE_ENTANGLEMENT_PROBES %}hidden{% endif %}>
     <label for="probe-regions">Entanglement probe regions:</label>

@@ -50,20 +50,20 @@ function updateToolHint() {
   const probeMode = activeProbeMode();
   if (probeMode) {
     hint.textContent =
-      `Region ${probeMode} selected: click cells to add or remove them. ` +
+      `Region ${probeMode}: click cells to add or remove them. ` +
       "Drag to draw a rectangle, or shift-click to stretch one from the dashed cell.";
   } else if (currentTool === "M") {
-    hint.textContent = "Measure selected: choose a cell.";
+    hint.textContent = "Measure: click a cell to open it.";
   } else if (currentTool === "P") {
-    hint.textContent = "Pin selected: choose a cell to mark.";
+    hint.textContent = "Pin: click a cell to flag it.";
   } else if (currentGateArity() === 1) {
-    hint.textContent = `${currentTool} selected: choose one unexplored cell.`;
+    hint.textContent = `${currentTool}: click an unopened cell.`;
   } else if (currentGateArity() === 2 && firstPick) {
-    hint.textContent = `${currentTool} selected: choose the target cell.`;
+    hint.textContent = `${currentTool}: now click the second cell.`;
   } else if (currentGateArity() === 2) {
-    hint.textContent = `${currentTool} selected: choose the first cell.`;
+    hint.textContent = `${currentTool}: click the first of two cells.`;
   } else {
-    hint.textContent = "Choose a tool, then choose a cell.";
+    hint.textContent = "Pick a move, then click a cell.";
   }
 }
 

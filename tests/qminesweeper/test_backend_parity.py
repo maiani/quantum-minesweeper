@@ -28,7 +28,7 @@ from qminesweeper.stim_backend import StimState
 TOL = 1e-9
 
 # Single-qubit prep circuits reaching the +1 eigenstates of Z, X, Y on qubit 0.
-# {|0>, |+>, |+i>} is informationally complete for one qubit.
+# {|0⟩, |+⟩, |+i⟩} is informationally complete for one qubit.
 SINGLE_PREPS: dict[str, list[tuple[str, list[int]]]] = {
     "Z+": [],
     "X+": [("H", [0])],
@@ -94,7 +94,7 @@ def test_one_qubit_gate_parity(gate: QuantumGate):
             for p in paulis:
                 got = expect(states[name], p, 1)
                 want = ref[tuple(sorted(p.items()))]
-                assert abs(got - want) < TOL, f"{name} {gate.value} on {prep_name}: <{p}> {got} != stim {want}"
+                assert abs(got - want) < TOL, f"{name} {gate.value} on {prep_name}: ⟨{p}⟩ {got} != stim {want}"
 
 
 @pytest.mark.parametrize("gate", TWO_Q, ids=lambda g: g.value)
@@ -112,4 +112,4 @@ def test_two_qubit_gate_parity(gate: QuantumGate):
             for p in paulis:
                 got = expect(states[name], p, 2)
                 want = ref[tuple(sorted(p.items()))]
-                assert abs(got - want) < TOL, f"{name} {gate.value} on {name0},{name1}: <{p}> {got} != stim {want}"
+                assert abs(got - want) < TOL, f"{name} {gate.value} on {name0},{name1}: ⟨{p}⟩ {got} != stim {want}"

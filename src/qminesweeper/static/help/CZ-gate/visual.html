@@ -1,0 +1,19 @@
+<div class="gate-visual">
+  <svg viewBox="0 0 260 104" role="img" style="width:100%;max-width:320px;height:auto"
+       aria-label="Circuit diagram: two cells joined by a CZ gate, drawn with a dot on each wire">
+    <g fill="currentColor" font-size="12">
+      <text x="4" y="36">cell A</text>
+      <text x="4" y="76">cell B</text>
+    </g>
+    <g stroke="currentColor" stroke-width="1.5" fill="none">
+      <line x1="60" y1="32" x2="244" y2="32"/>
+      <line x1="60" y1="72" x2="244" y2="72"/>
+      <line x1="155" y1="32" x2="155" y2="72"/>
+    </g>
+    <!-- A dot at both ends, not a dot and a target: CZ treats the two cells
+         alike, so the symbol is deliberately symmetric. -->
+    <circle cx="155" cy="32" r="5" fill="currentColor"/>
+    <circle cx="155" cy="72" r="5" fill="currentColor"/>
+  </svg>
+  <p>Symmetric: it does not matter which cell you click first.</p>
+</div>

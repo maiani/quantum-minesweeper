@@ -183,7 +183,11 @@ body.light .help-card {
     padding: 6px 0 10px;
   }
 
-  body.light #sidebar.inline #sidebar-header h2 {
+  /* The inline header drops its accent fill above, so the heading has to drop
+     --on-accent with it: that token is only legible on top of an accent fill.
+     Scoped to body.light before, which left the dark theme painting near-black
+     navy on the near-black page at 1.14:1. */
+  #sidebar.inline #sidebar-header h2 {
     color: var(--fg);
   }
 

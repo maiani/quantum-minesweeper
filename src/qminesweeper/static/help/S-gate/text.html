@@ -1,20 +1,20 @@
-<h1> S gate </h1>
+<h1>S gate</h1>
 
 <div>
   <p>
-    The <dfn>S gate</dfn> rotates by 90$^\circ$ about the "z-axis" defined by the states $|0\rangle$ and $|1\rangle$:
+    Like Z, the S gate changes no number on the board. It turns a cell's
+    superposition without moving it towards mine or safe.
   </p>
   <p>
-    $$
-    |0\rangle \to |0\rangle
-    $$
+    $$ |+\rangle \to |i\rangle \qquad |-\rangle \to |-i\rangle $$
   </p>
   <p>
-    $$
-    |1\rangle \to |1\rangle
-    $$
+    $|0\rangle$ and $|1\rangle$ are left alone. S earns its keep as a set-up
+    move before a gate that <em>does</em> change the odds: $\sqrt{X}$ turns
+    $|i\rangle$ into a certainly safe cell.
   </p>
   <p>
-    It can be seen as the "square root" of the Z gate; applying it twice gives the same result as the Z gate.
+    Formally, a 90$^\circ$ rotation about the "z-axis". It is the "square root"
+    of Z: applying it twice gives the same result as Z.
   </p>
 </div>

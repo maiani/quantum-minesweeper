@@ -1,8 +1,16 @@
-<h1> Pin move </h1>
+<h1>Pin</h1>
 
 <div>
-  The <dfn>pin move</dfn> will flag a cell. 
-  It has no direct consequence to the game, 
-  but it can be useful to mark the cell in which 
-  you believe there is a bomb. 
+  <p>
+    <dfn>Pinning</dfn> flags a cell you think holds a mine. It is a note to
+    yourself, not a quantum operation: it does not measure the cell and does not
+    change its state.
+  </p>
+  <p>
+    A pinned cell is also protected — measuring it does nothing, so you cannot
+    set off a mine you have already marked. Apply pin again to remove the flag.
+  </p>
+  <p>
+    Gates still work on pinned cells, so you can go on defusing one.
+  </p>
 </div>

@@ -70,7 +70,7 @@ class StimState(StabilizerQuantumState):
     # ---------- internal helpers ----------
 
     def _init_state(self) -> None:
-        """Initialize tableau to |0>^n."""
+        """Initialize tableau to |0⟩^n."""
         self.tab = stim.TableauSimulator()
         self.tab.set_num_qubits(self.n)
 
@@ -85,7 +85,7 @@ class StimState(StabilizerQuantumState):
     # ---------- public API ----------
 
     def reset(self) -> None:
-        """Reset to |0>^n."""
+        """Reset to |0⟩^n."""
         self._init_state()
 
     def entanglement_entropy(self, subset: list[int]) -> float:

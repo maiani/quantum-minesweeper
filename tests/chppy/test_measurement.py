@@ -22,7 +22,7 @@ def test_measurement_is_idempotent():
 
 
 def test_bell_pair_outcomes_are_equal(bell: CHP):
-    """(|00> + |11>)/sqrt(2): the two outcomes always agree."""
+    """(|00⟩ + |11⟩)/sqrt(2): the two outcomes always agree."""
     assert bell.measure(0) == bell.measure(1)
 
 
@@ -76,7 +76,7 @@ def test_measurement_pins_the_measured_basis(basis: str):
 
 def test_x_basis_measurement_of_plus_is_deterministic():
     sim = CHP(1)
-    sim.apply_gate("H", [0])  # |+>, a +1 eigenstate of X
+    sim.apply_gate("H", [0])  # |+⟩, a +1 eigenstate of X
     assert sim.measure(0, "X") == 0
 
 

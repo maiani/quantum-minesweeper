@@ -46,7 +46,7 @@ def apply_1q(vector: np.ndarray, matrix: np.ndarray, qubit: int, n: int) -> np.n
 
 
 # Two-qubit gates as 4x4 matrices on the ordered pair (control, target), in the
-# basis |00>, |01>, |10>, |11>.
+# basis |00⟩, |01⟩, |10⟩, |11⟩.
 TWO_QUBIT_MATRICES: dict[str, np.ndarray] = {
     "CX": np.array(
         [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]],
@@ -78,7 +78,7 @@ def apply_2q(vector: np.ndarray, name: str, a: int, b: int, n: int) -> np.ndarra
 
 
 def reference_state(circuit: list[tuple[str, list[int]]], n: int) -> np.ndarray:
-    """Build the exact state vector for a circuit, starting from |0...0>."""
+    """Build the exact state vector for a circuit, starting from |0...0⟩."""
     vector = np.zeros(2**n, complex)
     vector[0] = 1.0
     for name, targets in circuit:
@@ -91,7 +91,7 @@ def reference_state(circuit: list[tuple[str, list[int]]], n: int) -> np.ndarray:
 
 
 def reference_expectation(vector: np.ndarray, paulis: dict[int, str], n: int) -> float:
-    """<P> for a tensor-product Pauli, computed from a state vector."""
+    """⟨P⟩ for a tensor-product Pauli, computed from a state vector."""
     operator = np.array([1.0 + 0j])
     for qubit in range(n):
         operator = np.kron(operator, PAULI_MATRICES[paulis.get(qubit, "I")])
@@ -100,7 +100,7 @@ def reference_expectation(vector: np.ndarray, paulis: dict[int, str], n: int) ->
 
 @pytest.fixture
 def bell():
-    """A freshly prepared two-qubit Bell state (|00> + |11>)/sqrt(2)."""
+    """A freshly prepared two-qubit Bell state (|00⟩ + |11⟩)/sqrt(2)."""
     from chppy import CHP
 
     sim = CHP(2)

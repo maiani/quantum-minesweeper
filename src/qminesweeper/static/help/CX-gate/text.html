@@ -1,0 +1,28 @@
+<h1>CX gate</h1>
+
+<div>
+  <p>
+    Your first gate that acts on two cells at once. Click the <dfn>control</dfn>
+    cell first, then the <dfn>target</dfn>.
+  </p>
+  <p>
+    The rule is simple: if the control holds a mine, flip the target; if it does
+    not, leave the target alone.
+  </p>
+  <p>
+    $$ |0\rangle|0\rangle \to |0\rangle|0\rangle \qquad
+       |1\rangle|0\rangle \to |1\rangle|1\rangle $$
+  </p>
+  <p>
+    The interesting part is what happens when the control has not decided.
+    Apply CX with a control in an even superposition and neither cell ends up
+    with an answer of its own — instead the two become <dfn>entangled</dfn>:
+    measure one and the other is settled too, without either having been fixed
+    beforehand. This is how the boards from Level 2 up are built.
+  </p>
+  <p>
+    CX undoes itself. Apply it twice with the same control and target and you
+    are back where you started, which is what makes it your tool for pulling
+    entangled cells apart again.
+  </p>
+</div>

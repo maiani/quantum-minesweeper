@@ -11,10 +11,10 @@ from qminesweeper.stim_backend import StimBackend
 @pytest.mark.parametrize("Backend", [StimBackend, QiskitBackend, ChppyBackend])
 def test_single_qubit_entropy_bounds(Backend: type[QuantumBackend]):
     b = QMineSweeperBoard(1, 1, Backend())
-    b.span_classical_mines(0)  # |0>
+    b.span_classical_mines(0)  # |0⟩
     e0 = b.single_qubit_entropy(0)
     assert 0.0 <= e0 <= 1.0
-    # Apply H -> |+>, still product, entropy ~0 (within fp noise)
+    # Apply H -> |+⟩, still product, entropy ~0 (within fp noise)
     b.apply_gate("H", [(0, 0)])
     e1 = b.single_qubit_entropy(0)
     assert e1 < 1e-9

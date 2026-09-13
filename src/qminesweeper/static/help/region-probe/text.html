@@ -1,35 +1,46 @@
 <h1>Entanglement probe</h1>
+
 <div>
-  <p>The <dfn>entanglement probe</dfn> tells you, in
-    <dfn>bits</dfn>, how entangled the area you select is with the rest
-    of the board. That reading is written S(A : rest). It only looks: it never
-    measures a cell or changes the board, and it does not use up a move.</p>
+  <p>
+    The <dfn>entanglement probe</dfn> tells you, in <dfn>bits</dfn>, how
+    entangled the region you select is with the rest of the board. The readout
+    calls this S(A : rest). It only looks: it never measures a cell, never
+    changes the board, and does not use up a move.
+  </p>
 
-  <p>In the row under the board, pick
-    <b>Region A</b> (or <b>Region B</b>) the way you pick a gate: while it is
-    selected, clicking the board edits that area instead of playing a move. The
-    number on each button is how many cells that area holds, and the rectangle
-    you drag out is drawn in that area's own colour. Choose a gate or Measure
-    again to go back to playing.</p>
+  <p>
+    In the row under the board, pick <b>Region A</b> (or <b>Region B</b>) the
+    way you pick a gate. While it is selected, clicking the board edits that
+    region instead of playing a move. The number on each button is how many
+    cells the region holds, and the rectangle you drag out is drawn in that
+    region's own colour. Choose a gate or Measure again to go back to playing.
+  </p>
 
-  <p>Click cells to add or remove them. Drag to draw a rectangle, or
-    shift-click to stretch one from the dashed cell. Dragging out from a cell
-    already in the area rubs that rectangle out. An area can be any shape, and
-    its cells need not touch.</p>
+  <p>
+    Click cells to add or remove them. Drag to draw a rectangle, or shift-click
+    to stretch one from the dashed cell. Dragging out from a cell already in the
+    region rubs that rectangle out. A region can be any shape, and its cells
+    need not touch.
+  </p>
 
-  <p>Every <dfn>Bell pair</dfn> with one cell inside your area and one
-    outside adds 1 bit. Select both cells of a pair and you get 0: they are
-    entangled with each other, not with the outside. Two cells that are not
-    entangled at all also give 0, so a zero does not by itself prove you have
-    found a pair.</p>
+  <p>
+    Every entangled pair with one cell inside your region and one outside adds
+    1 bit. Select both cells of a pair and you get 0: they are entangled with
+    each other, not with anything outside. Two cells that are not entangled at
+    all also read 0 — so a 0 is not by itself proof that you have found a pair.
+  </p>
 
-  <p>With two areas switched on in Advanced Setup, select disjoint areas A and
-    B to see their <dfn>mutual information</dfn>, the information they
-    share: I(A:B) = S(A) + S(B) − S(A ∪ B). A Bell pair split between them
-    gives 2 bits; cells from different pairs give 0. Careful with three or more
-    cells: in a <dfn>GHZ state</dfn> two cells share 1 bit this way, yet
-    on their own they are not entangled.</p>
+  <p>
+    With two regions switched on, select disjoint regions A and B to also see
+    their <dfn>mutual information</dfn>, the information they share:
+    I(A:B) = S(A) + S(B) − S(A ∪ B). A pair split between them gives 2 bits,
+    while cells from different pairs give 0. Take care with three cells or more:
+    in a <dfn>GHZ state</dfn> two cells share 1 bit this way, yet on their own
+    they are not entangled.
+  </p>
 
-  <p>Your areas stay outlined while you go back to gates and measurement, so
-    you can watch the numbers change as you play.</p>
+  <p>
+    Your regions stay outlined while you go back to gates and measurement, so
+    you can watch the numbers change as you play.
+  </p>
 </div>

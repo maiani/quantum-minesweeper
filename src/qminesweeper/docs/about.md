@@ -1,10 +1,13 @@
 ## About
 
-*Quantum Minesweeper* is a **quantum twist** on the classic game of Minesweeper.  
-Instead of fixed mines, the board is prepared in a superposition of different mine configurations.  
-You interact with the board by **measuring** one cell, or by **applying quantum gates** 
-to modify the board and *defuse* the "quantum mines." In the main Clear mode,
-defusing means making every mine outcome impossible.
+*Quantum Minesweeper* is the classic game of Minesweeper, played on a quantum
+board. The mines are not hidden in fixed places: until you look, a cell can hold
+a mine and not hold one at the same time.
+
+You play by **measuring** a cell, which forces it to settle on one answer, or by
+**applying quantum gates**, which change a cell without looking at it. In the
+main Clear mode you win by making a mine outcome impossible everywhere — not by
+working out where the mines were.
 
 Developed at the Nordic Institute for Theoretical Physics
 ([Nordita](https://www.nordita.org)), the project brings together gameplay,

@@ -152,7 +152,7 @@ class QMineSweeperBoard:
         self._exploration.fill(CellState.UNEXPLORED)
 
     def span_classical_mines(self, nmines: int) -> None:
-        """Prepare board with nmines placed as classical |1> states."""
+        """Prepare board with nmines placed as classical |1⟩ states."""
         if nmines > self.n:
             raise ValueError("Too many mines for board size")
         chosen = np.random.choice(np.arange(self.n), size=nmines, replace=False)
@@ -167,8 +167,8 @@ class QMineSweeperBoard:
         Guarantees:
         - Each group is sampled until the decomposition:
             (a) touches every local wire at least once, AND
-            (b) acts non-trivially on every local wire, i.e. starting from |0^k>,
-                the final state's <Z> != +1 on each local qubit (no identity per wire).
+            (b) acts non-trivially on every local wire, i.e. starting from |0^k⟩,
+                the final state's ⟨Z⟩ != +1 on each local qubit (no identity per wire).
 
         Parameters
         ----------
@@ -217,7 +217,7 @@ class QMineSweeperBoard:
                 for gate, local_targets in local_circ:
                     tmp.apply_gate(gate, [int(t) for t in local_targets])
 
-                # Require: for EVERY local wire i, <Z_i> != +1 (i.e., not left at |0>)
+                # Require: for EVERY local wire i, ⟨Z_i⟩ != +1 (i.e., not left at |0⟩)
                 expZ = [float(tmp.expectation_pauli(i, "Z")) for i in range(k)]
                 if all(abs(z - 1.0) > 1e-9 for z in expZ):
                     # Map to global board indices and accept this block
@@ -235,7 +235,7 @@ class QMineSweeperBoard:
 
     # ---------- mechanics: expectations/clues ----------
     def expectation(self, idx: int, basis: str) -> float:
-        """Return <basis> expectation value for qubit idx."""
+        """Return ⟨basis⟩ expectation value for qubit idx."""
         return self.state.expectation_pauli(idx, basis)
 
     def mine_probability_z(self, idx: int) -> float:
@@ -347,7 +347,7 @@ class QMineSweeperBoard:
 
     # ---------- entanglement & entropy ----------
     def _bloch_vector(self, idx: int) -> tuple[float, float, float]:
-        """Return Bloch vector components (<X>,<Y>,<Z>) for qubit idx."""
+        """Return Bloch vector components (⟨X⟩,⟨Y⟩,⟨Z⟩) for qubit idx."""
         return (self.expectation(idx, "X"), self.expectation(idx, "Y"), self.expectation(idx, "Z"))
 
     def _bloch_length(self, idx: int) -> float:

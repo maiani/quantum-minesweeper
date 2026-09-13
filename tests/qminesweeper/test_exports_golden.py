@@ -57,7 +57,7 @@ def test_export_numeric_grid_pinned_sentinel():
 
 
 def test_definite_mine_is_nine():
-    """A measured classical |1> cell renders as the mine sentinel 9.0."""
+    """A measured classical |1⟩ cell renders as the mine sentinel 9.0."""
     np.random.seed(1234)
     b = _fully_explored_board()
     assert GOLDEN_GRID == b.export_numeric_grid().tolist()

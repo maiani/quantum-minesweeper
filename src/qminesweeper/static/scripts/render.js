@@ -197,12 +197,12 @@ function renderStatus(state) {
   host.replaceChildren(
     el("div", { class: "status-row" }, [
       counter(
-        "mine-counter", "mine-counter", "Expected number of mines",
+        "mine-counter", "mine-counter", "Mines on the board, on average",
         el("span", { class: "status-icon", text: "⟨💣⟩ =", "aria-hidden": "true" }),
         mineValue, mineLabel
       ),
       counter(
-        "entanglement", "entanglement", "Entanglement in bits: each cell, added up",
+        "entanglement", "entanglement", "Entanglement on the board, in bits",
         el("span", { class: "status-icon", "aria-hidden": "true" }, [entanglementIcon(), " ="]),
         entValue, entLabel
       ),
@@ -705,13 +705,13 @@ function renderTools(state) {
   if (ms === "TWO_QUBIT") tools.appendChild(row(TOOL_ROWS.two));
   if (ms === "TWO_QUBIT_EXTENDED") tools.appendChild(row(TOOL_ROWS.twoext));
   host.replaceChildren(
-    el("h3", { text: "Select Move" }),
+    el("h3", { text: "Choose a move" }),
     tools,
     el("p", {
       id: "tool-hint",
       class: "tool-hint",
       "aria-live": "polite",
-      text: "Measure selected: choose a cell.",
+      text: "Measure: click a cell to open it.",
     })
   );
 }
@@ -735,10 +735,10 @@ function actionForm(state, config) {
   if (resetAllowed(state, config)) {
     buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "reset", text: "Reset Board", onclick: resetTool }));
   }
-  buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_same", text: "New Game", onclick: resetTool }));
-  buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_rules", text: "New Setup", onclick: resetTool }));
+  buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_same", text: "New Board", onclick: resetTool }));
+  buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_rules", text: "Change Settings", onclick: resetTool }));
   if (state.status !== "ONGOING" && config.enable_survey && config.survey_url) {
-    buttons.push(el("a", { class: "btn", href: config.survey_url, text: "Compile Survey" }));
+    buttons.push(el("a", { class: "btn", href: config.survey_url, text: "Take the Survey" }));
   }
   return el("form", { class: "actions-form", action: `/game?game_id=${state.game_id}`, method: "post" }, [
     el("input", { type: "hidden", name: "game_id", value: state.game_id }),
@@ -755,17 +755,22 @@ function renderActions(state, config) {
     host.replaceChildren(el("h3", { text: "Actions" }), actionForm(state, config));
     return;
   }
-  const box = el("div", { class: "gameover-box" }, [el("h2", { text: "Game Over" })]);
+  // The heading follows the outcome: "Game Over" sat above the win screen too,
+  // which read as a loss for the split second before the message was taken in.
+  const heading = state.status === "WIN" ? "You win" : "Game over";
+  const box = el("div", { class: "gameover-box" }, [el("h2", { text: heading })]);
   if (state.status === "WIN") {
     box.appendChild(el("div", { class: "result-icon", text: "🎉" }));
+    // Each win condition is won a different way, so each says what was achieved
+    // rather than a bare "You win!".
     const msg =
       state.win_condition === "CLEAR"
-        ? "You cleared the board: every cell is safe to measure."
-        : "You win!";
+        ? "Every cell is certainly safe. There is nothing left to defuse."
+        : "You opened every safe cell without setting off a mine.";
     box.appendChild(el("p", { class: "result-msg win", text: msg }));
   } else if (state.status === "LOST") {
     box.appendChild(el("div", { class: "result-icon", text: "💥" }));
-    box.appendChild(el("p", { class: "result-msg lost", text: "A measurement observed a mine outcome." }));
+    box.appendChild(el("p", { class: "result-msg lost", text: "You measured a cell and it turned out to be a mine." }));
   }
   box.appendChild(el("div", { class: "actions" }, [actionForm(state, config)]));
   host.replaceChildren(el("div", { class: "gameover-overlay" }, [box]));
