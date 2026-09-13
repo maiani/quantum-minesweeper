@@ -735,10 +735,12 @@ function actionForm(state, config) {
   if (resetAllowed(state, config)) {
     buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "reset", text: "Reset Board", onclick: resetTool }));
   }
-  buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_same", text: "New Board", onclick: resetTool }));
+  buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_same", text: "New Game", onclick: resetTool }));
   buttons.push(el("button", { type: "submit", class: "btn", name: "action", value: "new_rules", text: "Change Settings", onclick: resetTool }));
   if (state.status !== "ONGOING" && config.enable_survey && config.survey_url) {
-    buttons.push(el("a", { class: "btn", href: config.survey_url, text: "Take the Survey" }));
+    // Not a way to carry on playing, so it is not one of the New/Change pair.
+    // game.css gives .btn--survey its own full-width row under them.
+    buttons.push(el("a", { class: "btn btn--survey", href: config.survey_url, text: "Take the Survey" }));
   }
   return el("form", { class: "actions-form", action: `/game?game_id=${state.game_id}`, method: "post" }, [
     el("input", { type: "hidden", name: "game_id", value: state.game_id }),

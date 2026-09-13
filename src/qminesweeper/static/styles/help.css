@@ -105,7 +105,7 @@ body.admin-page #toggle-help {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-body.light #gate-animation {
+html.light #gate-animation {
   background: var(--bg);
 }
 
@@ -116,22 +116,43 @@ body.light #gate-animation {
    sidebar read as a solid wall where the dark one read as frosted glass. Both
    now take --box-overlay and --tile-muted, which are already theme-aware, so
    the two themes are translucent to the same degree. */
-body.light .help-card {
+html.light .help-card {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+/* #help-visual is a fixed-height stage that clips, so this column has to fit
+   inside it at every width. The caption and the state buttons take the height
+   they actually need and the illustration absorbs whatever is left; reserving a
+   flat 50px for them instead meant that as soon as the caption or the buttons
+   wrapped to a second line the selector was clipped away entirely. */
 .gate-visual {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: 100%;
 }
 
 .gate-visual img {
   width: 100%;
-  height: calc(100% - 50px);
+  /* flex-basis:0, not auto. With `auto` the base size comes from the image's
+     own aspect-ratio, which it then defends against shrinking, so the caption
+     and buttons were pushed past the clip. At 0 the picture claims only the
+     space those two leave over, and object-fit keeps it undistorted in it. */
+  flex: 1 1 0;
+  min-height: 0;
   object-fit: contain;
+}
+
+/* Never squeezed: these two are the controls, the picture is the decoration. */
+.gate-visual > p,
+.gate-visual .state-selector {
+  flex: 0 0 auto;
+}
+
+.gate-visual > p {
+  margin: 0.4em 0 0;
 }
 
 .state-selector {
@@ -185,13 +206,12 @@ body.light .help-card {
 
   /* The inline header drops its accent fill above, so the heading has to drop
      --on-accent with it: that token is only legible on top of an accent fill.
-     Scoped to body.light before, which left the dark theme painting near-black
-     navy on the near-black page at 1.14:1. */
+     Unscoped deliberately -- both themes need it. */
   #sidebar.inline #sidebar-header h2 {
     color: var(--fg);
   }
 
-  body.light #sidebar.inline .help-card {
+  html.light #sidebar.inline .help-card {
     background: var(--box-overlay);
   }
 }

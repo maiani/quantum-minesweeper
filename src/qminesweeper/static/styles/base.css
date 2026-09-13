@@ -10,8 +10,8 @@
     --pin: #ffcf33;
     --boom: #ff4d4d;
     --zero-bg: #1a1d24;
-    --btn-bg: #202431;
-    --btn-bg-hover: #2a2f3f;
+    --btn-bg: #2a2f3f;
+    --btn-bg-hover: #353c4e;
     --accent: #6aa0ff;
     --accent-hover: #82b4ff;
     --box-overlay: rgba(26, 28, 51, 0.55);
@@ -230,16 +230,16 @@ h2 {
 }
 
 /* Light: component overrides */
-body.light .app-header {
+html.light .app-header {
     background: var(--header-bg);
     border-bottom: 1px solid var(--border);
 }
 
-body.light .app-header h1 {
+html.light .app-header h1 {
     color: var(--accent);
 }
 
-body.light .header-action:hover {
+html.light .header-action:hover {
     color: var(--accent-hover);
 }
 
@@ -262,7 +262,11 @@ body.light .header-action:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    /* Transparent rather than `none`: the light theme paints this edge and the
+       dark theme does not, and keeping the 1px reserved either way means
+       toggling the theme never nudges a button's size. Dark separates a button
+       from its panel by fill instead -- see --btn-bg. */
+    border: 1px solid transparent;
     border-radius: var(--radius);
     background: var(--btn-bg);
     color: var(--fg);
@@ -307,6 +311,17 @@ select:focus-visible {
     outline-offset: 2px;
 }
 
+/* ---------- Light Theme Overrides ---------- */
+/* Light cannot separate button from panel by fill: --btn-bg is #fbfcfe and the
+   panel composites to about #fafbfd. It uses an edge, where dark uses fill. */
+html.light .btn {
+    border-color: var(--border);
+}
+
+html.light .btn:hover {
+    border-color: var(--accent);
+}
+
 .btn:disabled {
     background: var(--btn-bg);
     color: var(--muted);
@@ -317,27 +332,8 @@ select:focus-visible {
 
 .btn.active {
     outline: 2px solid var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-}
-
-/* ---------- Light Theme Overrides ---------- */
-body.light .btn {
-    background: var(--btn-bg);
-    border: 1px solid var(--border);
-    color: var(--fg);
-    box-shadow: var(--shadow-subtle);
-}
-
-body.light .btn:hover {
-    background: var(--btn-bg-hover);
     border-color: var(--accent);
-    /* color: var(--btn-bg); */
-}
-
-body.light .btn.active {
     background: var(--accent);
-    border-color: var(--accent);
     color: var(--on-accent);
 }
 
@@ -356,21 +352,70 @@ body.light .btn.active {
     }
 }
 
-/* ---------- Header & Theme Toggle ---------- */
-.theme-button {
-    position: absolute;
-    right: 5px;
-    top: 5px;
-    background: none;
-    border: none;
-    font-size: 1.3em;
-    cursor: pointer;
-    color: var(--fg);
-    transition: transform 0.2s, color 0.2s;
+/* ---------- Rendered document content ---------- */
+/* Setup explainers, the About page, the About overlay and the admin DB notes
+   all render the same markdown-derived markup. It lives here rather than in
+   setup.css because base.html mounts the About overlay on every page: while
+   these rules sat in setup.css the overlay was completely unstyled anywhere
+   that sheet was not loaded, so its links fell back to the browser default
+   blue and visited purple. */
+.doc-content {
+  max-width: 900px;
+  margin: 28px auto;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  background: var(--box-overlay);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-.theme-buttonbtn:hover {
-    color: var(--accent);
+.doc-content h1 {
+  text-align: center;
+  margin-top: 0;
+}
+
+.doc-content h2 {
+  font-weight: 700;
+  font-size: clamp(1.1rem, 1.5vw, 1.25rem);
+}
+
+.doc-content p {
+  margin: 0.6rem 0;
+}
+
+.doc-content ul {
+  margin: 0.3rem 0 0.8rem 1.2rem;
+}
+
+.doc-content li {
+  margin: 0.25rem 0;
+}
+
+.doc-content a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in oklab, var(--accent), transparent 60%);
+}
+
+.doc-content a:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Soft divider */
+.doc-content .rule {
+  height: 1px;
+  background: linear-gradient(to right,
+      transparent,
+      color-mix(in oklab, var(--fg), transparent 80%),
+      transparent);
+  margin: 1rem 0;
+}
+
+@media (max-width: 640px) {
+  .doc-content {
+    margin: 18px auto;
+    padding: 10px 14px;
+  }
 }
 
 /* ---------- Footer ---------- */

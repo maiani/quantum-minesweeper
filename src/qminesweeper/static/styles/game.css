@@ -310,18 +310,18 @@
    Nothing sets a background on :disabled any more. Every cell is disabled once
    the game ends, and giving them all the explored background made the whole
    board look revealed at the moment the player most wants to read it. */
-body.light .board button {
+html.light .board button {
   border-radius: 6px;
   box-shadow: 0 1px 2px rgba(30, 45, 80, 0.16);
 }
 
-body.light .board button.tile.clue,
-body.light .board button.tile.empty,
-body.light .board button.tile.mine {
+html.light .board button.tile.clue,
+html.light .board button.tile.empty,
+html.light .board button.tile.mine {
   box-shadow: inset 0 1px 2px rgba(30, 45, 80, 0.18);
 }
 
-body.light .board button:disabled {
+html.light .board button:disabled {
   opacity: 0.95;
 }
 
@@ -416,12 +416,45 @@ body.light .board button:disabled {
   margin-bottom: 12px;
 }
 
+/* Wrap, not nowrap: with three children the third had nowhere to go, so
+   "Take the Survey" wrapped its own label onto three lines instead. */
 .gameover-box .actions form {
   display: flex;
   gap: 10px;
   justify-content: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   margin-top: 12px;
+}
+
+/* The survey is not a way to keep playing, so it does not share a row with the
+   two buttons that start a new game. flex-basis:100% is what breaks the line
+   (the container wraps, above), and the accent fill marks it as the odd one
+   out without needing a second colour in the palette. */
+.gameover-box .actions .btn--survey {
+  flex-basis: 100%;
+  justify-content: center;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  /* Three beats to catch the eye on arrival, then it settles down rather than
+     pulsing at the player for as long as the box is open. */
+  animation: survey-pulse 1.6s ease-out 3;
+}
+
+.gameover-box .actions .btn--survey:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+@keyframes survey-pulse {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  to   { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gameover-box .actions .btn--survey { animation: none; }
 }
 
 .gameover-box button {

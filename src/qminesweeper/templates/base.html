@@ -45,9 +45,10 @@
         if (!t && window.matchMedia) {
           t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
+        // <html> only: this runs from <head>, where document.body does not
+        // exist yet. Every theme rule keys off html.light for that reason.
         if (t === 'light') {
           document.documentElement.classList.add('light');
-          document.body?.classList.add('light');
         }
       } catch (e) {}
     })();
@@ -122,7 +123,7 @@
       {# Two dismiss controls, toggled by CSS: a ✕ (top-right) on wider screens, and
          a full-width "Close" pinned to the bottom on small screens (thumb-reachable). #}
       <button class="app-overlay__close" type="button" data-overlay-close aria-label="Close">✕</button>
-      <div class="about-body setup-expl"></div>
+      <div class="about-body doc-content"></div>
       <div class="app-overlay__footer">
         <button class="btn" type="button" data-overlay-close>Close</button>
       </div>

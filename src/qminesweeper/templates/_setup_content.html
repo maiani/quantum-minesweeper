@@ -34,13 +34,15 @@
       <option value="4">Level 4 — Entangled mines, in fours</option>
     </select>
 
-    <!-- Hidden real inputs -->
-    <input type="hidden" id="rows" name="rows" value="10">
-    <input type="hidden" id="cols" name="cols" value="10">
-    <input type="hidden" id="mines" name="mines" value="10">
-    <input type="hidden" id="ent" name="ent_level" value="1">
-    <input type="hidden" id="win" name="win_condition" value="clear">
-    <input type="hidden" id="moves" name="move_set" value="one">
+    <!-- Hidden real inputs. The ids are prefixed because the Advanced form
+         below uses the unprefixed ones for its visible controls, and two
+         elements cannot share an id in one document. -->
+    <input type="hidden" id="simple-rows" name="rows" value="10">
+    <input type="hidden" id="simple-cols" name="cols" value="10">
+    <input type="hidden" id="simple-mines" name="mines" value="10">
+    <input type="hidden" id="simple-ent" name="ent_level" value="1">
+    <input type="hidden" id="simple-win" name="win_condition" value="clear">
+    <input type="hidden" id="simple-moves" name="move_set" value="one">
     {# Set by applySelections() below: probes come with entangled boards. #}
     <input type="hidden" id="probe-regions-simple" name="entanglement_probe_regions" value="0">
 
@@ -55,16 +57,13 @@
      and without one this rendered an invitation pointing at nothing. #}
   {% if FEATURES.ENABLE_SURVEY and FEATURES.SURVEY_URL %}
   <p class="setup-survey">
-  Played a few games? Our
-  <a href="{{ FEATURES.SURVEY_URL }}">
-    post-game survey
-  </a>
+  Played a few games? Our <a href="{{ FEATURES.SURVEY_URL }}">post-game survey</a>
   takes a couple of minutes and genuinely helps our research.
   </p>
   {% endif %}
 
   {% if docs is defined and docs %}
-  <div class="setup-expl">
+  <div class="doc-content">
     {{ docs.simple_setup | safe }}
   </div>
   {% endif %}
@@ -130,7 +129,7 @@
   </form>
 
   {% if docs is defined and docs %}
-  <div class="setup-expl">
+  <div class="doc-content">
     {{ docs.advanced_setup | safe }}
   </div>
   {% endif %}
@@ -192,12 +191,12 @@
     }
 
     // Push values into hidden inputs
-    document.getElementById("rows").value = rows;
-    document.getElementById("cols").value = cols;
-    document.getElementById("mines").value = minesFinal;
-    document.getElementById("ent").value = ent;
-    document.getElementById("win").value = win;
-    document.getElementById("moves").value = moves;
+    document.getElementById("simple-rows").value = rows;
+    document.getElementById("simple-cols").value = cols;
+    document.getElementById("simple-mines").value = minesFinal;
+    document.getElementById("simple-ent").value = ent;
+    document.getElementById("simple-win").value = win;
+    document.getElementById("simple-moves").value = moves;
     // Probes come with the modes where entanglement can appear: levels 2 and
     // up, whose boards are prepared entangled, and Sandbox, whose two-qubit
     // gates let you build an entangled state yourself. Advanced Setup can set

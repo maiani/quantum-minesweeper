@@ -217,6 +217,47 @@ def test_setup_survey_needs_both_the_switch_and_a_url():
         features.update(original)
 
 
+def test_setup_page_has_no_duplicate_element_ids():
+    # Simple and Advanced Setup are two forms in one document. They used to
+    # share the ids rows/cols/mines/ent/win/moves, so getElementById returned
+    # Simple's hidden inputs and every `<label for=...>` in Advanced pointed at
+    # a hidden field instead of the control beside it.
+    from collections import Counter
+    from html.parser import HTMLParser
+
+    class IdCollector(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.ids: list[str] = []
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            for name, value in attrs:
+                if name == "id" and value:
+                    self.ids.append(value)
+
+    collector = IdCollector()
+    collector.feed(templates.env.get_template("_setup_content.html").render())
+    duplicates = sorted(i for i, n in Counter(collector.ids).items() if n > 1)
+
+    assert duplicates == [], f"duplicate ids on the setup page: {duplicates}"
+
+
+def test_advanced_setup_labels_target_ids_inside_the_advanced_form():
+    # Half of a pair: on its own this only proves each `for=` names an id that
+    # exists somewhere in the Advanced form. It is
+    # test_setup_page_has_no_duplicate_element_ids that makes the id unique, and
+    # only the two together establish what actually matters -- that
+    # getElementById(for) reaches the control standing next to the label.
+    import re
+
+    html = templates.env.get_template("_setup_content.html").render()
+    advanced = html.split('id="advanced-setup"', 1)[1]
+    ids_in_advanced = set(re.findall(r'id="([^"]+)"', advanced))
+
+    for target in re.findall(r'<label for="([^"]+)"', advanced):
+        assert target in ids_in_advanced, f"label for={target!r} escapes the Advanced form"
+
+
 def test_header_renders_about_link():
     # The game now links to a clean /about (no game_id) — the about page's Back
     # button returns to the game via history, so no per-game URL is minted.

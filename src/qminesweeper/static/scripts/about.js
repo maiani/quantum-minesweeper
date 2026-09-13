@@ -35,7 +35,7 @@
     document.body.classList.remove("overlay-open");
   }
 
-  // Fetch the About page and lift just its content (.setup-expl) into the overlay.
+  // Fetch the About page and lift just its content (.doc-content) into the overlay.
   async function loadAbout(url) {
     try {
       const res = await fetch(url, { credentials: "same-origin" });
@@ -43,9 +43,9 @@
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
       // Scope to <main>: the fetched page also contains this overlay's own (empty)
-      // .setup-expl panel, so grab the real content from the page body, not that.
-      const content = doc.querySelector("main .setup-expl");
-      if (!content) throw new Error("no .setup-expl in About page");
+      // .doc-content panel, so grab the real content from the page body, not that.
+      const content = doc.querySelector("main .doc-content");
+      if (!content) throw new Error("no .doc-content in About page");
       body.innerHTML = content.innerHTML;
       loaded = true;
       // The About text uses MathJax for quantum notation; typeset the new nodes.

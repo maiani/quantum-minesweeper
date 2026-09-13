@@ -24,11 +24,6 @@
   text-decoration: underline;
 }
 
-.admin-options {
-  margin-top: 1em;
-}
-
-
 /* ---------- Admin Page ---------- */
 body.admin-page main {
   max-width: 100%;        /* full width */
@@ -112,7 +107,3 @@ th.sortable.desc::after {
   opacity: 0.8;
 }
 
-.datetime-cell {
-  font-family: monospace;
-  white-space: nowrap;
-}

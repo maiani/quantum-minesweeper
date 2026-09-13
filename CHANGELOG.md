@@ -18,17 +18,51 @@ All notable changes to this project will be documented in this file.
 - Removed the stray backtick that rendered as literal text in the Hadamard
   visual, and gave every gate page the same caption above its state buttons.
 - The game-over heading now follows the outcome instead of reading "Game Over"
-  over a win, and the action buttons say what each one replaces: "Reset Board",
-  "New Board", "Change Settings".
+  over a win, and "New Setup" became "Change Settings", which says what it does.
+- The post-game survey link moved out of that button row onto its own
+  highlighted line. It is not a way to carry on playing, and as a third button
+  in a row fixed at `flex-wrap: nowrap` it had been wrapping its own label onto
+  three lines.
 - Settled on "region" for probe selections, matching the board's own buttons,
   and on "opened" for measured cells.
 
 ### Fixed
 
+- The About overlay was unstyled on every page that does not load `setup.css`,
+  which includes the game itself. `base.html` mounts it everywhere, but the
+  rules it needs lived in that one sheet, so in-game its links fell back to the
+  browser's default blue and visited purple. The shared document rules moved to
+  `base.css` and the class is now `doc-content`, which is what it has always
+  meant: setup explainers, the About page and overlay, and the admin notes all
+  render the same markdown-derived markup.
+- The state-selector buttons on the gate help pages were clipped away between
+  630px and 720px wide. `#help-visual` is a fixed-height stage that hides
+  overflow, and the illustration reserved a flat 50px for everything under it;
+  once the caption or the buttons wrapped, the row was cut off. The picture now
+  takes only the space the caption and buttons leave over.
+- Separated the button and panel surfaces, which had collided. The dark theme
+  distinguishes a button from the panel behind it by fill, but `--btn-bg`
+  (`#202431`) and `--header-bg` (`rgba(32,36,49,.95)`) were the same colour, so
+  a button on any panel sat at 1.02:1 against it and read as a flat patch.
+  `--btn-bg` now steps up to `#2a2f3f` (1.18:1) with hover following to
+  `#353c4e`. The light theme cannot use fill for this -- its panel and button
+  are both near-white -- and keeps its border, now declared as a transparent
+  edge on `.btn` that light merely colours in, so switching theme no longer
+  changes a button's size by that pixel.
+- Theme rules are keyed off one hook. Tokens were on `html.light` while
+  fourteen overrides were on `body.light`, and the pre-paint script in `<head>`
+  cannot set a class on `<body>` because it does not exist yet: those overrides
+  therefore missed the first paint and snapped in on `DOMContentLoaded`.
 - The inline (mobile) help panel removes the header's accent fill, but its
   "Help" heading kept `--on-accent`, the colour meant to sit on that fill. In
   the dark theme it rendered near-black on the near-black page at 1.14:1. The
   existing correction was scoped to `body.light`; it now applies to both themes.
+- Simple and Advanced Setup no longer share element ids. Both forms used
+  `rows`, `cols`, `mines`, `ent`, `win` and `moves`, so every `<label for=...>`
+  in Advanced Setup resolved to Simple Setup's hidden input instead of the
+  control beside it.
+- Removed four rules that could never match: `.theme-button`, the typo'd
+  `.theme-buttonbtn:hover`, `.admin-options` and `.datetime-cell`.
 
 ### Deployment
 
