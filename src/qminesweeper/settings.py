@@ -11,6 +11,7 @@ from qminesweeper.view_context import ProductConfig
 
 BackendName = Literal["chppy", "stim", "qiskit"]
 ResetPolicy = Literal["never", "sandbox", "any"]
+WebMode = Literal["browser", "server", "both"]
 
 # These are the settings the admin form owns and persists. Credentials, paths,
 # backend selection, external URLs, and deployment limits remain environment
@@ -21,7 +22,7 @@ ADMIN_SETTING_NAMES = (
     "ENABLE_TUTORIAL",
     "ENABLE_SURVEY",
     "ENABLE_ENTANGLEMENT_PROBES",
-    "ENABLE_BROWSER_APP",
+    "WEB_MODE",
     "RESET_POLICY",
 )
 
@@ -70,13 +71,11 @@ class Settings(BaseSettings):
     ANALYTICS_RETENTION_DAYS: int = Field(default=365, gt=0)
 
     # --- Installable app ---
-    # Whether this deployment offers the installable browser app at /app/.
-    # This does not change how the site itself plays: the server-rendered game
-    # still runs on the server. It adds a second way to play that runs entirely
-    # in the visitor's browser and can be installed and used offline.
-    # Needs a bundle to serve, which the Docker image builds and points
-    # BROWSER_DIST_DIR at; with no bundle the flag has nothing to enable.
-    ENABLE_BROWSER_APP: bool = True
+    # Which player-facing web runtime this deployment offers. ``browser`` serves
+    # only the installable app, ``server`` serves only server-owned sessions,
+    # and ``both`` keeps both entry points. The default preserves the historical
+    # local/development behavior; production deployment selects ``browser``.
+    WEB_MODE: WebMode = "both"
     # Directory holding a built browser bundle (the output of
     # scripts/build_browser.py). Normally set by the image rather than by hand.
     BROWSER_DIST_DIR: str | None = None
@@ -117,7 +116,7 @@ class Settings(BaseSettings):
             survey_url=self.SURVEY_URL,
             reset_policy=self.RESET_POLICY,
             enable_entanglement_probes=self.ENABLE_ENTANGLEMENT_PROBES,
-            enable_browser_app=self.ENABLE_BROWSER_APP,
+            web_mode=self.WEB_MODE,
         )
 
     def apply_admin_values(self, values: Mapping[str, Any]) -> None:

@@ -58,7 +58,7 @@ from qminesweeper.game import (
 )
 from qminesweeper.logging_config import setup_logging
 from qminesweeper.quantum_backend import QuantumGate
-from qminesweeper.settings import ResetPolicy, get_settings
+from qminesweeper.settings import ResetPolicy, WebMode, get_settings
 
 # --------- Logging ---------
 logger = setup_logging()
@@ -119,17 +119,26 @@ BLOCKED_BOT_AGENTS = (
 )
 
 
-@app.middleware("http")
-async def gate_browser_app(request: Request, call_next):
-    """Hide /app when the deployment has switched the installable app off.
+SERVER_RUNTIME_PATHS = {"/setup", "/game", "/move", "/probe"}
 
-    The mount is created at startup, but QMS_ENABLE_BROWSER_APP is a live
-    setting the admin dashboard can change, so the check belongs per request.
-    404 rather than 403: a deployment that does not offer the app should not
-    advertise that it exists.
+
+@app.middleware("http")
+async def gate_web_runtimes(request: Request, call_next):
+    """Expose only the player runtime selected by the live web mode.
+
+    Mounts and route declarations are static, while ``WEB_MODE`` is editable
+    from the admin dashboard. Enforce it per request so a mode change takes
+    effect immediately. Disabled mutation endpoints return 404; old GET links
+    into the server game lead players to the browser app when it is available.
     """
     path = request.url.path
-    if (path == "/app" or path.startswith("/app/")) and not settings.ENABLE_BROWSER_APP:
+    browser_enabled = settings.WEB_MODE in {"browser", "both"}
+    server_enabled = settings.WEB_MODE in {"server", "both"}
+    if (path == "/app" or path.startswith("/app/")) and not browser_enabled:
+        return PlainTextResponse("Not found", status_code=404)
+    if path in SERVER_RUNTIME_PATHS and not server_enabled:
+        if request.method in {"GET", "HEAD"} and path in {"/setup", "/game"} and BROWSER_APP_AVAILABLE:
+            return RedirectResponse("/app/", status_code=307)
         return PlainTextResponse("Not found", status_code=404)
     return await call_next(request)
 
@@ -180,17 +189,18 @@ templates.env.globals["GA_MEASUREMENT_ID"] = settings.GA_MEASUREMENT_ID
 # --------- Installable PWA (optional) ---------
 # A deployment can hand out the browser-only build so visitors install it and
 # keep playing offline. This does not change how the site plays: the
-# server-rendered game still runs here. It adds a second way to play that runs
-# entirely in the visitor's browser.
+# server-rendered game may run alongside it or be disabled by WEB_MODE.
 #
 # Serving it from this origin is what makes analytics simple: same-origin needs
 # no CORS, and the bundle can point at the relative "/analytics", so one image
-# works on any host. QMS_ENABLE_BROWSER_APP decides whether to offer it;
+# works on any host. QMS_WEB_MODE decides whether to offer it;
 # QMS_BROWSER_DIST_DIR says where the bundle is, and the Docker image sets it.
 BROWSER_DIST_DIR = Path(settings.BROWSER_DIST_DIR).expanduser() if settings.BROWSER_DIST_DIR else None
 BROWSER_APP_AVAILABLE = bool(BROWSER_DIST_DIR and (BROWSER_DIST_DIR / "index.html").is_file())
 if settings.BROWSER_DIST_DIR and not BROWSER_APP_AVAILABLE:
     log.warning(f"QMS_BROWSER_DIST_DIR={settings.BROWSER_DIST_DIR} has no index.html; /app is not served")
+if settings.WEB_MODE == "browser" and not BROWSER_APP_AVAILABLE:
+    raise RuntimeError("QMS_WEB_MODE=browser requires a browser bundle in QMS_BROWSER_DIST_DIR")
 
 FEATURES = settings.product_config().template_features(browser_app_available=BROWSER_APP_AVAILABLE)
 templates.env.globals["FEATURES"] = FEATURES
@@ -257,7 +267,7 @@ class RevalidatingStaticFiles(StaticFiles):
 
 app.mount("/static", RevalidatingStaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# Mounted whenever a bundle exists; QMS_ENABLE_BROWSER_APP is enforced per
+# Mounted whenever a bundle exists; QMS_WEB_MODE is enforced per
 # request below, so the admin dashboard can turn it off without a restart.
 # html=True serves index.html for the directory itself, and the bundle's paths
 # are all relative, so it works unchanged under this prefix. Its service worker
@@ -717,7 +727,7 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml():
-    paths = ["/setup"]
+    paths = ["/app/" if settings.WEB_MODE == "browser" else "/setup"]
     if settings.ENABLE_ABOUT:
         paths.append("/about")
 
@@ -735,15 +745,13 @@ async def home(request: Request):
     # session IDs before a game exists.
     user_id = ensure_user_id(request)
 
-    # A deployment that offers the installable app makes it the landing, so play
-    # happens in the visitor's browser rather than on this server. The
-    # server-rendered game stays reachable at /setup, which is also what the
-    # sitemap points crawlers at, since /app/ is a client-rendered shell.
+    # Browser and both modes prefer the installable app when its bundle exists;
+    # server mode lands on the server-owned setup flow.
     #
     # RedirectResponse is a 307, deliberately: the target depends on a setting
     # the admin dashboard can change, and a permanent redirect would be cached
     # by browsers and keep sending visitors to /app/ after it was switched off.
-    offer_app = settings.ENABLE_BROWSER_APP and BROWSER_APP_AVAILABLE
+    offer_app = settings.WEB_MODE in {"browser", "both"} and BROWSER_APP_AVAILABLE
     resp = RedirectResponse("/app/" if offer_app else "/setup")
     return attach_user_cookie(resp, user_id, request)
 
@@ -1058,10 +1066,10 @@ def admin_home(request: Request):
         request,
         "admin_home.html",
         {
-            # Distinguishes "switched off" from "this image ships no bundle", so
-            # the toggle is not silently inert.
+            # Browser-bearing modes are unavailable when this image ships no
+            # bundle, so the dashboard must distinguish capability from choice.
             "browser_app_available": BROWSER_APP_AVAILABLE,
-            "browser_app_enabled": settings.ENABLE_BROWSER_APP,
+            "web_mode": settings.WEB_MODE,
         },
     )
 
@@ -1074,11 +1082,14 @@ async def update_settings(
     ENABLE_TUTORIAL: Optional[str] = Form(None),
     ENABLE_SURVEY: Optional[str] = Form(None),
     ENABLE_ENTANGLEMENT_PROBES: Optional[str] = Form(None),
-    ENABLE_BROWSER_APP: Optional[str] = Form(None),
+    WEB_MODE: WebMode = Form("both"),
     RESET_POLICY: ResetPolicy = Form("sandbox"),
 ):
     if not admin_authed(request):
         return RedirectResponse("/admin/login", status_code=303)
+
+    if WEB_MODE in {"browser", "both"} and not BROWSER_APP_AVAILABLE:
+        return PlainTextResponse("Browser mode requires a browser bundle", status_code=400)
 
     # update settings
     settings.ENABLE_HELP = bool(ENABLE_HELP)
@@ -1086,7 +1097,7 @@ async def update_settings(
     settings.ENABLE_TUTORIAL = bool(ENABLE_TUTORIAL)
     settings.ENABLE_SURVEY = bool(ENABLE_SURVEY)
     settings.ENABLE_ENTANGLEMENT_PROBES = bool(ENABLE_ENTANGLEMENT_PROBES)
-    settings.ENABLE_BROWSER_APP = bool(ENABLE_BROWSER_APP)
+    settings.WEB_MODE = WEB_MODE
     settings.RESET_POLICY = RESET_POLICY
 
     # update template globals

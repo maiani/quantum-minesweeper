@@ -80,7 +80,7 @@ jobs:
       QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE: ${{ vars.QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE || '600' }}
       QMS_ANALYTICS_MAX_BROWSER_ROWS: ${{ vars.QMS_ANALYTICS_MAX_BROWSER_ROWS || '50000' }}
       QMS_ANALYTICS_RETENTION_DAYS: ${{ vars.QMS_ANALYTICS_RETENTION_DAYS || '365' }}
-      QMS_ENABLE_BROWSER_APP: ${{ vars.QMS_ENABLE_BROWSER_APP || '1' }}
+      QMS_WEB_MODE: ${{ vars.QMS_WEB_MODE || 'browser' }}
       QMS_BASE_URL: ${{ vars.QMS_BASE_URL }}
       QMS_BUCKET: ${{ vars.QMS_BUCKET }}
       # The secret is named without the QMS_ prefix; deploy.sh reads the

@@ -83,6 +83,33 @@ def test_admin_authed_rejects_token_signed_with_other_secret():
     assert admin_authed(_req({ADMIN_COOKIE: forged})) is False
 
 
+def test_admin_rejects_browser_mode_without_bundle_before_mutating_settings(monkeypatch):
+    from qminesweeper import server
+
+    token = _admin_serializer().dumps("ok")
+    request = _req({ADMIN_COOKIE: token})
+    monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", False)
+    monkeypatch.setattr(server.settings, "ENABLE_HELP", True)
+    monkeypatch.setattr(server.settings, "WEB_MODE", "server")
+
+    response = asyncio.run(
+        server.update_settings(
+            request,
+            ENABLE_HELP=None,
+            ENABLE_ABOUT=None,
+            ENABLE_TUTORIAL=None,
+            ENABLE_SURVEY=None,
+            ENABLE_ENTANGLEMENT_PROBES=None,
+            WEB_MODE="browser",
+            RESET_POLICY="sandbox",
+        )
+    )
+
+    assert response.status_code == 400
+    assert server.settings.ENABLE_HELP is True
+    assert server.settings.WEB_MODE == "server"
+
+
 # ---------- public SEO URL shape ----------
 def _home_request() -> SimpleNamespace:
     return SimpleNamespace(cookies={}, url=SimpleNamespace(scheme="http"))
@@ -96,12 +123,13 @@ def test_home_redirects_to_stable_setup_url():
     assert resp.headers["location"] == "/setup"
 
 
-def test_home_lands_on_the_browser_app_when_it_is_offered(monkeypatch):
+@pytest.mark.parametrize("web_mode", ["browser", "both"])
+def test_home_lands_on_the_browser_app_when_it_is_offered(monkeypatch, web_mode):
     """A deployment offering the app sends visitors there, so play runs in their browser."""
     from qminesweeper import server
 
     monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", True)
-    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", True)
+    monkeypatch.setattr(server.settings, "WEB_MODE", web_mode)
 
     resp = asyncio.run(home(_home_request()))
 
@@ -111,12 +139,12 @@ def test_home_lands_on_the_browser_app_when_it_is_offered(monkeypatch):
     assert resp.status_code == 307
 
 
-def test_home_stays_on_the_server_game_when_the_app_is_switched_off(monkeypatch):
-    """The bundle may exist while the deployment chooses not to offer it."""
+def test_home_stays_on_the_server_game_in_server_mode(monkeypatch):
+    """The bundle may exist while the deployment exposes only the server game."""
     from qminesweeper import server
 
     monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", True)
-    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", False)
+    monkeypatch.setattr(server.settings, "WEB_MODE", "server")
 
     assert asyncio.run(home(_home_request())).headers["location"] == "/setup"
 
@@ -126,7 +154,7 @@ def test_home_stays_on_the_server_game_when_no_bundle_exists(monkeypatch):
     from qminesweeper import server
 
     monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", False)
-    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", True)
+    monkeypatch.setattr(server.settings, "WEB_MODE", "both")
 
     assert asyncio.run(home(_home_request())).headers["location"] == "/setup"
 
@@ -223,12 +251,19 @@ def test_robots_txt_points_to_sitemap_and_skips_action_endpoints():
     assert "Sitemap: http://127.0.0.1:8080/sitemap.xml" in text
 
 
-def test_sitemap_lists_only_stable_public_pages():
+@pytest.mark.parametrize(
+    ("web_mode", "game_path"),
+    [("server", "/setup"), ("both", "/setup"), ("browser", "/app/")],
+)
+def test_sitemap_lists_only_stable_public_pages(monkeypatch, web_mode, game_path):
+    from qminesweeper import server
+
+    monkeypatch.setattr(server.settings, "WEB_MODE", web_mode)
     resp = sitemap_xml()
     text = resp.body.decode()
 
     assert resp.media_type == "application/xml"
-    assert "<loc>http://127.0.0.1:8080/setup</loc>" in text
+    assert f"<loc>http://127.0.0.1:8080{game_path}</loc>" in text
     assert "<loc>http://127.0.0.1:8080/about</loc>" in text
     assert "game_id" not in text
     assert "/admin" not in text

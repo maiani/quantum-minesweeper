@@ -319,16 +319,17 @@ change, so an older response cannot replace a newer diagnostic.
 
 ## Distributing the installable app from the server
 
-A deployment can hand out the browser build at `/app/`, so a visitor installs it
-and keeps playing offline. When it is offered, it becomes the landing: `/`
-redirects to `/app/`, and play happens in the visitor's browser rather than on
-the server. The server-rendered game remains at `/setup` and is unchanged. Both
-write to the same analytics table, distinguished by `source`.
+A deployment chooses one explicit web mode. `browser` exposes only the browser
+build at `/app/`; `server` exposes only the server-owned `/setup` to `/game`
+flow; and `both` exposes both. Browser and both modes make `/app/` the landing
+when its bundle is available. Disabled server entry pages redirect to the app,
+while disabled mutation endpoints and disabled app paths return 404. Both
+runtimes write to the same analytics table, distinguished by `source`.
 
 That redirect is a 307. The target follows a setting the admin dashboard can
 change, and a permanent redirect would be cached by browsers and keep sending
-visitors to `/app/` after it was switched off. Crawlers are pointed at `/setup`
-by the sitemap, since `/app/` is a client-rendered shell with nothing to index.
+visitors to `/app/` after the mode changes. The sitemap points at `/setup` when
+the server runtime is present and at `/app/` in browser-only mode.
 
 Two consequences of making the app the landing are worth keeping in view. Every
 first visit pays the Pyodide and numpy download before the first game, which the
@@ -336,9 +337,10 @@ service worker then caches. And analytics shift from server-authoritative rows
 to client-asserted analytics, which only arrives from players who are online, so
 completeness and provenance both change.
 
-- `QMS_ENABLE_BROWSER_APP` decides whether the app is offered, and so also
-  where `/` lands. It is enforced per request rather than only at startup, so
-  the admin dashboard can turn it off without a restart.
+- `QMS_WEB_MODE` selects `browser`, `server`, or `both`, and therefore which
+  player routes exist and where `/` lands. It is enforced per request rather
+  than only at startup, so the admin dashboard can change modes without a
+  restart. The default is `both`; the Cloud Run workflow selects `browser`.
 - `QMS_BROWSER_DIST_DIR` says where the bundle is. The Docker image builds one
   and sets this itself; a deployment without a bundle has nothing to offer, and
   the flag alone cannot conjure one.

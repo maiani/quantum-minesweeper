@@ -35,7 +35,15 @@ class ProductConfig:
     survey_url: str | None
     reset_policy: str
     enable_entanglement_probes: bool
-    enable_browser_app: bool
+    web_mode: str
+
+    @property
+    def browser_runtime_enabled(self) -> bool:
+        return self.web_mode in {"browser", "both"}
+
+    @property
+    def server_runtime_enabled(self) -> bool:
+        return self.web_mode in {"server", "both"}
 
     def template_features(self, *, browser_app_available: bool) -> dict:
         """Project into the legacy uppercase mapping consumed by Jinja."""
@@ -50,7 +58,9 @@ class ProductConfig:
             "ENABLE_ENTANGLEMENT_PROBES": self.enable_entanglement_probes,
             "PROBE_REGION_LIMIT": PROBE_REGION_LIMIT,
             "PROBE_REGION_DEFAULT": PROBE_REGION_DEFAULT,
-            "ENABLE_BROWSER_APP": self.enable_browser_app and browser_app_available,
+            "ENABLE_BROWSER_APP": self.browser_runtime_enabled and browser_app_available,
+            "ENABLE_SERVER_GAME": self.server_runtime_enabled,
+            "WEB_MODE": self.web_mode,
         }
 
     def browser_product(self) -> dict:

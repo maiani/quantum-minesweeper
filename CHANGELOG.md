@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Deployment
+
+- Replaced the browser-app on/off switch with an explicit `QMS_WEB_MODE` choice:
+  `browser` exposes only the installable app, `server` exposes only server-owned
+  sessions, and `both` exposes both. Local configuration defaults to `both`,
+  while the Cloud Run deployment defaults to the browser-only product surface.
+
 ## [0.4.2] - 2026-09-13
 
 ### Artwork and contextual help

@@ -87,7 +87,7 @@ def test_collection_is_on_by_default():
 
     defaults = Settings(_env_file=None)
     assert defaults.ENABLE_BROWSER_ANALYTICS is True
-    assert defaults.ENABLE_BROWSER_APP is True
+    assert defaults.WEB_MODE == "both"
     # Relative, so a build reports to whichever origin serves it and one bundle
     # works on any host.
     assert defaults.BROWSER_ANALYTICS_URL == "/analytics"
@@ -410,41 +410,48 @@ def test_pwa_is_not_served_without_a_configured_bundle():
     assert not any(getattr(route, "name", None) == "browser_app" for route in server.app.routes)
 
 
-def test_browser_app_flag_gates_the_routes(monkeypatch):
-    """QMS_ENABLE_BROWSER_APP is enforced per request, not only at startup.
-
-    The mount is created once, but the setting is live (the admin dashboard can
-    change it), so turning it off must hide /app immediately.
-    """
+def test_web_mode_gates_the_player_runtimes(monkeypatch):
+    """The live dashboard setting immediately gates both player runtimes."""
     from qminesweeper import server
+
+    monkeypatch.setattr(server, "BROWSER_APP_AVAILABLE", True)
 
     async def served(_request):
         return "served"
 
-    def ask(path: str):
-        request = SimpleNamespace(url=SimpleNamespace(path=path))
-        return asyncio.run(server.gate_browser_app(request, served))
+    def ask(path: str, method: str = "GET"):
+        request = SimpleNamespace(url=SimpleNamespace(path=path), method=method)
+        return asyncio.run(server.gate_web_runtimes(request, served))
 
-    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", False)
+    monkeypatch.setattr(server.settings, "WEB_MODE", "server")
     for path in ("/app", "/app/", "/app/index.html"):
         assert getattr(ask(path), "status_code", None) == 404, path
-    # Everything else is untouched by the gate.
     assert ask("/setup") == "served"
     assert ask("/application-form") == "served"  # not a /app/ path despite the prefix
 
-    monkeypatch.setattr(server.settings, "ENABLE_BROWSER_APP", True)
+    monkeypatch.setattr(server.settings, "WEB_MODE", "browser")
     assert ask("/app/") == "served"
+    assert ask("/setup").headers["location"] == "/app/"
+    assert ask("/game").headers["location"] == "/app/"
+    for path in ("/setup", "/game", "/move", "/probe"):
+        assert getattr(ask(path, "POST"), "status_code", None) == 404, path
+
+    monkeypatch.setattr(server.settings, "WEB_MODE", "both")
+    assert ask("/app/") == "served"
+    assert ask("/setup") == "served"
 
 
 def test_features_offer_the_app_only_when_a_bundle_exists():
     """The switch cannot conjure a bundle, so both must be true to offer it."""
     from qminesweeper.settings import Settings
 
-    product = Settings(_env_file=None, ENABLE_BROWSER_APP=True).product_config()
+    product = Settings(_env_file=None, WEB_MODE="both").product_config()
     assert product.template_features(browser_app_available=True)["ENABLE_BROWSER_APP"] is True
     assert product.template_features(browser_app_available=False)["ENABLE_BROWSER_APP"] is False
-    # The browser build is itself the app and must not link to one.
-    assert product.template_features(browser_app_available=False)["ENABLE_BROWSER_APP"] is False
+    assert product.template_features(browser_app_available=True)["ENABLE_SERVER_GAME"] is True
+
+    server_only = Settings(_env_file=None, WEB_MODE="server").product_config()
+    assert server_only.template_features(browser_app_available=True)["ENABLE_BROWSER_APP"] is False
 
 
 # ---------- auth exemption ----------

@@ -43,7 +43,7 @@ ENV_VAR_ITEMS=(
   "QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE=${QMS_ANALYTICS_GLOBAL_LIMIT_PER_MINUTE:-600}"
   "QMS_ANALYTICS_MAX_BROWSER_ROWS=${QMS_ANALYTICS_MAX_BROWSER_ROWS:-50000}"
   "QMS_ANALYTICS_RETENTION_DAYS=${QMS_ANALYTICS_RETENTION_DAYS:-365}"
-  "QMS_ENABLE_BROWSER_APP=${QMS_ENABLE_BROWSER_APP:-1}"
+  "QMS_WEB_MODE=${QMS_WEB_MODE:-browser}"
 )
 # QMS_DB_PATH is deliberately not passed. scripts/entrypoint.sh owns the runtime
 # database location: it copies the persisted trio from the /data volume mounted
