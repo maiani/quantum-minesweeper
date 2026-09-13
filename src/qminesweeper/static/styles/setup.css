@@ -53,8 +53,50 @@ html.light .setup-form {
   display: contents;
 }
 
+/* Sits above the setup card and outside both panels, so it is the first thing
+   under the header and cannot be hidden by the Advanced toggle. Accent-tinted
+   rather than the neutral card used elsewhere on this page: the research ask is
+   deliberately the one thing on Setup that is not part of starting a game. */
 .setup-survey {
+  max-width: 900px;
+  margin: 18px auto 0;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--accent), transparent 88%);
+  border: 1px solid color-mix(in oklab, var(--accent), transparent 55%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 18px;
+}
+
+.setup-survey__text {
+  margin: 0;
+  color: var(--fg);
+  font-size: 0.95rem;
   text-align: center;
+  /* Keeps the sentence and the button on one row when there is space, and lets
+     the button drop underneath rather than squeezing when there is not. */
+  flex: 1 1 320px;
+}
+
+/* Deliberately not `.btn`: that class is owned by the game's controls, and this
+   is the one accent-filled call to action on the page. */
+.setup-survey__cta {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.setup-survey__cta:hover {
+  background: var(--accent-hover);
 }
 
 .setup-actions {

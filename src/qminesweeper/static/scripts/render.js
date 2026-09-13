@@ -282,18 +282,37 @@ function invalidateProbeRequest() {
   _probeRequest += 1;
 }
 
+// Which regions are actually selected, and therefore what the readout names.
+// A single region is reported against the rest of the board whichever letter it
+// is: selecting only B used to read "S(A : rest) = —", naming an empty region
+// and never running the query at all. B is only ever in play when the game
+// allows two regions.
+function probeShape() {
+  const hasA = _probeA.size > 0;
+  const hasB = Boolean(_config.two_area_probes) && _probeB.size > 0;
+  if (hasA && hasB) return { kind: "pair", label: "I(A : B)" };
+  if (hasA) return { kind: "solo", cells: _probeA, label: "S(A : rest)" };
+  if (hasB) return { kind: "solo", cells: _probeB, label: "S(B : rest)" };
+  // Nothing selected: rest on A's name, which is the region edited first.
+  return { kind: "empty", label: "S(A : rest)" };
+}
+
 async function refreshProbe() {
   invalidateProbeRequest();
   _probeResult = null;
   _probeError = null;
   renderProbePanel();
-  if (!_config.entanglement_probes || _probeA.size === 0 || _mutationPending) return;
+  const shape = probeShape();
+  if (!_config.entanglement_probes || shape.kind === "empty" || _mutationPending) return;
   const request = _probeRequest;
-  const areaB = _config.two_area_probes && _probeB.size ? [..._probeB].sort((a, b) => a - b) : null;
+  const sorted = (cells) => [...cells].sort((a, b) => a - b);
+  // The query takes one region or two. For a lone region we send it as area_a
+  // whichever letter it is, so its entropy comes back in `entropy_a`; the label
+  // from probeShape() is what tells the player which region that was.
+  const areaA = shape.kind === "pair" ? sorted(_probeA) : sorted(shape.cells);
+  const areaB = shape.kind === "pair" ? sorted(_probeB) : null;
   try {
-    const result = await window.GameEngine.probe(
-      _gameId, [..._probeA].sort((a, b) => a - b), areaB
-    );
+    const result = await window.GameEngine.probe(_gameId, areaA, areaB);
     if (request !== _probeRequest) return;
     _probeResult = result;
     renderProbePanel();
@@ -596,11 +615,12 @@ function renderProbePanel() {
   // dash while there is nothing to compute. How to select cells belongs to the
   // hint line, and what any of it *means* to the help pane
   // (static/help/region-probe) — neither is panel text.
-  const pairMode = Boolean(_config.two_area_probes && _probeA.size && _probeB.size);
   // The quantity is named in the notation the help pane and the paper use. The
   // sentence-long labels this replaces ("Entanglement with the rest of the
   // board: …") were the reason the readout needed a line to itself.
-  const label = pairMode ? "I(A : B)" : "S(A : rest)";
+  const shape = probeShape();
+  const pairMode = shape.kind === "pair";
+  const label = shape.label;
   // The parts a two-region result is built from.
   let breakdown = null;
   let primary;
@@ -611,7 +631,7 @@ function renderProbePanel() {
     breakdown = `S(A) ${formatBits(result.entropy_a)} · S(B) ${formatBits(result.entropy_b)} · S(A ∪ B) ${formatBits(result.entropy_union)}`;
   } else if (result) {
     primary = `${label} = ${formatBits(result.entropy_a)}`;
-  } else if (!_probeA.size) {
+  } else if (shape.kind === "empty") {
     primary = `${label} = —`;
   } else {
     // Both transient states are kept short: a row that grows to two lines and

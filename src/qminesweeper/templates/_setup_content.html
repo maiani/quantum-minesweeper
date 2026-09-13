@@ -1,5 +1,22 @@
 {% set is_browser_setup = browser_setup | default(false) %}
 
+{# Above the setup card, and outside both panels. It used to sit inside
+   #simple-setup, which Advanced Setup hides wholesale, so the invitation
+   vanished the moment anyone opened Advanced; below the panels it was under the
+   whole How-to-play explainer and nobody scrolled that far. Both conditions are
+   checked, as the game-over survey button and the header's tutorial link
+   already do: the switch being on does not mean a URL was configured, and
+   without one this rendered an invitation pointing at nothing. #}
+{% if FEATURES.ENABLE_SURVEY and FEATURES.SURVEY_URL %}
+<aside class="setup-survey">
+  <p class="setup-survey__text">
+    Played a few games? A couple of minutes on our post-game survey genuinely
+    helps our research.
+  </p>
+  <a class="setup-survey__cta" href="{{ FEATURES.SURVEY_URL }}">Take the survey</a>
+</aside>
+{% endif %}
+
 <!-- Simplified setup (shown by default) -->
 <div id="simple-setup" class="setup">
   <h2>Game Setup</h2>
@@ -51,16 +68,6 @@
       <button id="show-advanced" type="button" class="btn">Go to Advanced Setup</button>
     </div>
   </form>
-
-  {# Both conditions, as the game-over survey button and the header's tutorial
-     link already do: the switch being on does not mean a URL was configured,
-     and without one this rendered an invitation pointing at nothing. #}
-  {% if FEATURES.ENABLE_SURVEY and FEATURES.SURVEY_URL %}
-  <p class="setup-survey">
-  Played a few games? Our <a href="{{ FEATURES.SURVEY_URL }}">post-game survey</a>
-  takes a couple of minutes and genuinely helps our research.
-  </p>
-  {% endif %}
 
   {% if docs is defined and docs %}
   <div class="doc-content">

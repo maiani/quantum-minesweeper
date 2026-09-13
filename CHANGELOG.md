@@ -28,6 +28,15 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- The entanglement probe ignored a lone region B. Selecting only B left the
+  readout at "S(A : rest) = —": it named the empty region, and the query never
+  ran at all because the request was gated on region A being non-empty. A single
+  region is now reported against the rest of the board whichever letter it is.
+- The post-game survey invitation moved above the setup card. It used to sit
+  inside `#simple-setup`, which the Advanced toggle hides wholesale, so it
+  disappeared entirely in Advanced Setup, and it now carries an explicit call to
+  action instead of an underlined link in running text.
+
 - The About overlay was unstyled on every page that does not load `setup.css`,
   which includes the game itself. `base.html` mounts it everywhere, but the
   rules it needs lived in that one sheet, so in-game its links fell back to the
