@@ -182,6 +182,26 @@ if (document.readyState !== "loading") {
 document.addEventListener("keydown", (event) => {
   const key = event.key.toUpperCase();
 
+  // Probe controls are rendered only when the current game enables them. Use
+  // their existing click handlers so keyboard and pointer selection stay in
+  // exactly the same exclusive-mode flow. D deletes the current probe
+  // selection; C remains available as the prefix for CX/CY/CZ.
+  if (key === "A" || key === "B") {
+    const probeButton = document.querySelector(`[data-probe-mode="${key}"]`);
+    if (probeButton) {
+      probeButton.click();
+      return;
+    }
+  }
+
+  if (key === "D") {
+    const clearButton = document.querySelector('[data-probe-action="clear"]');
+    if (clearButton) {
+      clearButton.click();
+      return;
+    }
+  }
+
   if (key === "C") {
     document.addEventListener("keydown", function secondKey(ev) {
       const combo = "C" + ev.key.toUpperCase();

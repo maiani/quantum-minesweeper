@@ -604,8 +604,9 @@ function renderProbePanel() {
   const controls = [probeButton("A")];
   if (_config.two_area_probes) controls.push(probeButton("B"));
   controls.push(el("button", {
-    type: "button", class: "btn", text: "Clear",
-    "aria-label": "Clear probe regions", title: "Clear probe regions",
+    type: "button", class: "btn", text: "Delete selections",
+    "aria-label": "Delete probe selections", title: "Delete probe selections",
+    "data-probe-action": "clear",
     onclick: clearProbes,
   }));
 
