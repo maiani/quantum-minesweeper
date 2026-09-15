@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qminesweeper"
-version = "0.4.3"
+version = "0.4.4"
 description = "Quantum Minesweeper Game"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -140,5 +140,5 @@ deploy = { cmd = "bash ./scripts/deploy.sh", description = "Build, push, and dep
 [tool.pixi.tasks.browser-serve]
 cmd = "python -m http.server -d dist {{ port }}"
 depends-on = ["browser"]
-args = [{ arg = "port", default = "8000" }]
+args = [{ arg = "port", default = "8190" }]
 description = "Build and serve the browser-only PWA"

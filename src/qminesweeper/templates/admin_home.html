@@ -53,6 +53,12 @@
   </label>
   <br>
   <label>
+    <input type="checkbox" name="ENABLE_SANDBOX_REVEAL" value="1"
+           {% if FEATURES.ENABLE_SANDBOX_REVEAL %}checked{% endif %}>
+    Enable Sandbox Reveal
+  </label>
+  <br>
+  <label>
     Web runtime:
     <select name="WEB_MODE">
       <option value="browser" {% if web_mode == 'browser' %}selected{% endif %}

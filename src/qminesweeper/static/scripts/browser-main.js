@@ -92,7 +92,10 @@
   const loading = document.getElementById("loading");
   const setupPanel = document.getElementById("browser-setup");
   const pageMain = document.querySelector("main");
-  const gameSlotIds = ["status-bar", "board-container", "probe-container", "tools-container", "help-mount", "actions-container"];
+  const gameSlotIds = [
+    "status-bar", "reveal-container", "board-container", "probe-container",
+    "tools-container", "help-mount", "actions-container",
+  ];
 
   // ---------------------------------------------------------------------------
   // Boot progress bar

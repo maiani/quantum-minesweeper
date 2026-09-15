@@ -37,6 +37,7 @@ from qminesweeper.engine import (
     build_game,
     parse_command,
     probe_regions,
+    reveal_board,
     serialize_game,
 )
 from qminesweeper.game import GameConfig, GameStatus, QMineSweeperGame
@@ -199,6 +200,11 @@ class BrowserSession:
     def probe(self, area_a: list[int], area_b: list[int] | None = None) -> dict:
         self._require_game()
         return probe_regions(self._board, self._game, area_a, area_b)
+
+    def reveal(self) -> dict:
+        """Inspect the board without measuring or mutating it (Sandbox only)."""
+        self._require_game()
+        return reveal_board(self._board, self._game)
 
     # ---------- persistence ----------
     def export_save(self) -> dict:

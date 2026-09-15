@@ -322,6 +322,29 @@ Entropy is evaluated only for an active selection, after edits or completed
 moves. The frontend invalidates pending results when selections or game state
 change, so an older response cannot replace a newer diagnostic.
 
+## Sandbox reveal
+
+Sandbox alone offers a read-only Reveal lens. It reports each cell's Z-basis
+mine probability and single-cell entropy without measuring, consuming
+randomness, or changing game state. The server exposes this through POST
+`/reveal`; the browser runtime uses the same framework-free query through
+`BrowserSession.reveal`. The result is requested only while the lens is open,
+and is refreshed after every state-changing command.
+
+`ENABLE_SANDBOX_REVEAL` is the deployment-level switch. It is on by default,
+admin-editable, and projected through the shared product configuration into
+both server pages and browser builds. Switching it off removes the control and
+the server rejects direct `/reveal` requests.
+
+The visualization distinguishes two claims. A partial fill is mine
+probability, not a hidden sampled layout. A halo means that cell is entangled
+with the rest of the pure board state. A line maps mutual information between
+entangled cells, making multipartite structures visible; for example, GHZ is a
+three-cell network. Reveal presents all such connections simply as entangled;
+it does not classify special two-cell states. Pair checks and rendered links
+have fixed budgets for unusually large, dense player-built states. The query
+marks a simplified network explicitly and retains every single-cell halo.
+
 ## Distributing the installable app from the server
 
 A deployment chooses one explicit web mode. `browser` exposes only the browser

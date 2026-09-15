@@ -36,6 +36,15 @@ class HttpEngine {
     if (!res.ok) throw new Error(result.detail || result.error || "Probe failed");
     return result;
   }
+
+  async reveal(gameId) {
+    const res = await fetch(`/reveal?game_id=${encodeURIComponent(gameId)}`, {
+      method: "POST",
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || result.error || "Reveal failed");
+    return result;
+  }
 }
 
 // The active engine. The browser-only build replaces it with a PyodideEngine

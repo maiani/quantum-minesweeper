@@ -47,6 +47,7 @@ from qminesweeper.engine import (
     probe_regions,
     probe_rules_for_limit,
     probe_rules_for_regions,
+    reveal_board,
     serialize_game,
     validate_setup_params,
 )
@@ -119,7 +120,7 @@ BLOCKED_BOT_AGENTS = (
 )
 
 
-SERVER_RUNTIME_PATHS = {"/setup", "/game", "/move", "/probe"}
+SERVER_RUNTIME_PATHS = {"/setup", "/game", "/move", "/probe", "/reveal"}
 
 
 @app.middleware("http")
@@ -945,6 +946,20 @@ async def probe_post(request: Request, game_id: Optional[str] = Query(None, alia
     return JSONResponse(result)
 
 
+@app.post("/reveal")
+async def reveal_post(game_id: Optional[str] = Query(None, alias="game_id")):
+    """Return the read-only Sandbox board inspection."""
+    if not game_id or game_id not in GAMES:
+        return JSONResponse({"error": "game_not_found", "redirect": "/setup"}, status_code=404)
+    if not settings.ENABLE_SANDBOX_REVEAL:
+        return JSONResponse({"error": "Sandbox Reveal is disabled"}, status_code=403)
+    try:
+        result = reveal_board(GAMES[game_id]["board"], GAMES[game_id]["game"])
+    except (ValueError, TypeError, KeyError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse(result)
+
+
 @app.post("/game")
 async def game_post(
     request: Request,
@@ -1082,6 +1097,7 @@ async def update_settings(
     ENABLE_TUTORIAL: Optional[str] = Form(None),
     ENABLE_SURVEY: Optional[str] = Form(None),
     ENABLE_ENTANGLEMENT_PROBES: Optional[str] = Form(None),
+    ENABLE_SANDBOX_REVEAL: Optional[str] = Form(None),
     WEB_MODE: WebMode = Form("both"),
     RESET_POLICY: ResetPolicy = Form("sandbox"),
 ):
@@ -1097,6 +1113,7 @@ async def update_settings(
     settings.ENABLE_TUTORIAL = bool(ENABLE_TUTORIAL)
     settings.ENABLE_SURVEY = bool(ENABLE_SURVEY)
     settings.ENABLE_ENTANGLEMENT_PROBES = bool(ENABLE_ENTANGLEMENT_PROBES)
+    settings.ENABLE_SANDBOX_REVEAL = bool(ENABLE_SANDBOX_REVEAL)
     settings.WEB_MODE = WEB_MODE
     settings.RESET_POLICY = RESET_POLICY
 

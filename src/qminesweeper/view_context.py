@@ -35,6 +35,7 @@ class ProductConfig:
     survey_url: str | None
     reset_policy: str
     enable_entanglement_probes: bool
+    enable_sandbox_reveal: bool
     web_mode: str
 
     @property
@@ -56,6 +57,7 @@ class ProductConfig:
             "ENABLE_ABOUT": self.enable_about,
             "RESET_POLICY": self.reset_policy,
             "ENABLE_ENTANGLEMENT_PROBES": self.enable_entanglement_probes,
+            "ENABLE_SANDBOX_REVEAL": self.enable_sandbox_reveal,
             "PROBE_REGION_LIMIT": PROBE_REGION_LIMIT,
             "PROBE_REGION_DEFAULT": PROBE_REGION_DEFAULT,
             "ENABLE_BROWSER_APP": self.browser_runtime_enabled and browser_app_available,
@@ -67,6 +69,7 @@ class ProductConfig:
         """Product choices needed by browser setup before a new game."""
         return {
             "entanglement_probes": self.enable_entanglement_probes,
+            "sandbox_reveal": self.enable_sandbox_reveal,
             "probe_region_default": PROBE_REGION_DEFAULT,
         }
 
@@ -85,4 +88,5 @@ class ProductConfig:
             "gate_arities": _gate_arities(),
             "entanglement_probes": probes,
             "two_area_probes": two_area_probes,
+            "sandbox_reveal": self.enable_sandbox_reveal,
         }

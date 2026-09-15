@@ -4,8 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-09-15
+
 ### Added
 
+- Added a read-only Reveal lens to Sandbox. Covered tiles become translucent
+  probability displays, and entangled cells receive a halo and are connected
+  as a network. An admin setting can disable the feature for both server and
+  browser runtimes.
 - Added keyboard shortcuts for the entanglement probe: `A` selects region A,
   `B` selects region B, and `D` deletes both selections while leaving `C`
   available for controlled-gate shortcuts.

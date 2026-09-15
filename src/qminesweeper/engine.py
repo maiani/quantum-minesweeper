@@ -135,6 +135,65 @@ def probe_regions(
     }
 
 
+def reveal_board(board: QMineSweeperBoard, game: QMineSweeperGame) -> dict:
+    """Return a read-only Sandbox inspection of mine probabilities.
+
+    A single-cell entropy marks a qubit entangled with the rest of the board.
+    Links report mutual information between entangled cells, so multipartite
+    structures such as GHZ remain visible.
+    """
+    if game.cfg.win_condition != WinCondition.SANDBOX:
+        raise ValueError("board reveal is available only in Sandbox mode")
+
+    probabilities = [float(board.mine_probability_z(i)) for i in range(board.n)]
+    entropies = [float(board.single_qubit_entropy(i)) for i in range(board.n)]
+    entangled = [i for i, entropy in enumerate(entropies) if entropy > 1e-9]
+    # Large hand-built GHZ states have a complete mutual-information graph.
+    # Keep the diagnostic responsive and the SVG finite in that pathological
+    # case. Cyclic-distance order spreads early links across the whole set,
+    # instead of exhausting the budget around the lowest-numbered cell.
+    max_pair_checks = 4096
+    max_links = 512
+    links: list[dict] = []
+    pair_checks = 0
+    total_pairs = len(entangled) * (len(entangled) - 1) // 2
+    seen_pairs: set[tuple[int, int]] = set()
+    stop = False
+    for distance in range(1, len(entangled)):
+        if stop:
+            break
+        for offset, first in enumerate(entangled):
+            second = entangled[(offset + distance) % len(entangled)]
+            pair = (min(first, second), max(first, second))
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            pair_checks += 1
+            pair_entropy = float(board.state.entanglement_entropy([first, second]))
+            mutual_information = entropies[first] + entropies[second] - pair_entropy
+            if mutual_information > 1e-9:
+                links.append(
+                    {
+                        "cells": list(pair),
+                        "mutual_information": mutual_information,
+                    }
+                )
+            if pair_checks >= max_pair_checks or len(links) >= max_links:
+                stop = True
+                break
+
+    links.sort(key=lambda link: link["cells"])
+
+    return {
+        "cells": [
+            {"mine_probability": probability, "entropy": entropy}
+            for probability, entropy in zip(probabilities, entropies, strict=True)
+        ],
+        "entanglement_links": links,
+        "links_complete": pair_checks == total_pairs,
+    }
+
+
 @dataclass(frozen=True)
 class Command:
     """A single command applied to a live game. Cells are 0-based (row, col)."""

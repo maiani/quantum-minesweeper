@@ -40,7 +40,8 @@ outcome impossible.
   - **Classical** — standard Minesweeper rules with $|1\rangle$ mines
   - **Identify** — identify deterministic mines and explore all safe regions
   - **Clear** — apply gates to drive all mine probabilities to zero
-  - **Sandbox** — no win condition; experiment freely with gates
+  - **Sandbox** — no win condition; experiment freely with gates and use the
+    read-only Reveal lens to inspect mine probabilities and entanglement
 - **Moves**
   - Classical: **Measure (M)**, **Pin (P)**
   - 1-qubit gates: **X, Y, Z, H, S, Sdg, SX, SXdg, SY, SYdg**
@@ -228,7 +229,9 @@ bits. The icons stand alone in the interface; the help pane names each counter
 and its unit.
 
 Use `Sandbox` to learn gate effects: see how $H$, $S$, $CX$, and other
-Clifford gates change clues and probabilities without a win condition.
+Clifford gates change clues and probabilities without a win condition. Its
+Reveal lens makes covered cells translucent, displays each Z-basis mine
+probability, and connects entangled cells. A halo marks each entangled cell.
 
 Entanglement probes are available in all web game modes when the rule is
 enabled. Selecting an area $A$ reports its entropy $S(A)$ against the rest of

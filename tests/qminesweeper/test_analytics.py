@@ -333,14 +333,17 @@ def test_runtime_browser_config_contains_all_game_product_settings(monkeypatch):
     monkeypatch.setattr(server.settings, "ENABLE_SURVEY", True)
     monkeypatch.setattr(server.settings, "SURVEY_URL", "https://example.test/survey")
     monkeypatch.setattr(server.settings, "ENABLE_ENTANGLEMENT_PROBES", False)
+    monkeypatch.setattr(server.settings, "ENABLE_SANDBOX_REVEAL", False)
 
     body = json.loads(server.browser_app_config().body)
 
     assert body["product"]["entanglement_probes"] is False
+    assert body["product"]["sandbox_reveal"] is False
     assert body["config"]["reset_policy"] == "never"
     assert body["config"]["enable_survey"] is True
     assert body["config"]["survey_url"] == "https://example.test/survey"
     assert body["config"]["entanglement_probes"] is False
+    assert body["config"]["sandbox_reveal"] is False
 
 
 def test_route_reports_the_online_count(store, monkeypatch):
@@ -433,7 +436,7 @@ def test_web_mode_gates_the_player_runtimes(monkeypatch):
     assert ask("/app/") == "served"
     assert ask("/setup").headers["location"] == "/app/"
     assert ask("/game").headers["location"] == "/app/"
-    for path in ("/setup", "/game", "/move", "/probe"):
+    for path in ("/setup", "/game", "/move", "/probe", "/reveal"):
         assert getattr(ask(path, "POST"), "status_code", None) == 404, path
 
     monkeypatch.setattr(server.settings, "WEB_MODE", "both")

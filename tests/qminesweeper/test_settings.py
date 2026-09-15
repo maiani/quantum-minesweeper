@@ -21,6 +21,7 @@ def test_admin_values_exclude_operational_configuration():
     values = Settings(_env_file=None).admin_values()
 
     assert "ENABLE_ENTANGLEMENT_PROBES" in values
+    assert values["ENABLE_SANDBOX_REVEAL"] is True
     assert values["WEB_MODE"] == "both"
     assert "BACKEND" not in values
     assert "ADMIN_PASS" not in values
@@ -65,3 +66,12 @@ def test_one_product_snapshot_drives_both_consumer_shapes():
     assert features["ENABLE_SURVEY"] is game_config["enable_survey"] is True
     assert features["SURVEY_URL"] == game_config["survey_url"]
     assert features["RESET_POLICY"] == game_config["reset_policy"] == "never"
+    assert features["ENABLE_SANDBOX_REVEAL"] is game_config["sandbox_reveal"] is True
+
+
+def test_sandbox_reveal_toggle_projects_to_every_web_consumer():
+    product = Settings(_env_file=None, ENABLE_SANDBOX_REVEAL=False).product_config()
+
+    assert product.template_features(browser_app_available=True)["ENABLE_SANDBOX_REVEAL"] is False
+    assert product.browser_product()["sandbox_reveal"] is False
+    assert product.game_config()["sandbox_reveal"] is False

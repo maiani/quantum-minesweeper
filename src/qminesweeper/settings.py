@@ -22,6 +22,7 @@ ADMIN_SETTING_NAMES = (
     "ENABLE_TUTORIAL",
     "ENABLE_SURVEY",
     "ENABLE_ENTANGLEMENT_PROBES",
+    "ENABLE_SANDBOX_REVEAL",
     "WEB_MODE",
     "RESET_POLICY",
 )
@@ -44,6 +45,9 @@ class Settings(BaseSettings):
     # Whether the region entanglement probe exists in this deployment. How many
     # regions a game gets is a separate, per-game setup choice.
     ENABLE_ENTANGLEMENT_PROBES: bool = True
+
+    # Whether Sandbox exposes the read-only mine/entanglement Reveal lens.
+    ENABLE_SANDBOX_REVEAL: bool = True
 
     # Reset policy: "never", "sandbox", "any"
     RESET_POLICY: ResetPolicy = "sandbox"
@@ -116,6 +120,7 @@ class Settings(BaseSettings):
             survey_url=self.SURVEY_URL,
             reset_policy=self.RESET_POLICY,
             enable_entanglement_probes=self.ENABLE_ENTANGLEMENT_PROBES,
+            enable_sandbox_reveal=self.ENABLE_SANDBOX_REVEAL,
             web_mode=self.WEB_MODE,
         )
 

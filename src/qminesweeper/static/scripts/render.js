@@ -53,6 +53,10 @@ let _probeRequest = 0;
 let _probeResult = null;
 let _probeError = null;
 let _mutationPending = false;
+let _revealEnabled = false;
+let _revealData = null;
+let _revealError = null;
+let _revealRequest = 0;
 
 // Read and parse a <script type="application/json"> blob by its id.
 // Returns the parsed object, or null if the element is missing / not valid JSON.
@@ -123,13 +127,18 @@ function decodeCell(val) {
 
 // Human-readable labels for screen readers. The board is visually dense, so
 // each button names its row/column and the current visible cell state.
-function cellAriaLabel(r, c, val, decoded) {
+function cellAriaLabel(r, c, val, decoded, revealed = null) {
   const prefix = `Row ${r + 1}, column ${c + 1}`;
-  if (decoded.cls === "unexplored") return `${prefix}: unexplored cell`;
-  if (decoded.cls === "pinned") return `${prefix}: pinned cell`;
-  if (decoded.cls === "mine") return `${prefix}: mine outcome`;
-  if (decoded.cls === "empty") return `${prefix}: revealed safe cell`;
-  return `${prefix}: clue ${val.toFixed(1)}`;
+  let label;
+  if (decoded.cls === "unexplored") label = `${prefix}: unexplored cell`;
+  else if (decoded.cls === "pinned") label = `${prefix}: pinned cell`;
+  else if (decoded.cls === "mine") label = `${prefix}: mine outcome`;
+  else if (decoded.cls === "empty") label = `${prefix}: revealed safe cell`;
+  else label = `${prefix}: clue ${val.toFixed(1)}`;
+  if (!revealed) return label;
+  const probability = Math.round(Number(revealed.mine_probability) * 100);
+  const entangled = Number(revealed.entropy) > 1e-9 ? "; entangled with the board" : "";
+  return `${label}; reveal shows ${probability}% mine probability${entangled}`;
 }
 
 // Build an SVG element. `el` cannot: document.createElement would make an
@@ -154,6 +163,16 @@ function entanglementIcon() {
     class: "status-glyph", viewBox: "0 0 24 24", width: "1.15em", height: "1.15em",
     "aria-hidden": "true", focusable: "false",
   }, [ring(8), ring(16)]);
+}
+
+function eyeIcon() {
+  return svg("svg", {
+    class: "reveal-eye", viewBox: "0 0 24 24", width: "1.15em", height: "1.15em",
+    "aria-hidden": "true", focusable: "false",
+  }, [
+    svg("path", { d: "M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z", fill: "none", stroke: "currentColor", "stroke-width": 2 }),
+    svg("circle", { cx: 12, cy: 12, r: 2.8, fill: "currentColor" }),
+  ]);
 }
 
 // --- Status bar: expected mines on the left, entanglement on the right.
@@ -215,7 +234,7 @@ function renderBoard(state) {
   const host = document.getElementById("board-container");
   if (!host) return;
   const ongoing = state.status === "ONGOING";
-  const table = el("table", { class: "board" });
+  const table = el("table", { class: `board${_revealEnabled && _revealData ? " board-revealed" : ""}` });
   // The column count is a layout input, not just a loop bound: game.css divides
   // the width the board has been given by it to pick a tile size that fits.
   // Custom properties inherit, so setting it here reaches every cell button.
@@ -227,12 +246,25 @@ function renderBoard(state) {
       const decoded = decodeCell(val);
       const { text, cls, clueT } = decoded;
       const index = r * state.cols + c;
+      const revealed = _revealEnabled && _revealData ? _revealData.cells[index] : null;
       const btn = el("button", {
         class: "tile " + cls,
-        text,
-        "aria-label": cellAriaLabel(r, c, val, decoded),
+        "aria-label": cellAriaLabel(r, c, val, decoded, revealed),
         "data-cell-index": index,
-      });
+      }, [el("span", { class: "tile-face", text })]);
+      if (revealed) {
+        const probability = Number(revealed.mine_probability);
+        const entropy = Number(revealed.entropy);
+        btn.classList.add("reveal-visible");
+        btn.classList.toggle("reveal-safe", probability <= 1e-9);
+        btn.classList.toggle("reveal-certain", probability >= 1 - 1e-9);
+        btn.classList.toggle("reveal-superposition", probability > 1e-9 && probability < 1 - 1e-9);
+        btn.classList.toggle("reveal-entangled", entropy > 1e-9);
+        btn.style.setProperty("--mine-p", probability.toFixed(3));
+        btn.appendChild(el("span", { class: "reveal-content", "aria-hidden": "true" }, [
+          el("span", { class: "reveal-bomb", text: probability > 1e-9 ? "●" : "" }),
+        ]));
+      }
       const inA = _probeA.has(index);
       const inB = _probeB.has(index);
       btn.classList.toggle("probe-a", inA);
@@ -270,7 +302,119 @@ function renderBoard(state) {
     table.addEventListener("pointerdown", onBoardPointerDown);
   }
   // Moves now go through the JS engine (fetch), so no hidden form is needed.
-  host.replaceChildren(table);
+  const stage = el("div", { class: "board-stage" }, [table]);
+  if (_revealEnabled && _revealData && _revealData.entanglement_links.length) {
+    const links = svg("svg", {
+      class: "entanglement-links",
+      viewBox: `0 0 ${state.cols} ${state.rows}`,
+      preserveAspectRatio: "none",
+      "aria-hidden": "true",
+      focusable: "false",
+    });
+    for (const link of _revealData.entanglement_links) {
+      const [first, second] = link.cells;
+      const x1 = first % state.cols + 0.5;
+      const y1 = Math.floor(first / state.cols) + 0.5;
+      const x2 = second % state.cols + 0.5;
+      const y2 = Math.floor(second / state.cols) + 0.5;
+      // Lines live above the board so they never disappear behind a tile, but
+      // stop at its edge so they do not strike through the cell itself. The
+      // inset is expressed in viewBox cell units and capped for nearby cells.
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const distance = Math.hypot(dx, dy);
+      const inset = Math.min(0.38, distance * 0.3);
+      const ux = dx / distance;
+      const uy = dy / distance;
+      const endpoints = {
+        x1: x1 + ux * inset,
+        y1: y1 + uy * inset,
+        x2: x2 - ux * inset,
+        y2: y2 - uy * inset,
+      };
+      links.appendChild(svg("line", { class: "entanglement-link-glow", ...endpoints }));
+      links.appendChild(svg("line", { class: "entanglement-link", ...endpoints }));
+    }
+    stage.appendChild(links);
+  }
+  host.replaceChildren(stage);
+}
+
+function invalidateRevealRequest() {
+  _revealRequest += 1;
+}
+
+async function refreshReveal() {
+  invalidateRevealRequest();
+  _revealData = null;
+  _revealError = null;
+  renderRevealControl();
+  if (!_config.sandbox_reveal || !_revealEnabled || !_state || _state.win_condition !== "SANDBOX" || _mutationPending) {
+    if (_state) renderBoard(_state);
+    return;
+  }
+  renderBoard(_state);
+  const request = _revealRequest;
+  try {
+    const result = await window.GameEngine.reveal(_gameId);
+    if (request !== _revealRequest) return;
+    _revealData = result;
+    renderRevealControl();
+    renderBoard(_state);
+  } catch (err) {
+    if (request !== _revealRequest) return;
+    _revealError = err && err.message ? err.message : "Reveal failed";
+    renderRevealControl();
+  }
+}
+
+function toggleReveal() {
+  _revealEnabled = !_revealEnabled;
+  refreshReveal();
+}
+
+function legendItem(cls, text) {
+  return el("span", { class: "reveal-legend-item" }, [
+    el("span", { class: `reveal-legend-swatch ${cls}`, "aria-hidden": "true" }),
+    text,
+  ]);
+}
+
+function renderRevealControl() {
+  const host = document.getElementById("reveal-container");
+  if (!host) return;
+  if (!_config.sandbox_reveal || !_state || _state.win_condition !== "SANDBOX") {
+    host.replaceChildren();
+    return;
+  }
+  const loading = _revealEnabled && !_revealData && !_revealError && !_mutationPending;
+  const button = el("button", {
+    type: "button",
+    class: `btn reveal-toggle${_revealEnabled ? " active" : ""}${loading ? " loading" : ""}`,
+    "aria-pressed": _revealEnabled ? "true" : "false",
+    "aria-label": _revealEnabled ? "Hide board inspection" : "Reveal board for inspection",
+    title: _revealEnabled ? "Hide the Sandbox inspection" : "Inspect mine probabilities and entanglement",
+    "help-id": "reveal",
+    onclick: toggleReveal,
+  }, [eyeIcon(), el("span", { text: _revealEnabled ? "Hide" : "Reveal" })]);
+
+  const children = [button];
+  if (_revealEnabled && _revealData) {
+    children.push(el("div", { class: "reveal-legend", "aria-label": "Reveal legend" }, [
+      legendItem("certain", "certain mine"),
+      legendItem("superposition", "superposition"),
+      legendItem("entangled", "entangled cell"),
+      legendItem("link", "entangled"),
+      !_revealData.links_complete
+        ? el("span", { class: "reveal-legend-note", text: "large network simplified" })
+        : null,
+    ]));
+  } else if (loading) {
+    children.push(el("span", { class: "reveal-message", text: "Inspecting quantum state…", "aria-live": "polite" }));
+  } else if (_revealError) {
+    children.push(el("span", { class: "reveal-message reveal-error", text: _revealError, "aria-live": "polite" }));
+  }
+  host.replaceChildren(el("section", { class: "reveal-bar", "aria-label": "Sandbox board reveal" }, children));
 }
 
 function formatBits(value) {
@@ -805,6 +949,7 @@ function applyState(state) {
   const sameGame = _gameId === null || _gameId === state.game_id;
   cancelDrag();
   invalidateProbeRequest();
+  invalidateRevealRequest();
   if (!sameGame) {
     _probeA.clear();
     _probeB.clear();
@@ -815,10 +960,12 @@ function applyState(state) {
   _mutationPending = false;
   _gameId = state.game_id;
   renderStatus(state);
+  renderRevealControl();
   renderBoard(state);
   renderTools(state);
   renderActions(state, _config);
   refreshProbe();
+  if (_revealEnabled) refreshReveal();
 }
 
 // Exposed so the move flow (tools.js) can re-render after the engine returns new
@@ -833,12 +980,25 @@ window.GameRenderer = {
     _probeResult = null;
     _probeError = null;
     renderProbePanel();
+    invalidateRevealRequest();
+    _revealData = null;
+    _revealError = null;
+    renderRevealControl();
+    if (_state) renderBoard(_state);
   },
   clearProbes,
   stopProbeEditing,
   probeMode: () => _probeEdit,
   mergeConfig: (config) => {
     _config = { ..._config, ...config };
+    if (!_config.sandbox_reveal) {
+      _revealEnabled = false;
+      _revealData = null;
+      _revealError = null;
+      invalidateRevealRequest();
+      if (_state) renderBoard(_state);
+    }
+    renderRevealControl();
     renderProbePanel();
   },
 };

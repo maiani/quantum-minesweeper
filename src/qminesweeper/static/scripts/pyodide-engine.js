@@ -216,6 +216,11 @@ class PyodideEngine {
       if (pyB && pyB.destroy) pyB.destroy();
     }
   }
+
+  async reveal(_gameId) {
+    await this.ready();
+    return this._toState(this.session.reveal());
+  }
 }
 
 // Exposed for the browser-entry page, which sets

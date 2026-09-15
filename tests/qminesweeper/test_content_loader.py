@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from qminesweeper.content_loader import PAGE_CONTENT, load_html_fragment, load_page_content
-from scripts import build_browser
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTENT_DIR = ROOT / "src" / "qminesweeper" / "content"
 TEMPLATES_DIR = ROOT / "src" / "qminesweeper" / "templates"
+BUILD_BROWSER_PATH = ROOT / "scripts" / "build_browser.py"
+
+_BUILD_BROWSER_SPEC = importlib.util.spec_from_file_location("qms_build_browser", BUILD_BROWSER_PATH)
+assert _BUILD_BROWSER_SPEC is not None and _BUILD_BROWSER_SPEC.loader is not None
+build_browser = importlib.util.module_from_spec(_BUILD_BROWSER_SPEC)
+_BUILD_BROWSER_SPEC.loader.exec_module(build_browser)
 
 
 def test_all_english_page_content_is_valid_html_fragment():
@@ -46,6 +52,7 @@ def test_shared_templates_include_page_content():
     features = {
         "ENABLE_BROWSER_APP": False,
         "ENABLE_ENTANGLEMENT_PROBES": False,
+        "ENABLE_SANDBOX_REVEAL": False,
         "ENABLE_HELP": False,
         "ENABLE_SURVEY": False,
         "PROBE_REGION_DEFAULT": 0,

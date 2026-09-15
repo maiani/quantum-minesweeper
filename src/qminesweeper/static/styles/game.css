@@ -86,12 +86,23 @@
   overflow-x: auto;
 }
 
+.board-stage {
+  position: relative;
+  /* Keep the table and Reveal overlay in one predictable stacking context.
+     Table descendants otherwise create browser-dependent paint ordering. */
+  isolation: isolate;
+  flex: none;
+  margin: 16px 0;
+}
+
 /* --cols is set by render.js from the game's own column count. The vertical
    margin doubles as the room the probe badges and anchor rings need to hang
    outside the top row without being clipped by the scroll container. */
 .board {
   border-collapse: collapse;
-  margin: 16px 0;
+  margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .board td {
@@ -120,6 +131,11 @@
   font-size: max(9px, min(15px, calc(var(--tile-size) * 0.38)));
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.tile-face {
+  position: relative;
+  z-index: 2;
 }
 
 .board button:hover:not(:disabled) {
@@ -151,6 +167,184 @@
 .tile.mine {
   font-weight: 700;
   color: var(--boom);
+}
+
+/* ---------- Sandbox reveal ----------
+   Reveal is a read-only lens over the ordinary board. Covered tile faces fade
+   back while a bottom-up wash shows Z-basis mine probability without inventing a
+   fixed mine placement. */
+.reveal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0.55rem 0 -0.25rem;
+}
+
+.reveal-toggle {
+  gap: 0.45em;
+  border-radius: 999px;
+  padding-inline: 1rem;
+}
+
+.reveal-toggle.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.reveal-eye {
+  vertical-align: -0.18em;
+}
+
+.reveal-toggle.loading .reveal-eye {
+  animation: reveal-breathe 1s ease-in-out infinite alternate;
+}
+
+.reveal-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.reveal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.reveal-legend-note {
+  font-style: italic;
+}
+
+.reveal-legend-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--boom);
+}
+
+.reveal-legend-swatch.superposition {
+  background: conic-gradient(var(--boom) 0 50%, var(--btn-bg) 50% 100%);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.reveal-legend-swatch.entangled {
+  background: transparent;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 5px var(--accent);
+}
+
+.reveal-legend-swatch.link {
+  width: 1.1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 5px var(--accent);
+}
+
+.reveal-message {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.reveal-error {
+  color: var(--boom);
+}
+
+.board-revealed button.reveal-visible {
+  overflow: visible;
+  background:
+    linear-gradient(
+      to top,
+      color-mix(in srgb, var(--boom) 34%, transparent) 0 calc(var(--mine-p) * 100%),
+      color-mix(in srgb, var(--btn-bg) 48%, transparent) calc(var(--mine-p) * 100%) 100%
+    );
+  border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 25%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.board-revealed button.reveal-visible .tile-face {
+  opacity: 0.18;
+}
+
+.reveal-content {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.reveal-bomb {
+  color: var(--boom);
+  font-size: max(8px, min(15px, calc(var(--tile-size) * 0.36)));
+  line-height: 1;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--boom) 55%, transparent);
+}
+
+/* A halo marks every cell that is entangled with some part of the board. */
+.reveal-entangled .reveal-content::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 2px solid var(--accent);
+  border-radius: calc(var(--radius) - 1px);
+  box-shadow:
+    inset 0 0 7px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 7px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.entanglement-links {
+  position: absolute;
+  inset: 0;
+  /* The network is the inspection overlay, so it must remain legible across
+     tiles, probability fills, and region badges. pointer-events keeps this
+     visual layer from intercepting any board interaction. */
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.entanglement-link,
+.entanglement-link-glow {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+
+.entanglement-link-glow {
+  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke-width: 4px;
+}
+
+.entanglement-link {
+  stroke: var(--accent);
+  stroke-width: 1.25px;
+  opacity: 0.72;
+}
+
+@keyframes reveal-breathe {
+  to { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-toggle.loading .reveal-eye {
+    animation: none;
+  }
 }
 
 /* Explored cells are recessed; unexplored ones stay proud of the page. This is

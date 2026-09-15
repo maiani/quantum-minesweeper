@@ -100,6 +100,7 @@ def test_admin_rejects_browser_mode_without_bundle_before_mutating_settings(monk
             ENABLE_TUTORIAL=None,
             ENABLE_SURVEY=None,
             ENABLE_ENTANGLEMENT_PROBES=None,
+            ENABLE_SANDBOX_REVEAL=None,
             WEB_MODE="browser",
             RESET_POLICY="sandbox",
         )
