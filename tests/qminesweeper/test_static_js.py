@@ -11,7 +11,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 STATIC_SCRIPTS = ROOT / "src" / "qminesweeper" / "static" / "scripts"
+BASE_TEMPLATE = ROOT / "src" / "qminesweeper" / "templates" / "base.html"
+HELP_CSS = ROOT / "src" / "qminesweeper" / "static" / "styles" / "help.css"
 HELP_JS = STATIC_SCRIPTS / "help.js"
+LAYOUT_JS = STATIC_SCRIPTS / "layout.js"
 PIN_HELP = ROOT / "src" / "qminesweeper" / "static" / "help" / "P-move"
 
 
@@ -97,3 +100,48 @@ def test_pin_help_visual_references_valid_logo_flag_svg():
 
     assert name in visual
     ET.parse(PIN_HELP / "svgs" / name)
+
+
+def test_layout_publishes_real_header_height_for_fixed_panels():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed; static JavaScript behavior check skipped")
+
+    harness = r"""
+const source = require("fs").readFileSync(process.argv[1], "utf8");
+const values = {};
+const header = {offsetHeight: 73};
+global.document = {
+  documentElement: {style: {setProperty(name, value) { values[name] = value; }}},
+  querySelector(selector) { return selector === ".app-header" ? header : null; },
+};
+global.window = {addEventListener() {}};
+global.ResizeObserver = class {
+  constructor(callback) { this.callback = callback; }
+  observe(target) {
+    if (target !== header) throw new Error("observed the wrong element");
+    this.callback();
+  }
+};
+eval(source);
+process.stdout.write(JSON.stringify(values));
+"""
+    result = subprocess.run(
+        [node, "-e", harness, str(LAYOUT_JS)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert result.stdout == '{"--app-header-block-size":"73px"}'
+
+
+def test_desktop_help_header_uses_measured_offset_without_scrollable_spacer():
+    template = BASE_TEMPLATE.read_text(encoding="utf-8")
+    css = HELP_CSS.read_text(encoding="utf-8")
+
+    assert 'id="sidebar-spacer"' not in template
+    assert "top: var(--app-header-block-size, 0px);" in css
+    assert "#sidebar-header {\n  position: sticky;\n  top: 0;" in css

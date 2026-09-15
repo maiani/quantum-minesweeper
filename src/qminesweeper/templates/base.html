@@ -60,6 +60,9 @@
   <!-- Theme toggle -->
   <script src="{{ STATIC_BASE | default('/static') }}/scripts/theme_toggle.js" defer></script>
 
+  <!-- Keep fixed desktop panels below the sticky header's measured height. -->
+  <script src="{{ STATIC_BASE | default('/static') }}/scripts/layout.js" defer></script>
+
   <!-- MathJax -->
   <script>
     window.MathJax = {
@@ -87,7 +90,6 @@
       <!-- Help Sidebar -->
       {% if FEATURES.ENABLE_HELP %}
       <aside id="sidebar">
-        <div id="sidebar-spacer"></div>
         <div id="sidebar-header">
           <h2>Help</h2>
         </div>

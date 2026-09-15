@@ -26,7 +26,10 @@ body.admin-page #toggle-help {
   transform: translateX(100%);
   transition: transform 0.3s ease;
   z-index: 10;
-  top: 0;
+  /* layout.js publishes the sticky header's real block size. The old fake
+     spacer scrolled with this panel, which let the Help heading climb above
+     the application header as soon as the panel itself was scrolled. */
+  top: var(--app-header-block-size, 0px);
   padding-right: 16px;
 }
 
@@ -34,11 +37,10 @@ body.admin-page #toggle-help {
   transform: translateX(0);
 }
 
-#sidebar-spacer {
-  padding-top: calc(10px + 2.5rem);
-}
-
 #sidebar-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding-top: 10px;
   padding-bottom: 10px;
   background: var(--accent);
@@ -191,10 +193,6 @@ html.light .help-card {
 
   #sidebar.inline.active {
     display: block;
-  }
-
-  #sidebar.inline #sidebar-spacer {
-    display: none;
   }
 
   #sidebar.inline #sidebar-header {
