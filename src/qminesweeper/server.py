@@ -32,8 +32,8 @@ from qminesweeper import __version__
 from qminesweeper.auth import enable_basic_auth
 from qminesweeper.backends import make_backend as make_simulator_backend
 from qminesweeper.board import QMineSweeperBoard
+from qminesweeper.content_loader import load_page_content
 from qminesweeper.database import get_store
-from qminesweeper.docs_render import load_docs
 from qminesweeper.engine import (
     MAX_DIM,
     MAX_ENT_LEVEL,
@@ -157,7 +157,7 @@ log = logging.getLogger("qminesweeper.web")
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
-DOCS_DIR = BASE_DIR / "docs"
+CONTENT_DIR = BASE_DIR / "content"
 
 STATS_DB = get_store()
 # One vocabulary per rules column. Server rows have always stored the enum name
@@ -223,8 +223,8 @@ def _online_count() -> int:
 templates.env.globals["online_count"] = _online_count
 
 
-DOCS = load_docs(DOCS_DIR)
-templates.env.globals["docs"] = DOCS
+PAGE_CONTENT = load_page_content(CONTENT_DIR)
+templates.env.globals["page_content"] = PAGE_CONTENT
 
 
 @app.get("/app/config")

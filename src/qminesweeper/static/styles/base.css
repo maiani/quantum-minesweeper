@@ -354,7 +354,7 @@ html.light .btn:hover {
 
 /* ---------- Rendered document content ---------- */
 /* Setup explainers, the About page, the About overlay and the admin DB notes
-   all render the same markdown-derived markup. It lives here rather than in
+   all render the same package-owned content markup. It lives here rather than in
    setup.css because base.html mounts the About overlay on every page: while
    these rules sat in setup.css the overlay was completely unstyled anywhere
    that sheet was not loaded, so its links fell back to the browser default

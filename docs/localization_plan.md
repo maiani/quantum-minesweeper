@@ -61,7 +61,7 @@ complete because it has its own Rich-based interaction and lifecycle.
 ## Content model
 
 Use a hybrid model: short interface messages live in JSON catalogs; substantial
-educational content remains in separate Markdown or HTML files.
+educational content remains in separate trusted HTML fragments.
 
 ### Short interface strings
 
@@ -116,23 +116,28 @@ locales.
 
 ### Long-form content
 
-Store localized user documentation by locale:
+Store localized page content by locale:
 
 ```text
-src/qminesweeper/docs/
+src/qminesweeper/content/
   en/
-    simple_setup.md
-    advanced_setup.md
-    about.md
+    simple_setup.html
+    advanced_setup.html
+    about.html
   sv/
-    simple_setup.md
-    advanced_setup.md
-    about.md
+    simple_setup.html
+    advanced_setup.html
+    about.html
   it/
-    simple_setup.md
-    advanced_setup.md
-    about.md
+    simple_setup.html
+    advanced_setup.html
+    about.html
 ```
+
+These files are HTML fragments, not complete pages. Shared Jinja templates own
+the surrounding page structure. The fragments are trusted package content and
+are inserted without escaping; user-provided or computed values must never be
+written into them.
 
 Store contextual help with the same topic identifiers in each locale:
 
@@ -183,7 +188,7 @@ Its responsibilities are:
 - load and cache JSON catalogs from package resources;
 - translate a key with named values and English fallback;
 - fail clearly in development validation when keys or placeholders are invalid;
-- resolve localized document paths with English fallback;
+- resolve localized content paths with English fallback;
 - expose all catalogs to the browser build without maintaining a second list.
 
 Suggested pure functions are:
@@ -193,7 +198,7 @@ normalize_locale(tag: str | None) -> str | None
 detect_locale(preferences: Iterable[str]) -> str
 load_catalog(locale: str) -> Mapping[str, str]
 translate(locale: str, key: str, **values: object) -> str
-localized_document(root: Path, locale: str, relative_path: str) -> Path
+localized_content(root: Path, locale: str, relative_path: str) -> Path
 ```
 
 Runtime fallback should protect users, but programming mistakes should remain
@@ -240,7 +245,7 @@ Each template response receives a request-specific context containing:
 locale          active normalized locale
 locale_mode     "explicit" or "automatic"
 t               translator bound to that locale
-docs            documents loaded for that locale
+page_content    trusted HTML fragments loaded for that locale
 ```
 
 A shared context helper should add these values to all visible server pages.
@@ -345,7 +350,7 @@ The first pass covers:
 - simple and advanced setup headings, labels, options, and actions;
 - survey text shown on setup;
 - the browser runtime loading panel;
-- the localized `simple_setup.md` document.
+- the localized `simple_setup.html` fragment.
 
 Every translated element should still render readable English without
 JavaScript. Server pages receive translated text from Jinja. Static browser HTML
@@ -357,34 +362,32 @@ translated. Canonical URLs remain locale-neutral in the first pass because
 locale is a preference, not a URL namespace. Do not add `hreflang` until there
 are stable, crawlable locale-specific URLs.
 
-## Localized document loading
+## Localized page-content loading
 
-Extend `docs_render.py` without making templates aware of filesystem paths.
-The loader should accept a locale and return the same document-key mapping it
-returns today. For each key it selects the requested locale file or English
-fallback, then runs the existing Markdown and MathJax-compatible rendering.
+Extend `content_loader.py` without making templates aware of filesystem paths.
+The loader should accept a locale and return the same page-content mapping it
+returns today. For each key it selects the requested locale fragment or its
+English fallback. MathJax notation remains embedded in the trusted HTML.
 
-The server loads documents for the active request locale. It must not expose one
-startup-global `DOCS` mapping if pages can use different locales. Catalog and
-rendered-document contents may be cached by `(locale, document)` because source
-files are immutable during a deployed process.
+The server loads fragments for the active request locale. It must not expose one
+startup-global `PAGE_CONTENT` mapping if pages can use different locales.
+Fragment contents may be cached by `(locale, document)` because source files are
+immutable during a deployed process.
 
-The browser build renders localized Markdown to HTML at build time. It emits
-language-specific document fragments under a predictable static path, for
-example:
+The browser build copies the localized HTML fragments under a predictable
+static path, for example:
 
 ```text
-dist/static/docs/en/simple_setup.html
-dist/static/docs/sv/simple_setup.html
-dist/static/docs/it/simple_setup.html
+dist/static/content/en/simple_setup.html
+dist/static/content/sv/simple_setup.html
+dist/static/content/it/simple_setup.html
 ```
 
 The browser localization module replaces only the designated document host. It
 must not replace the setup form or attach duplicate setup event handlers.
 
-When migrating the current flat English documents into `docs/en/`, update all
-loaders, packaging tests, static-build inputs, and documentation references in
-the same change. Do not retain two editable English copies.
+The English source already lives in `content/en/`; do not create a second
+editable copy when adding localized fragments.
 
 ## Contextual help migration
 
@@ -436,7 +439,7 @@ pass should retain the existing invariant numeric formatting.
 
 ## About, admin, TUI, and manuscript
 
-The About page is long-form content and follows the localized Markdown model.
+The About page is long-form content and follows the localized HTML-fragment model.
 Its surrounding actions and offline-install text use catalog messages.
 
 Administrative pages can remain English during the player-facing rollout. When
@@ -490,8 +493,8 @@ Cover:
 - each declared document exists in English;
 - Swedish and Italian coverage is reported;
 - a missing localized document falls back as a whole to English;
-- Markdown renders equations and headings as before;
-- generated HTML does not include an accidental duplicate title;
+- HTML fragments preserve equations, headings, links, and valid structure;
+- localized fragments do not include an accidental duplicate page shell;
 - the static build emits each supported locale's document fragment.
 
 ### Browser tests
@@ -530,12 +533,26 @@ offline before declaring browser support complete.
 
 ## Implementation sequence
 
+### Pass 0: page-content source reorganization
+
+Move the three English setup/About sources to `content/en/`, convert their
+existing rendered output into trusted HTML fragments, replace the Markdown
+renderer with a small content loader, and remove the Markdown-only runtime
+dependencies. Update package data, templates, server loading, the static
+builder and its content fingerprint, tests, architecture, and repository
+guidance without changing visible output.
+
+This pass is complete when server and browser builds consume only the HTML
+fragments, the old Markdown sources and renderer are gone, content changes alter
+the browser cache fingerprint, and rendered English remains structurally and
+visually equivalent.
+
 ### Pass A: localization foundation and setup vertical slice
 
 Introduce the framework-free Python locale module, three short-string catalogs,
 catalog validation, request-scoped server context, browser locale module,
 shared selector, persistence, `<html lang>`, setup/shell translations, and the
-three localized `simple_setup.md` files. Update the static builder and service
+three localized `simple_setup.html` fragments. Update the static builder and service
 worker so this complete slice works offline.
 
 This pass is complete when a user can arrive with Swedish or Italian browser
@@ -593,8 +610,9 @@ For each translated change:
 5. Review mathematical notation, gate terminology, and accessibility wording.
 6. Record intentional English fallback explicitly until it is translated.
 
-Do not translate generated output by hand. Translate source catalogs and source
-documents, then rebuild browser/package artifacts through the normal tasks.
+Translate source catalogs and source HTML fragments, then rebuild
+browser/package artifacts through the normal tasks. Never edit generated build
+artifacts by hand.
 
 ## Decisions to preserve during implementation
 
@@ -607,7 +625,7 @@ documents, then rebuild browser/package artifacts through the normal tasks.
   renderer.
 - Game state stays presentation-free.
 - Internal identifiers and persisted data are never translated.
-- Long prose stays in Markdown/HTML files rather than JSON strings.
+- Long prose stays in trusted HTML fragments rather than JSON strings.
 - Offline PWA users can access every supported locale.
 - Missing translations fall back safely but remain visible to validation.
 - No language rollout is called complete without linguistic, scientific,

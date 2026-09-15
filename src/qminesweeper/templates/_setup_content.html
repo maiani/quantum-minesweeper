@@ -69,9 +69,9 @@
     </div>
   </form>
 
-  {% if docs is defined and docs %}
+  {% if page_content is defined and page_content %}
   <div class="doc-content">
-    {{ docs.simple_setup | safe }}
+    {{ page_content.simple_setup | safe }}
   </div>
   {% endif %}
 </div>
@@ -135,9 +135,9 @@
     </div>
   </form>
 
-  {% if docs is defined and docs %}
+  {% if page_content is defined and page_content %}
   <div class="doc-content">
-    {{ docs.advanced_setup | safe }}
+    {{ page_content.advanced_setup | safe }}
   </div>
   {% endif %}
 </div>

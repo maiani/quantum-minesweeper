@@ -1,0 +1,80 @@
+<h2 id="setup-options">Setup options</h2>
+<p>Simple Setup fills all of these in for you. Change them here to build a board
+the levels do not offer.</p>
+<h4 id="1-board-size">1. Board size</h4>
+<p>Rows <span class="arithmatex">\(R\)</span> and columns <span class="arithmatex">\(C\)</span>. The board is <span class="arithmatex">\(N = R \times C\)</span> cells, one qubit each.</p>
+<h4 id="2-mines-and-entanglement-level">2. Mines and entanglement level</h4>
+<p><strong>Mines</strong> <span class="arithmatex">\(B\)</span> is how many mines are placed. <strong>Entanglement level</strong> controls how
+they are prepared:</p>
+<ul>
+<li><strong>Level 0</strong> — ordinary fixed mines: every cell is definitely <span class="arithmatex">\(|0\rangle\)</span> or
+  <span class="arithmatex">\(|1\rangle\)</span>.</li>
+<li><strong>Level 1</strong> — each mine is an independent single cell in superposition, such
+  as <span class="arithmatex">\(|+\rangle\)</span> or <span class="arithmatex">\(|i\rangle\)</span>.</li>
+<li><strong>Level <span class="arithmatex">\(k\)</span></strong> — mines are prepared in random entangled states over groups of
+  <span class="arithmatex">\(k\)</span> cells. Level 2 gives Bell-pair-like states, Level 3 GHZ-type states, and
+  so on.</li>
+</ul>
+<p>While you play, the number of mines on the board is an average rather than a
+count:
+$$
+\langle \text{Mines} \rangle = \sum_i p_i,
+\qquad
+p_i = \tfrac{1}{2}\left(1 - \langle Z_i \rangle\right),
+$$
+where <span class="arithmatex">\(p_i\)</span> is the probability that cell <span class="arithmatex">\(i\)</span> holds a mine.</p>
+<h4 id="3-win-condition">3. Win condition</h4>
+<ul>
+<li><strong>Identify</strong> — win by opening every currently safe cell without ever measuring
+  a mine.</li>
+<li><strong>Clear</strong> — win by driving every cell to mine probability zero. The mines are
+  not hidden somewhere to be found: the goal is to make a mine outcome
+  impossible.</li>
+<li><strong>Sandbox</strong> — free exploration, with no win and no loss.</li>
+</ul>
+<h4 id="4-move-set">4. Move set</h4>
+<p>Which operations you may use:</p>
+<ul>
+<li><strong>Classic</strong> — measure (<code>M</code>) and pin (<code>P</code>) only.</li>
+<li><strong>One-qubit (core set)</strong> — adds <span class="arithmatex">\(X\)</span>, <span class="arithmatex">\(Y\)</span>, <span class="arithmatex">\(Z\)</span>, <span class="arithmatex">\(H\)</span>, <span class="arithmatex">\(S\)</span>, which is enough to
+  defuse single-cell mines.</li>
+<li><strong>One-qubit (full set)</strong> — adds <span class="arithmatex">\(S^\dagger\)</span>, <span class="arithmatex">\(\sqrt{X}\)</span>, <span class="arithmatex">\(\sqrt{X}^\dagger\)</span>,
+  <span class="arithmatex">\(\sqrt{Y}\)</span>, <span class="arithmatex">\(\sqrt{Y}^\dagger\)</span>, completing the single-qubit Clifford group.</li>
+<li><strong>Two-qubit</strong> — adds <span class="arithmatex">\(CX\)</span> and <span class="arithmatex">\(SWAP\)</span> to the core set.</li>
+<li><strong>Two-qubit (extended)</strong> — adds <span class="arithmatex">\(CX\)</span>, <span class="arithmatex">\(CY\)</span>, <span class="arithmatex">\(CZ\)</span> and <span class="arithmatex">\(SWAP\)</span> to the full set.</li>
+</ul>
+<p>Either two-qubit set lets you create and undo entanglement yourself.</p>
+<h4 id="5-entanglement-probe-regions">5. Entanglement probe regions</h4>
+<p>How many regions the probe offers this game: <strong>0</strong> for none, <strong>1</strong> to weigh one
+region against the rest of the board, or <strong>2</strong> to also compare two regions.
+Simple Setup picks a count to suit the level; choosing here overrides it.</p>
+<p>The probe only reads the state. It never measures a cell, applies a gate or
+moves a pin, and it does not use up a move.</p>
+<p>Region <span class="arithmatex">\(A\)</span> is reported as its entanglement entropy against the rest of the
+board,
+$$
+S(A) = -\mathrm{Tr}\left(\rho_A \log_2 \rho_A\right),
+$$
+in bits. For independent Bell pairs this counts the pairs straddling the
+region's boundary: selecting one member gives 1 bit, selecting both gives 0. A
+product state such as <span class="arithmatex">\(|+\rangle\)</span> gives 0 even though its mine outcome is still
+uncertain, and a reading of 0 does not rule out entanglement <em>inside</em> the
+region.</p>
+<p>With two regions, disjoint regions <span class="arithmatex">\(A\)</span> and <span class="arithmatex">\(B\)</span> also report their mutual
+information
+$$
+I(A:B) = S(A) + S(B) - S(A \cup B),
+$$
+with <span class="arithmatex">\(S(A)\)</span>, <span class="arithmatex">\(S(B)\)</span> and <span class="arithmatex">\(S(A \cup B)\)</span> shown alongside. This measures total
+correlation, classical as well as quantum. A Bell pair split between the two
+regions gives 2 bits, while cells from different pairs give 0. Take care beyond
+two cells: in a three-cell GHZ state, two cells share 1 bit this way even
+though their own two-cell state is not entangled. Do not read <span class="arithmatex">\(I(A:B)\)</span> as a
+count of pairwise links.</p>
+<p>Regions stay selected while you switch back to gates and measurement, so you can
+compare a reading before and after a move. Opened cells may be selected, but
+still cannot be targeted by gates. Every reading describes the board as it
+stands, given the measurement outcomes so far.</p>
+<p>This is not the linked-rings counter above the board, which adds up each cell's
+own entanglement separately. The region count survives a reset, a new game with
+the same settings, and a saved browser game; the cells you selected do not.</p>

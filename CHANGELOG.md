@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Added keyboard shortcuts for the entanglement probe: `A` selects region A,
+  `B` selects region B, and `D` deletes both selections while leaving `C`
+  available for controlled-gate shortcuts.
+- Added an implementation plan for English, Swedish, and Italian localization,
+  with request-scoped server selection, offline browser support, and English
+  fallback.
+
+### Changed
+
+- Moved the three package-owned Setup and About sources from Markdown into
+  locale-ready HTML fragments under `content/en/`. The server and browser now
+  use a small shared content loader, page-content changes participate in the
+  PWA cache fingerprint, and the Markdown-only runtime dependencies were
+  removed.
+
+### Fixed
+
+- Kept the desktop Help panel and its own sticky heading below the application
+  header using the header's measured height, including when wrapping,
+  translation, or font loading changes that height.
+
 ## [0.4.3] - 2026-09-14
 
 ### Player-facing text

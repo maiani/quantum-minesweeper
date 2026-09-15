@@ -79,6 +79,11 @@ and removed because it duplicated existing state.
   shadow or scrim, or a bug -- it is a colour that cannot follow the theme.
 - Shared Jinja templates remain the visible-page source of truth. The static
   build renders them at build time with only small browser-specific hooks.
+- Trusted setup and About prose lives as HTML fragments under
+  `src/qminesweeper/content/en/`. Templates own the surrounding page structure;
+  `content_loader.py` supplies only package-owned fragment contents. Locale
+  variants belong in sibling language directories rather than parallel page
+  templates.
 
 There is no separate `/api/*` game-state namespace and no second browser
 frontend.

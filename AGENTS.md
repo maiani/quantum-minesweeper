@@ -21,7 +21,8 @@ stabilizer library it vendors. Tests mirror that split under `tests/`.
 - `src/qminesweeper/server.py`: FastAPI and Jinja server runtime.
 - `src/qminesweeper/static/scripts/render.js`: shared game renderer.
 - `src/qminesweeper/static/`: shared frontend assets and contextual help.
-- `src/qminesweeper/docs/`: user-facing setup and About content rendered in-app.
+- `src/qminesweeper/content/en/`: trusted user-facing HTML fragments rendered
+  into Setup and About; localization adds sibling locale directories.
 - `src/chppy/`: vendored standalone stabilizer library; see the rule below
   before touching it.
 - `tests/qminesweeper/`, `tests/chppy/`: one suite per package, each with its

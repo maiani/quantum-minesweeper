@@ -31,7 +31,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from qminesweeper import __version__  # noqa: E402
-from qminesweeper.docs_render import load_docs  # noqa: E402
+from qminesweeper.content_loader import load_page_content  # noqa: E402
 from qminesweeper.settings import get_settings  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,7 +39,7 @@ SRC = ROOT / "src"
 PKG = SRC / "qminesweeper"
 CHPPY = SRC / "chppy"
 DIST = ROOT / "dist"
-DOCS_DIR = PKG / "docs"
+CONTENT_DIR = PKG / "content"
 PWA_DIR = ROOT / "scripts" / "pwa"  # manifest + service-worker sources (emitted at dist root)
 
 # PWA icons the manifest references (rasterised by artwork/generate.py).
@@ -81,7 +81,7 @@ def _build_fingerprint() -> str:
     hasher = hashlib.sha256()
     for name in PURE_MODULES:
         _hash_file(hasher, SRC / name)
-    for base in (PKG / "static", PWA_DIR):
+    for base in (PKG / "content", PKG / "static", PWA_DIR):
         for path in sorted(p for p in base.rglob("*") if p.is_file()):
             _hash_file(hasher, path)
     for path in (
@@ -125,7 +125,7 @@ def main() -> None:
         loader=FileSystemLoader([ROOT / "scripts", PKG / "templates"]),
         autoescape=select_autoescape(["html"]),
     )
-    docs = load_docs(DOCS_DIR)
+    page_content = load_page_content(CONTENT_DIR)
     _settings = get_settings()
     product = _settings.product_config()
     template_context = {
@@ -136,7 +136,7 @@ def main() -> None:
         # installable app and must not advertise a link back to itself.
         "FEATURES": product.template_features(browser_app_available=False),
         "config": product.game_config(),
-        "docs": docs,
+        "page_content": page_content,
         "game_id": None,
         "version": __version__,
         "online_count": lambda: 0,
