@@ -77,6 +77,14 @@ and removed because it duplicated existing state.
   places a colour value is written; every other rule refers to a token. A
   literal outside those two blocks is either a black or white alpha used as a
   shadow or scrim, or a bug -- it is a colour that cannot follow the theme.
+- The design system those tokens form is written down in
+  [`DESIGN.md`](../DESIGN.md), in the DESIGN.md token format, so that it is
+  legible to coding agents as well as to people. It carries the palette, the
+  type scale, the spacing and radius scales, the component vocabulary, and the
+  reasoning behind them. `base.css` stays the implementation of record for
+  colour; `DESIGN.md` mirrors it and is updated in the same change. Deliberate
+  contrast exceptions -- the light theme's clue ramp, the decorative
+  unexplored-tile glyph -- are recorded there rather than rediscovered.
 - Shared Jinja templates remain the visible-page source of truth. The static
   build renders them at build time with only small browser-specific hooks.
 - Trusted setup and About prose lives as HTML fragments under

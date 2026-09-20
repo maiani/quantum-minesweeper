@@ -36,6 +36,7 @@ class ProductConfig:
     reset_policy: str
     enable_entanglement_probes: bool
     enable_sandbox_reveal: bool
+    js_bloch_sphere: bool
     web_mode: str
 
     @property
@@ -58,6 +59,7 @@ class ProductConfig:
             "RESET_POLICY": self.reset_policy,
             "ENABLE_ENTANGLEMENT_PROBES": self.enable_entanglement_probes,
             "ENABLE_SANDBOX_REVEAL": self.enable_sandbox_reveal,
+            "JS_BLOCH_SPHERE": self.js_bloch_sphere,
             "PROBE_REGION_LIMIT": PROBE_REGION_LIMIT,
             "PROBE_REGION_DEFAULT": PROBE_REGION_DEFAULT,
             "ENABLE_BROWSER_APP": self.browser_runtime_enabled and browser_app_available,

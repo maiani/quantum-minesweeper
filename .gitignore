@@ -215,3 +215,7 @@ qms_data/
 # Unpublished companion paper
 paper/
 manuscript/
+
+# Development-only JS check dependencies (see package.json); the shipped
+# frontend has no build step and no runtime npm dependencies.
+node_modules/

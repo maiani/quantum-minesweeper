@@ -1,0 +1,12 @@
+{
+  "name": "qminesweeper-devchecks",
+  "private": true,
+  "type": "module",
+  "description": "Development-only JavaScript checks. The shipped frontend has no build step and no runtime npm dependencies; this exists so the renderer checks can run against a DOM.",
+  "scripts": {
+    "check:bloch": "node scripts/check_bloch.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

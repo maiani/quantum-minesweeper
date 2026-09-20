@@ -79,6 +79,136 @@
     mountInline(mq.matches);
     mq.addEventListener("change", e => mountInline(e.matches));
 
+    // --- The live Bloch sphere (trial) ---
+    // When JS_BLOCH_SPHERE is on, a one-qubit gate's visual draws the gate's
+    // effect with a live blochkit animation instead of the tracked,
+    // LaTeX-rendered SVG. It is a deployment choice, not a player-facing toggle,
+    // so the two renderers are never both on screen and there is no new control
+    // in the panel. The SVGs stay tracked and are the default; nothing about
+    // their path below changes when the flag is off.
+    const BLOCH_SPHERE_ON = window.QMS_JS_BLOCH_SPHERE === true;
+    // The topic whose content is on screen right now. The sphere is mounted after
+    // an await, by which time the reader may have moved the pointer on, so this is
+    // what says whether the work is still wanted. The DOM cannot answer that for a
+    // topic like Measure, which has no node of its own to check for.
+    let shownTopic = null;
+    let blochModule = null; // the import() promise, kept so the module loads once
+    let liveSphere = null; // the animation currently on screen, if any
+
+    // The specifier has to be resolved to a full URL before import() sees it.
+    // STATIC_BASE is "/static" on the server but a bare "static" in the browser
+    // build, and a specifier that starts with neither "/" nor "./" is a *bare
+    // module specifier* -- which a browser refuses to resolve at all, rather than
+    // treating as a path. Resolving against document.baseURI covers both, and
+    // keeps working if the build is ever served from a subdirectory.
+    const blochUrl = new URL(`${STATIC_BASE}/scripts/bloch-help.js`, document.baseURI).href;
+    const loadBloch = () => (blochModule ??= import(blochUrl));
+
+    // A GateAnimation owns a requestAnimationFrame loop, and the panel throws its
+    // own innerHTML away on every topic change. Without this the discarded SVG
+    // would keep animating, invisibly, for the life of the page.
+    function stopSphere() {
+      if (liveSphere) {
+        liveSphere.stop();
+        liveSphere = null;
+      }
+    }
+
+    /** Which ket the freshly injected SVG is already showing, e.g. `H_+.svg` -> "+". */
+    function initialState(anim) {
+      const m = /_([^_\/?]+)\.svg/.exec(anim.getAttribute("src") || "");
+      if (!m) return null;
+      try {
+        return decodeURIComponent(m[1]);
+      } catch {
+        return m[1];
+      }
+    }
+
+    // The six start states, spelled as blochkit names them. Only used to build a
+    // selector for a topic that has no visual.html of its own; the gates ship their
+    // own buttons, and those stay the source for them.
+    const KETS = ["0", "1", "+", "-", "i", "-i"];
+
+    /**
+     * Build a visual from nothing, for a topic whose visual.html is empty.
+     *
+     * Measure is the case this exists for: it has never had an illustration, so
+     * there is no image to stand down and no state buttons to listen to. The markup
+     * matches what a gate's visual.html produces, so help.css styles both alike.
+     */
+    function buildLiveVisual(visualEl, caption) {
+      const wrap = document.createElement("div");
+      wrap.className = "gate-visual";
+
+      const host = document.createElement("div");
+      host.className = "bloch-stage";
+
+      const p = document.createElement("p");
+      p.textContent = caption;
+
+      const selector = document.createElement("div");
+      selector.className = "state-selector";
+      for (const ket of KETS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn";
+        btn.dataset.state = ket;
+        btn.textContent = `|${ket}⟩`;
+        selector.appendChild(btn);
+      }
+
+      wrap.append(host, p, selector);
+      visualEl.replaceChildren(wrap);
+      return host;
+    }
+
+    /**
+     * Draw this topic with the live sphere, if the flag is on and the topic is one
+     * a Bloch sphere can show.
+     *
+     * `anim` is the topic's tracked SVG, or null when it has none. Failing quietly
+     * is deliberate at every step: a topic with no sphere, a module that will not
+     * load, or a panel that has moved on are all left with exactly what is already
+     * on screen and working.
+     */
+    async function wireBlochSphere(visualEl, anim, id) {
+      stopSphere(); // the previous topic's loop; its SVG has just been discarded
+      if (!BLOCH_SPHERE_ON) return;
+
+      const mod = await loadBloch().catch((err) => {
+        console.warn("[help.js] Live Bloch sphere unavailable:", err);
+        return null;
+      });
+      // Two-qubit gates and non-gate topics have no sphere. The topic check also
+      // covers the panel having moved on while the module loaded, which the DOM
+      // cannot answer for a topic that had no node of its own to begin with.
+      if (!mod || !mod.canDraw(id) || shownTopic !== id) return;
+
+      let host;
+      if (anim) {
+        host = document.createElement("div");
+        host.className = "bloch-stage";
+        anim.after(host);
+        anim.hidden = true; // kept in the DOM: the state buttons still drive it
+      } else {
+        host = buildLiveVisual(visualEl, "Pick a starting state to see what this move does to it.");
+      }
+
+      // Built per topic: GateAnimation binds to the container it was given, and
+      // that container is new every time the panel replaces its own innerHTML.
+      liveSphere = new mod.GateSphere(host);
+      liveSphere.show(id, (anim && initialState(anim)) || mod.defaultState(id));
+
+      // For a gate these buttons already drive the (now hidden) SVG and this just
+      // listens in; for a built visual they are ours and this is their only wiring.
+      visualEl.querySelectorAll("button[data-state]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (liveSphere) liveSphere.show(id, btn.dataset.state);
+        });
+      });
+    }
+
     // --- Cache + loader ---
     const HELP_CACHE = {};
     async function loadHelp(id) {
@@ -120,6 +250,7 @@
 
       titleEl.textContent = HELP_CACHE[id].title;
       textEl.innerHTML = HELP_CACHE[id].text;
+      shownTopic = id;
       visualEl.innerHTML = HELP_CACHE[id].visual;
       visualEl.querySelectorAll('img[src^="/static/"]').forEach((img) => {
         img.src = img.getAttribute("src").replace(/^\/static/, STATIC_BASE);
@@ -175,7 +306,13 @@
             anim.src = newSrc + bust;
           });
         });
+
       }
+
+      // With JS_BLOCH_SPHERE on, draw this topic live. Outside the `if` above
+      // because `anim` may legitimately be null: Measure ships no SVG at all, and
+      // the sphere is its first illustration. A no-op when the flag is off.
+      wireBlochSphere(visualEl, anim, id);
 
       if (window.MathJax) {
         if (typeof MathJax.typesetPromise === "function") {

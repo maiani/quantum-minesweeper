@@ -205,7 +205,9 @@ scripts under `scripts/`.
 
 Project design and active work are documented in
 [`docs/architecture.md`](docs/architecture.md) and
-[`docs/roadmap.md`](docs/roadmap.md).
+[`docs/roadmap.md`](docs/roadmap.md). The visual design system — colour
+tokens, type scale, and the rules for applying them — is in
+[`DESIGN.md`](DESIGN.md).
 
 ---
 ## Gameplay Notes

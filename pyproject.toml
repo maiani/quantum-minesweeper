@@ -131,6 +131,7 @@ js-check = { cmd = "python scripts/check_js.py", description = "Check JavaScript
 check = { depends-on = ["lint", "test", "js-check"], description = "Run lint, tests, and JavaScript checks" }
 package = { cmd = "python -m build --no-isolation --outdir build/packages", description = "Build the wheel and source distribution" }
 icons = { cmd = "python scripts/artwork/generate.py", description = "Regenerate SVG artwork and PWA icons" }
+bloch-check = { cmd = "npm install --no-audit --no-fund --silent && node scripts/check_bloch.mjs", description = "Check the live Bloch sphere renderer (needs npm; not part of `check`)" }
 browser = { cmd = "python scripts/build_browser.py", description = "Build the browser-only PWA" }
 docker-build = { cmd = "bash ./scripts/build.sh", description = "Build the local Docker image" }
 docker-run = { cmd = "bash ./scripts/run_local.sh", depends-on = ["docker-build"], description = "Build and run the local Docker image" }

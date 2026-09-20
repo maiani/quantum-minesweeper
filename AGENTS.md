@@ -28,6 +28,7 @@ stabilizer library it vendors. Tests mirror that split under `tests/`.
 - `tests/qminesweeper/`, `tests/chppy/`: one suite per package, each with its
   own `conftest.py`.
 - `scripts/build_browser.py`: static PWA build.
+- `DESIGN.md`: the visual design system, in the DESIGN.md token format.
 - `manuscript/`: ignored companion-paper workspace; see the paper rules below.
 
 Use Pixi as the development environment and task interface. Run
@@ -64,6 +65,12 @@ such in code, documentation, and the paper.
 - Keep game-state payloads presentation-free. Symbols, labels, colours, and
   visible tools belong in JavaScript; feature flags belong in the separate app
   configuration.
+- Take visual tokens, themes, and UI conventions from [`DESIGN.md`](DESIGN.md)
+  before writing or changing any markup, stylesheet, or renderer presentation.
+  Colour is declared once, in `:root` and `html.light` in
+  `static/styles/base.css`; `DESIGN.md` mirrors those two blocks and is updated
+  in the same change. Do not introduce a second palette, a second font family,
+  or a colour literal outside those two blocks.
 - Keep `render.js` as the only game renderer. Replace moved Jinja rendering;
   never retain a second frontend path.
 - Treat shared server templates as the visible-page source. Static pages are
@@ -123,6 +130,10 @@ belongs in the adapter instead.
   from a default-only run.
 - There is no repository JS test framework. For renderer changes, add a
   throwaway jsdom/Node check and perform a live server/browser smoke test.
+- Run `npx --yes @google/design.md lint DESIGN.md` after changing the palette,
+  type scale, or component list. It is deliberately outside `pixi run check`,
+  which stays Python-only and offline. `DESIGN.md` records the warnings that
+  are expected; do not retune a colour merely to silence one.
 - Comment non-obvious JavaScript generously; the maintainer is less familiar
   with JS. Keep Python interfaces and numerical conventions documented too.
 - Preserve unrelated and generated work. Do not make opportunistic cleanup part
@@ -137,6 +148,8 @@ authority on task status and priority. Do not restate its tasks here, in
 Each file owns one kind of statement:
 
 - This file: standing rules and per-change practice.
+- [`DESIGN.md`](DESIGN.md): the visual design system — tokens, and the rules
+  for applying them.
 - [`docs/architecture.md`](docs/architecture.md): stable decisions and
   deliberate constraints, including features deferred on purpose.
 - [`docs/roadmap.md`](docs/roadmap.md): work still to be done.
@@ -160,6 +173,8 @@ Use this source-of-truth hierarchy:
 - Visible game presentation and tool layout: `render.js` and `tools.js`.
 - Shared visible page structure: Jinja templates under
   `src/qminesweeper/templates/`.
+- Visual design tokens and UI conventions: `DESIGN.md`, whose normative colour
+  values are `:root` and `html.light` in `static/styles/base.css`.
 - Stable design decisions: `docs/architecture.md`.
 - Active priorities and deferred work: `docs/roadmap.md`.
 - Released behavior: `CHANGELOG.md` and the tagged implementation.

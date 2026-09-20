@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     # Whether Sandbox exposes the read-only mine/entanglement Reveal lens.
     ENABLE_SANDBOX_REVEAL: bool = True
 
+    # Which renderer draws a one-qubit gate's effect in the contextual help: the
+    # JavaScript Bloch sphere (blochkit) when true, the tracked LaTeX-rendered
+    # SVGs when false. Not a feature switch -- the illustration is there either
+    # way; this only chooses how it is drawn. Off while the JS renderer is on
+    # trial. Two-qubit gates are unaffected: a Bloch sphere draws one qubit, so
+    # CX/CY/CZ/SWAP keep their circuit diagrams whichever way this is set.
+    JS_BLOCH_SPHERE: bool = True
+
     # Reset policy: "never", "sandbox", "any"
     RESET_POLICY: ResetPolicy = "sandbox"
 
@@ -121,6 +129,7 @@ class Settings(BaseSettings):
             reset_policy=self.RESET_POLICY,
             enable_entanglement_probes=self.ENABLE_ENTANGLEMENT_PROBES,
             enable_sandbox_reveal=self.ENABLE_SANDBOX_REVEAL,
+            js_bloch_sphere=self.JS_BLOCH_SPHERE,
             web_mode=self.WEB_MODE,
         )
 

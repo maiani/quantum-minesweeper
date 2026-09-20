@@ -147,6 +147,27 @@ html.light .help-card {
   object-fit: contain;
 }
 
+/* The live Bloch sphere stands in the picture's slot, so it takes the picture's
+   flex contract exactly: basis 0 and min-height 0, or it would defend its own
+   square aspect ratio and push the caption and buttons past the clip. Only one
+   of the two is ever un-hidden. */
+.bloch-stage {
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* blochkit sets `width: 100%` inline on its own <svg>, which no stylesheet rule
+   can outrank, so the height is what has to be capped here. With a viewBox and
+   the default preserveAspectRatio, capping it scales the drawing down inside the
+   box rather than cropping it. */
+.bloch-stage > svg {
+  max-height: 100%;
+}
+
 /* Never squeezed: these two are the controls, the picture is the decoration. */
 .gate-visual > p,
 .gate-visual .state-selector {

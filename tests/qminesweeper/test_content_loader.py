@@ -54,6 +54,7 @@ def test_shared_templates_include_page_content():
         "ENABLE_ENTANGLEMENT_PROBES": False,
         "ENABLE_SANDBOX_REVEAL": False,
         "ENABLE_HELP": False,
+        "JS_BLOCH_SPHERE": False,
         "ENABLE_SURVEY": False,
         "PROBE_REGION_DEFAULT": 0,
         "PROBE_REGION_LIMIT": 0,

@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added a live Bloch sphere to the contextual help, vendored from the
+  `blochkit` renderer and adapted in `bloch-help.js`. It draws each one-qubit
+  gate as a rotation the reader can drag to rotate, draws the axis it turns
+  about with a head so the direction of the rotation can be read off the
+  picture, takes its colours from the existing design tokens so it follows the
+  light and dark themes, and gives
+  Measure its first illustration: the state holds, then collapses onto a pole,
+  resampled on every repetition. The `JS_BLOCH_SPHERE` setting chooses it over
+  the tracked LaTeX-rendered SVGs, which remain in the repository and are
+  unchanged. Two-qubit gates keep their circuit diagrams.
+- Added `--axis-x`, `--axis-y`, `--axis-z` and `--axis-gate` to both themes, for
+  the Bloch sphere's axis triad and for the axis a gate turns about. The triad is
+  deliberately low-chroma, because the saturated colours in the palette all carry
+  meaning and an axis at full strength would compete with them; the rotation axis
+  is not held back, since it is the one thing the drawing asks you to look at.
+- Added `pixi run bloch-check`, which checks every gate and start state against
+  reference values computed from the gates' 2x2 matrices, plus the adapter's
+  DOM wiring. It needs npm for jsdom, so it sits outside `pixi run check`,
+  which stays Python-only and offline.
+
+- Added `DESIGN.md`, the visual design system in the DESIGN.md token format:
+  both themes' colour tokens, the type, spacing and radius scales, the
+  component vocabulary, and the reasoning behind them. It is wired into the
+  agent instructions, the README, and the architecture notes, and records the
+  deliberate contrast exceptions so they are not rediscovered as bugs.
+
 ## [0.4.4] - 2026-09-15
 
 ### Added

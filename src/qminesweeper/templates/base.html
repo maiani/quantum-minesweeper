@@ -111,6 +111,7 @@
     <script>
       window.QMS_STATIC_BASE = {{ (STATIC_BASE | default('/static')) | tojson }};
       window.QMS_ENABLE_HELP = {{ FEATURES.ENABLE_HELP | tojson }};
+      window.QMS_JS_BLOCH_SPHERE = {{ FEATURES.JS_BLOCH_SPHERE | tojson }};
     </script>
     <link rel="stylesheet" href="{{ STATIC_BASE | default('/static') }}/styles/help.css">
     <script src="{{ STATIC_BASE | default('/static') }}/scripts/help.js" defer></script>

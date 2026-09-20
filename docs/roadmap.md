@@ -129,6 +129,10 @@ Pyodide, DOM rendering, startup, or mobile hardware.
 
 ### Interaction polish
 
+- [ ] Decide the two open light-theme contrast questions recorded under
+  "Verification" in `DESIGN.md`: white on `accent-light` is 4.23:1, which
+  misses AA for the selected tool button's normal-size text, and the pin glyph
+  is 2.58:1 on an unexplored tile.
 - [ ] Improve mine and entanglement visuals, and extend them to the gate
   counter once it exists (see "Scoring and challenges").
 - [ ] Add short measurement and pin animations that distinguish quantum
@@ -142,6 +146,26 @@ Pyodide, DOM rendering, startup, or mobile hardware.
 - [ ] Publish archive and citation guidance when archive metadata is available.
 
 ## P3 — Research and exploration
+
+### Live Bloch sphere in contextual help
+
+The `blochkit` renderer is vendored at
+`src/qminesweeper/static/scripts/blochkit.js` and adapted in `bloch-help.js`.
+`JS_BLOCH_SPHERE` chooses it over the tracked LaTeX-rendered SVGs, which stay
+the default and are untouched. Checked by `pixi run bloch-check`.
+
+- [ ] Decide between the live sphere and the tracked SVGs for the ten one-qubit
+  gates, then retire whichever loses and remove the flag.
+- [ ] Decide whether Measure keeps its collapse animation, which is its first
+  illustration rather than a replacement for one.
+- [ ] Give the two-qubit gates an illustration: a Bloch sphere draws one qubit,
+  so CX/CY/CZ/SWAP keep circuit diagrams and no renderer choice reaches them.
+- [ ] Confirm the sphere's palette in use. `axis-x/y/z` are new low-chroma
+  tokens, and the rotation axis is `pin`; check both themes on a real screen.
+- [ ] Decide whether `blochkit.js` stays vendored in both this repo and
+  qapture-the-flag or becomes one shared upstream. Local changes (the named
+  gate/ket vocabulary, `MEASURE`, and the shared camera drag) are not yet in
+  the other copy.
 
 ### Basis-changing clues
 

@@ -1,0 +1,663 @@
+---
+version: alpha
+name: Quantum Minesweeper
+description: >-
+  The visual system for the Quantum Minesweeper board, its contextual help, and
+  its setup and about pages. A dark-first, two-theme interface built on system
+  fonts and CSS custom properties, tuned so that a grid of small square tiles
+  stays readable while carrying colour-coded quantitative information.
+colors:
+  # ---- Dark theme (the default) ----------------------------------------
+  # These are the values in `:root` in static/styles/base.css, verbatim.
+  bg: "#090c13"
+  fg: "#e8e8e8"
+  muted: "#7a7f87"
+  tile-muted: "#5a6070"
+  zero-bg: "#1a1d24"
+  btn-bg: "#2a2f3f"
+  btn-bg-hover: "#353c4e"
+  accent: "#6aa0ff"
+  accent-hover: "#82b4ff"
+  on-accent: "#0b1b33"
+  border: "rgba(232, 232, 232, 0.22)"
+  header-bg: "rgba(32, 36, 49, 0.95)"
+  box-overlay: "rgba(26, 28, 51, 0.55)"
+  pin: "#ffcf33"
+  boom: "#ff4d4d"
+  win: "#57c95e"
+  axis-x: "#b98a72"
+  axis-y: "#7fae90"
+  axis-z: "#8496b8"
+  axis-gate: "#f472b6"
+
+  # ---- Light theme -----------------------------------------------------
+  # The `html.light` block in base.css. Same token names, `-light` suffix.
+  bg-light: "#e6ebf3"
+  fg-light: "#1e1e1e"
+  muted-light: "#5c636e"
+  tile-muted-light: "#9ba7b9"
+  zero-bg-light: "#d7dfea"
+  btn-bg-light: "#fbfcfe"
+  btn-bg-hover-light: "#edf2fa"
+  accent-light: "#3f7ad6"
+  accent-hover-light: "#5f95ea"
+  on-accent-light: "#ffffff"
+  border-light: "#dce3ec"
+  header-bg-light: "rgba(255, 255, 255, 0.82)"
+  box-overlay-light: "rgba(255, 255, 255, 0.62)"
+  pin-light: "#d99000"
+  boom-light: "#e64545"
+  win-light: "#2e7d32"
+  axis-x-light: "#8d5f48"
+  axis-y-light: "#4c7a5c"
+  axis-z-light: "#5a6b8c"
+  axis-gate-light: "#a4247e"
+
+  # ---- Theme-independent identity colours ------------------------------
+  # The two entanglement-probe regions are deliberately the same on both
+  # themes: they identify region A and region B, and they are drawn as rings
+  # rather than as text, so they are not part of the surface palette.
+  probe-a: "#38bdf8"
+  probe-b: "#f59e0b"
+
+  # ---- Conventional aliases --------------------------------------------
+  # Provided so the palette reads as a standard design system. The names above
+  # are the ones that appear in the stylesheets, as `var(--accent)` and so on.
+  primary: "{colors.accent}"
+  secondary: "{colors.muted}"
+  neutral: "{colors.btn-bg}"
+  surface: "{colors.bg}"
+  on-surface: "{colors.fg}"
+  error: "{colors.boom}"
+  success: "{colors.win}"
+typography:
+  # `fontFamily` is one stack everywhere; there is no webfont. `fontSize` gives
+  # the settled size -- see the Typography section for the fluid ranges the
+  # stylesheets actually write, which the Dimension type cannot express.
+  headline-page:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 2rem
+    fontWeight: 700
+  headline-app:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 1.4rem
+    fontWeight: 600
+  headline-section:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 1.25rem
+    fontWeight: 700
+  headline-result:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 1.4rem
+    fontWeight: 700
+  body-md:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 1rem
+    fontWeight: 400
+  body-sm:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 0.95rem
+    fontWeight: 400
+  label-md:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 0.95rem
+    fontWeight: 400
+  label-sm:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 0.85rem
+    fontWeight: 400
+  label-xs:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 0.78rem
+    fontWeight: 400
+  # Every figure the player reads off the interface. `tabular-nums` is the point
+  # of these two: a clue or a counter must not reflow as its digits change.
+  numeric-status:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 1rem
+    fontWeight: 600
+    fontFeature: "'tnum' 1"
+  numeric-clue:
+    fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
+    fontSize: 15px
+    fontWeight: 600
+rounded:
+  none: 0px
+  xs: 2px
+  sm: 4px
+  md: 6px
+  lg: 8px
+  xl: 10px
+  full: 999px
+spacing:
+  xs: 4px
+  sm: 6px
+  md: 8px
+  lg: 12px
+  xl: 16px
+  xxl: 24px
+  xxxl: 28px
+  # Measures, not rhythm: the widths the page and its panels are held to.
+  content-max: 1000px
+  reading-max: 900px
+  form-max: 520px
+  sidebar-max: 400px
+  # The board's own bounds. A tile is sized between these from the width the
+  # board container actually has; it is never a fixed number.
+  tile-max: 40px
+  tile-min: 16px
+  touch-target: 44px
+components:
+  button:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.md}"
+    padding: 8px 12px
+    width: 44px
+  button-hover:
+    backgroundColor: "{colors.btn-bg-hover}"
+  button-active:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+  button-disabled:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.muted}"
+  button-tool:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.label-sm}"
+    rounded: "{rounded.md}"
+    padding: 6px 12px
+    width: 36px
+  button-cta:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+    typography: "{typography.label-sm}"
+    rounded: "{rounded.md}"
+    padding: 8px 16px
+  button-cta-hover:
+    backgroundColor: "{colors.accent-hover}"
+  button-pill:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    padding: 8px 16px
+  tile-unexplored:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.tile-muted}"
+    typography: "{typography.numeric-clue}"
+    rounded: "{rounded.md}"
+  tile-explored:
+    backgroundColor: "{colors.zero-bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.numeric-clue}"
+    rounded: "{rounded.md}"
+  tile-pinned:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.pin}"
+  tile-mine:
+    backgroundColor: "{colors.zero-bg}"
+    textColor: "{colors.boom}"
+  card:
+    backgroundColor: "{colors.box-overlay}"
+    textColor: "{colors.fg}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.md}"
+    padding: 12px 14px
+  panel-modal:
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.xl}"
+    padding: 24px 28px
+  app-header:
+    backgroundColor: "{colors.header-bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.headline-app}"
+    rounded: "{rounded.md}"
+    padding: 10px 18px
+  status-counter:
+    backgroundColor: transparent
+    textColor: "{colors.fg}"
+    typography: "{typography.numeric-status}"
+    rounded: "{rounded.md}"
+    padding: 0.4em 0.8em
+  probe-bar:
+    backgroundColor: "{colors.box-overlay}"
+    textColor: "{colors.fg}"
+    typography: "{typography.label-sm}"
+    rounded: "{rounded.md}"
+    padding: 0.4rem 0.6rem
+  input-field:
+    backgroundColor: "{colors.btn-bg}"
+    textColor: "{colors.fg}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.md}"
+    padding: 8px 10px
+  sidebar-header:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+    typography: "{typography.headline-app}"
+    padding: 10px 0
+  table-header:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
+    typography: "{typography.label-sm}"
+    padding: 8px 12px
+  result-message-win:
+    textColor: "{colors.win}"
+    typography: "{typography.headline-result}"
+  result-message-lost:
+    textColor: "{colors.boom}"
+    typography: "{typography.headline-result}"
+
+  # ---- Light-theme variants --------------------------------------------
+  # Only what actually changes. Geometry, type, and padding are shared with the
+  # dark entries above; `html.light` in base.css overrides colour and the
+  # shadow tint, nothing else. The one structural difference is stated under
+  # Elevation & Depth: dark separates a control from its panel by fill, light
+  # by a 1px edge in `border-light`.
+  button-light:
+    backgroundColor: "{colors.btn-bg-light}"
+    textColor: "{colors.fg-light}"
+  button-light-hover:
+    backgroundColor: "{colors.btn-bg-hover-light}"
+  button-light-active:
+    backgroundColor: "{colors.accent-light}"
+    textColor: "{colors.on-accent-light}"
+  button-light-disabled:
+    backgroundColor: "{colors.btn-bg-light}"
+    textColor: "{colors.muted-light}"
+  button-cta-light:
+    backgroundColor: "{colors.accent-light}"
+    textColor: "{colors.on-accent-light}"
+  button-cta-light-hover:
+    backgroundColor: "{colors.accent-hover-light}"
+  tile-unexplored-light:
+    backgroundColor: "{colors.btn-bg-light}"
+    textColor: "{colors.tile-muted-light}"
+  tile-explored-light:
+    backgroundColor: "{colors.zero-bg-light}"
+    textColor: "{colors.fg-light}"
+  tile-pinned-light:
+    backgroundColor: "{colors.btn-bg-light}"
+    textColor: "{colors.pin-light}"
+  tile-mine-light:
+    backgroundColor: "{colors.zero-bg-light}"
+    textColor: "{colors.boom-light}"
+  card-light:
+    backgroundColor: "{colors.box-overlay-light}"
+    textColor: "{colors.fg-light}"
+  panel-modal-light:
+    backgroundColor: "{colors.bg-light}"
+    textColor: "{colors.fg-light}"
+  app-header-light:
+    backgroundColor: "{colors.header-bg-light}"
+    textColor: "{colors.fg-light}"
+  sidebar-header-light:
+    backgroundColor: "{colors.accent-light}"
+    textColor: "{colors.on-accent-light}"
+  result-message-win-light:
+    textColor: "{colors.win-light}"
+  result-message-lost-light:
+    textColor: "{colors.boom-light}"
+---
+
+# Quantum Minesweeper
+
+## Overview
+
+Quantum Minesweeper is a research artefact that has to work as a game. It is
+played on a dense grid of small square buttons, each carrying a number the
+player is expected to reason about, so the interface has one overriding job:
+make quantitative information legible at tile sizes down to sixteen pixels,
+without the page around it competing for attention.
+
+The result is quiet and instrument-like rather than playful. The chrome is
+near-monochrome; a single blue accent marks everything interactive; and colour
+is spent almost entirely on the board, where it carries meaning. The default
+theme is dark, and the light theme is a full peer rather than an afterthought
+-- both are tuned separately, because the same hue cannot read on a near-black
+tile and a near-white one.
+
+Two rules follow from this and are worth stating before the palette:
+
+**Colour is declared once.** `:root` and `html.light` in
+`static/styles/base.css` are the only two places in the codebase where a colour
+value is written. Every other rule refers to a token. A literal outside those
+blocks is either a black or white alpha used as a shadow or scrim, or it is a
+bug -- a colour that cannot follow the theme. This file mirrors those two
+blocks; **`base.css` remains the implementation of record**, and the two are
+changed together.
+
+**Presentation lives in the frontend, and is split once more inside it.** The
+serialized game state carries no symbols, labels, or colours. `render.js`
+decides *which* presentation a cell gets and publishes it as a custom property;
+the stylesheet decides what that presentation looks like in the active theme.
+The clue ramp is the worked example, described under Colors below.
+
+## Colors
+
+The palette is a near-neutral surface stack plus one accent, and then a small
+set of colours that exist only to mean something.
+
+- **Surface stack.** Three greys in a fixed order on both themes: the page is
+  the ground (`bg`), an unexplored tile sits proud of it (`btn-bg`), and an
+  explored tile is sunk below it (`zero-bg`). Ordering them consistently is
+  what makes the board readable at a glance; when the three light-theme greys
+  once sat within three percent luminance of each other, the grid was invisible
+  and a cell could only be located by whether it held a number.
+- **Accent (`#6aa0ff` dark, `#3f7ad6` light).** The single interaction colour:
+  headings, links, focus rings, the selected tool, the help panel's header.
+  Because the two themes' accents are blues of very different lightness,
+  `on-accent` flips with them -- dark ink on the dark theme's pale blue, white
+  on the light theme's deeper one. Text is never drawn on an accent fill
+  without it.
+- **Outcome colours.** `boom` for mines and losses, `win` for a win, `pin` for
+  a player's flag. These are semantics, not decoration: a loss is announced in
+  exactly the red the board draws its mines in.
+- **Bloch axis colours** (`axis-x`, `axis-y`, `axis-z`). The x, y and z axes of
+  the Bloch sphere in the contextual help. Three hues, so the triad can be read
+  at a glance, but deliberately held at low chroma: they are reference
+  furniture, and every saturated colour in this palette already means something
+  (`boom` a mine, `win` a win, `accent` the one interaction colour). An axis at
+  full chroma would compete with those, and a blue z-axis at `accent` strength
+  would read as the state vector itself.
+- **The rotation axis** (`axis-gate`). The axis a gate turns about is the one
+  thing on that drawing the reader is asked to look at, so it is the one axis
+  colour not held back. It is magenta because magenta is the only hue nothing
+  else in the palette uses: it stays distinct from all three axes, from
+  `accent` (the state vector it must never share), and from `win` and `boom`.
+  It has its own token rather than borrowing `pin` because gold cannot be read
+  on the light theme's sphere -- against the disc it reaches 1.9:1, and
+  darkening it to compensate turns it into `axis-x`'s brown.
+
+  The sphere's wireframe and guides come from `muted`, separated by opacity
+  rather than by colour. It is the only token that is mid-tone on *both*
+  themes, which is what a wireframe on a tinted disc needs. `border` is a
+  hairline tuned for edges against white; on the sphere's own disc it is
+  1.04:1, which is not a faint line but no line at all.
+- **Probe identity colours** (`probe-a`, `probe-b`). The only tokens that do
+  not change between themes, because they name the two entanglement-probe
+  regions rather than participating in the surface palette. They are drawn as
+  outlines and rings so that a tile keeps its own clue or pin colour while it
+  is in a region.
+- **One hairline** (`border`). There were once five spellings of this edge;
+  there is now one token.
+
+### The clue ramp
+
+The board's numbers run green (low) to red (high), and this is the one place
+where colour is computed rather than chosen. `render.js` normalises the clue to
+`--clue-t` in `[0, 1]`; `game.css` sweeps the hue from 150deg to 25deg across
+that range and draws it at a lightness and chroma the *theme* supplies
+(`--clue-l`, `--clue-l-drop`, `--clue-c`). The hue sweep is the palette; the
+lightness it is drawn at has to differ per theme, and only CSS knows which
+theme is on.
+
+The light theme's ramp deliberately falls just short of WCAG AA in its middle.
+A green light enough to look green cannot reach 4.5:1 on any light background,
+so holding strict AA across the whole sweep forces the midrange into olive and
+khaki. Clues from about 1.5 up clear 4.5:1 on the explored-tile background;
+the lowest bottom out at 4.2:1, carried by semibold digits on a tile of at
+least sixteen pixels. This is a recorded, deliberate exception -- not licence
+to relax contrast elsewhere.
+
+## Typography
+
+There is no webfont. Everything is set in the platform UI stack
+(`system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica
+Neue', Arial, sans-serif`), which keeps the installable app offline-complete
+and costs nothing to load. Hierarchy is carried by size, weight, and the muted
+token -- never by a second family.
+
+- **Headings** are centred and accent-coloured. Section headings on document
+  pages go to weight 700; the sticky application title stays at 600 and on one
+  line at every width.
+- **Body and controls** sit at `0.95rem`, one notch below the browser default.
+  The interface is dense and control-heavy, and full-size body text made the
+  tool rows feel heavier than the board.
+- **Weight, not colour, carries the small text.** Clue digits are semibold at
+  tile sizes where a regular weight would break up, and the mine glyph goes to
+  700.
+- **Numbers get `font-variant-numeric: tabular-nums`.** The mine counter, the
+  entanglement score, and the probe readout all update continuously;
+  proportional digits made them jitter.
+
+Most sizes are fluid, which the `fontSize` tokens above cannot express -- each
+records the settled upper value. The stylesheets write:
+
+| Role | CSS |
+|:--|:--|
+| `headline-page` | `clamp(1.4rem, 5vw, 2rem)` |
+| `headline-app` | `clamp(1.2rem, 3vw, 1.4rem)` |
+| `headline-section` | `clamp(1.1rem, 1.5vw, 1.25rem)` |
+| `numeric-clue` | `max(9px, min(15px, calc(var(--tile-size) * 0.38)))` |
+
+The last is the important one: clue text scales with the *tile*, not the
+viewport. A twenty-five-column board has small tiles even on a wide screen, and
+a viewport-based size overflows them.
+
+## Layout & Spacing
+
+The spacing scale is a 4px-based progression -- 4, 6, 8, 12, 16, 24, 28 -- used
+loosely rather than as a strict grid. It is a rhythm, not a constraint to be
+enforced retroactively across existing components.
+
+What *is* strict is the set of measures:
+
+- Page content is capped at **1000px** and centred, with a 16/24px gutter that
+  drops to 8px below 480px and 4px below 360px.
+- Prose (the About page, setup explainers, the About overlay) is capped at
+  **900px**; the setup form at **520px**; the help sidebar at **400px** or 80
+  viewport widths, whichever is smaller.
+- Interactive targets have a **44px** minimum width.
+
+### The board sizes itself
+
+The board is the one component that does not take a fixed size. Its container
+is a containment context, so `100cqw` is the board area's own width; the tile
+size is that width divided by the column count, clamped between `tile-max`
+(40px) and `tile-min` (16px). Small boards therefore do not inflate into slabs,
+and very wide boards scroll sideways rather than shrinking to illegibility.
+Every offered board size must stay fully reachable at every supported width.
+
+Two consequences are load-bearing and must not be undone:
+
+- **No layout may depend on a hard-coded header height.** The header is
+  `position: sticky`, so it occupies its real height whatever the width makes
+  that; anything that needs the number reads `--app-header-block-size`, which
+  `layout.js` publishes from the measured element.
+- **The board container centres with `justify-content: safe center`.** A
+  centred flex item that overflows its container overflows in both directions,
+  and the part before the scroll origin cannot be reached by scrolling at all.
+
+### Breakpoints
+
+`720px` (help panel goes inline, probe breakdown hides), `640px` (cards and
+forms tighten), `600px` (header compacts and drops the player count, modals go
+full-screen), `480px` (phone gutters, smaller tile radius), `360px` (minimum
+gutters). `prefers-reduced-motion` is honoured globally, and the animations
+that would freeze on a wrong keyframe are switched off individually.
+
+## Elevation & Depth
+
+Depth is stated in three ways, in increasing order of force.
+
+1. **Fill.** On the dark theme a control is separated from its panel by being
+   lighter than it. The light theme cannot do this -- `btn-bg` is `#fbfcfe` and
+   the panel composites to about `#fafbfd` -- so it uses a **1px edge**
+   instead. The border box is reserved as `1px solid transparent` on both, so
+   toggling the theme never nudges a control's size.
+2. **Shadow.** Deliberately soft and short-ranged. `0 1px 2px` for controls and
+   tiles, `0 2px 6px` for cards, `0 4px 16px` for the game-over box, `0 12px
+   48px` for the modal panel. The light theme's shadows are tinted navy
+   (`rgba(30, 45, 80, …)`) rather than black; pure black reads as grime on a
+   light ground.
+3. **Inset.** The board's primary readout. An explored tile carries
+   `inset 0 1px 2px` and the recessed `zero-bg` fill; an unexplored one keeps
+   its raised fill and outer shadow. This belongs to the *surface*, not to the
+   digit -- before it did, a revealed "2.0" sat on exactly the same tile as its
+   unexplored neighbour and the two were told apart only by the number's
+   colour.
+
+Panels that float over content (the header, the help sidebar, cards, the probe
+bar) use a translucent `box-overlay` or `header-bg` fill with a small
+`backdrop-filter: blur()`. Both themes are translucent to the same degree; when
+the light theme was once pinned near-opaque, it read as a wall where the dark
+one read as frosted glass.
+
+## Shapes
+
+Everything is a rounded rectangle at **6px** (`--radius`), the `md` step. The
+scale exists mostly so the board can shed radius as tiles shrink: `sm` (4px)
+below 480px and `xs` (2px) below 360px, because a 6px radius on a 16px square
+is a circle.
+
+Three shapes depart from this on purpose:
+
+- **Pills** (`full`, 999px) for the sandbox Reveal toggle and the loading
+  progress track -- mode switches and progress, not ordinary buttons.
+- **The modal panel** at `xl` (10px), one step softer, because it is the only
+  element that floats free of the page.
+- **Probe rings and badges**, drawn outside the tile box (`inset: -4px`, an 8px
+  radius) so that a region outline never replaces the tile's own state colour.
+
+Icons are drawn rather than fetched. The Nordita mark and the GitHub mark are
+inlined SVG painted in `currentColor`, so one asset follows both themes; the
+entanglement counter's interlocked rings are built in `render.js` for the same
+reason, and sized in `em` so they track the text beside them. The board's own
+symbols are a small fixed set of glyphs -- `■` unexplored, `⚑` pinned, `💥` a
+mine outcome -- decoded in exactly one function.
+
+## Components
+
+### Buttons
+
+One `.btn` base with size modifiers: `tool` (0.85rem, 36px minimum) for the
+move row, `help` (0.85rem, 32px) for contextual-help triggers, and the default
+(0.95rem, 44px) everywhere else. A selected tool takes an accent fill with
+`on-accent` text; a disabled control keeps its fill and drops to `muted` at
+60% opacity. Every control has an `active` state of `transform: scale(0.96)`,
+which is the whole of the interface's tactility.
+
+The accent *fill* is rationed: at most one per screen. On Setup it is the
+research-survey call to action, which is deliberately not a `.btn` at all,
+because `.btn` belongs to the game's controls.
+
+### Tiles
+
+The board button is the densest component and the only one whose type size,
+box size, and radius are all derived at runtime. Its state classes --
+`unexplored`, `pinned`, `mine`, `clue`, `empty` -- are set by `render.js` from
+the numeric grid, and the stylesheet supplies the appearance. Overlays (probe
+outlines, reveal fills, entanglement halos and links) are layered over the tile
+without disturbing its own colour, each in its own stacking level.
+
+### Cards and panels
+
+`card` covers the help cards, the setup form, the loading card, and rendered
+document content: translucent fill, 6px radius, soft shadow, blurred backdrop.
+The token's padding is the help card's `12px 14px`; the setup and loading cards
+run `16px 18px` and document content `10px 20px`, all tightening below 640px.
+`panel-modal` is the About overlay. Below 600px the modal stops being a card
+and fills the viewport, trading its ✕ for a sticky bottom Close bar, because a
+floating card at phone width is cramped and its corner control is hard to
+reach.
+
+### Status and probe readouts
+
+The status counters and the entanglement probe bar are instrument readouts:
+outlined, tabular-figured, and compact. A status counter's fill is nominally
+`transparent` in the token above; in the stylesheet it is a 3% wash of `fg`,
+which is enough to separate the pill from the page without introducing a
+surface colour. The probe is a single row -- controls
+at the start, result at the end -- and it must stay one row. It replaced a
+164px five-block panel that pushed the move tools off a laptop screen, and
+recovering that height is the standing constraint on anything added there.
+
+### Forms
+
+Inputs and selects take the control fill with a transparent 1px border that
+becomes the accent on focus. `:focus-visible` puts a 2px accent outline at 2px
+offset on every focusable element, and that rule is global -- keyboard
+reachability is not per-component.
+
+## Do's and Don'ts
+
+- **Do** write every colour as a token. Add new values to `:root` *and*
+  `html.light` in `base.css`, and mirror them here in the same change.
+- **Don't** write a colour literal outside those two blocks. The only exception
+  is a black or white alpha used as a shadow or scrim.
+- **Do** keep symbols, labels, colours, and visible tool choices in the
+  frontend. Game-state payloads stay presentation-free.
+- **Don't** let the renderer name a final colour. It publishes a normalised
+  value (`--clue-t`, `--mine-p`, `--cols`) and the stylesheet resolves it,
+  because only CSS knows which theme is on.
+- **Do** design both themes at once, and check the light one on the board.
+  Several of the tokens above exist only because a value that worked on
+  near-black was invisible on near-white.
+- **Don't** add a second font family, and don't introduce a webfont. The
+  installable app must stay offline-complete.
+- **Do** use `tabular-nums` for any number that updates in place.
+- **Don't** size board text or board chrome against the viewport. It scales
+  with the tile.
+- **Do** keep one accent fill per screen, and give anything drawn on it the
+  `on-accent` token.
+- **Don't** assume a fixed header height, and don't reintroduce a spacer
+  element to fake one.
+- **Do** honour `prefers-reduced-motion`, and check what the global freeze
+  leaves on screen -- an animation that ends on a hidden keyframe needs its own
+  reduced-motion rule.
+- **Don't** add vertical furniture between the board and the move tools. That
+  space is budgeted, and the probe bar's redesign is what bought it.
+
+## Verification
+
+This file is valid against the DESIGN.md `alpha` specification. To check it:
+
+```
+npx --yes @google/design.md lint DESIGN.md
+```
+
+It is deliberately not part of `pixi run check`, which stays Python-only and
+offline. Run it by hand when the palette or the component list changes.
+
+The linter reports no errors. It reports warnings that are known and expected,
+and that should not be "fixed" by changing the palette without deciding the
+underlying design question first:
+
+- **`orphaned-tokens` for `border`, `border-light`, `probe-a`, `probe-b`.**
+  These are hairline and outline colours. The component schema models
+  `backgroundColor` and `textColor` but has no border or outline slot, so there
+  is no way to reference them. They are in active use; see Colors and Shapes.
+- **`orphaned-tokens` for `axis-x`, `axis-y`, `axis-z`, `axis-gate` and their
+  light variants.** Same cause, one step further out: these are stroke colours
+  for SVG drawn by `blochkit.js`, and the schema has no stroke slot and no
+  component for a drawing. They are in active use; see Colors.
+- **`contrast-ratio` on `button-disabled` (3.31:1).** Disabled controls are
+  exempt from WCAG 1.4.3.
+- **`contrast-ratio` on `tile-unexplored` (2.12:1) and its light variant
+  (2.37:1).** The `■` on an unexplored tile is decorative: the tile's state is
+  carried by its raised fill, and every board button has an explicit
+  `aria-label` naming its row, column, and state. The glyph is intentionally
+  recessive so it does not compete with the clue digits beside it.
+- **`contrast-ratio` on `tile-mine-light` (2.95:1).** Nominal only. The glyph
+  is `💥`, which the platform renders in its own colours; the token applies to
+  the surrounding text box, not to the emoji.
+
+Two are open questions rather than settled exceptions:
+
+- **White on the light theme's accent is 4.23:1** (`button-light-active`,
+  `button-cta-light`, `sidebar-header-light`, and the admin table header). That
+  clears AA for large text but not for normal text, and the selected tool
+  button is normal text at `0.85rem`. Darkening `accent-light` or reserving the
+  accent fill for large text would resolve it.
+- **`tile-pinned-light` is 2.58:1** — the `⚑` in `pin-light` on a near-white
+  tile. A pin is a player annotation the player needs to find again at a
+  glance.
+
+The clue ramp's own light-theme shortfall is separate, measured, and
+deliberate; it is documented under Colors above.

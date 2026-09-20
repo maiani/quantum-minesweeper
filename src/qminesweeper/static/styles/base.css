@@ -37,6 +37,28 @@
        mine that caused it. */
     --win: #57c95e;
 
+    /* The Bloch sphere's x, y and z axes, in the contextual help. Three hues so
+       the triad can be read at a glance, but held at low chroma on purpose: they
+       are reference furniture, and the saturated colours in this palette all mean
+       something specific (boom a mine, win a win, accent the one interaction
+       colour). An axis drawn at full chroma would compete with those, and a blue
+       z-axis at accent strength would read as the state vector itself. The gate's
+       own rotation axis is --pin, which is the only tokened colour the sphere does
+       not otherwise use; it must never be --accent, because that is the moving
+       state vector and the two would be indistinguishable. */
+    --axis-x: #b98a72;
+    --axis-y: #7fae90;
+    --axis-z: #8496b8;
+
+    /* The axis a gate turns about, which is the one thing on that drawing the
+       reader is being asked to look at, so it is the one axis colour that is not
+       held back. It gets its own token rather than borrowing --pin because gold
+       cannot be read on the light theme's sphere: against the disc it reaches
+       only 1.9:1, and darkening it to compensate turns it into --axis-x's brown.
+       Magenta is the one hue no other colour here uses, so it stays distinct from
+       all three axes, from --accent (the state vector) and from --win and --boom. */
+    --axis-gate: #f472b6;
+
     /* The two entanglement-probe regions. Deliberately the same on both themes:
        they are identity colours for A and B, not part of the surface palette,
        and they are drawn as rings rather than text. */
@@ -94,6 +116,13 @@ html.light {
     --on-accent: #ffffff;
     --border: #dce3ec;
     --win: #2e7d32;
+
+    /* Same three hues as the dark theme, darkened to hold their own on a light
+       surface. See the note in :root for why they stay at low chroma. */
+    --axis-x: #8d5f48;
+    --axis-y: #4c7a5c;
+    --axis-z: #5a6b8c;
+    --axis-gate: #a4247e;
     --shadow-subtle: 0 1px 2px rgba(30, 45, 80, 0.10);
 
     /* Much darker than the dark theme's: these sit on a near-white tile, where
