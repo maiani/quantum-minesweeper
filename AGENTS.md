@@ -67,10 +67,15 @@ such in code, documentation, and the paper.
   configuration.
 - Take visual tokens, themes, and UI conventions from [`DESIGN.md`](DESIGN.md)
   before writing or changing any markup, stylesheet, or renderer presentation.
-  Colour is declared once, in `:root` and `html.light` in
-  `static/styles/base.css`; `DESIGN.md` mirrors those two blocks and is updated
-  in the same change. Do not introduce a second palette, a second font family,
-  or a colour literal outside those two blocks.
+  Colour is declared once, in `:root`, `html.light`, and `html.retro` in
+  `static/styles/base.css`; `DESIGN.md` mirrors those three blocks and is
+  updated in the same change. Do not introduce a second palette, a second font
+  family, or a colour literal outside those three blocks. `html.retro` is
+  itself a labelled exception to the second-font-family rule -- a trial theme
+  sampled from the poster in the repo root and from the original Windows
+  Minesweeper's own chrome, with three webfonts loaded on demand so the
+  shipped dark and light themes stay offline-complete; see DESIGN.md's
+  Colors and Typography sections before touching it.
 - Keep `render.js` as the only game renderer. Replace moved Jinja rendering;
   never retain a second frontend path.
 - Treat shared server templates as the visible-page source. Static pages are

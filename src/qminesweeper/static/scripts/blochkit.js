@@ -48,20 +48,6 @@ function svg(name, attrs = {}) {
   return node;
 }
 
-/** Instance-unique, because two spheres on one page must not share a filter id. */
-let uid = 0;
-const nextId = (prefix) => `${prefix}-${++uid}`;
-
-function glowFilter(id, blur) {
-  const f = svg("filter", { id, x: "-70%", y: "-70%", width: "240%", height: "240%" });
-  f.appendChild(svg("feGaussianBlur", { stdDeviation: blur, result: "b" }));
-  const merge = svg("feMerge");
-  merge.appendChild(svg("feMergeNode", { in: "b" }));
-  merge.appendChild(svg("feMergeNode", { in: "SourceGraphic" }));
-  f.appendChild(merge);
-  return f;
-}
-
 const prefersStill = () =>
   globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
@@ -390,10 +376,10 @@ export function namedAxis(n, palette) {
 }
 
 /**
- * The sphere itself: the disc, the equator, one meridian, the three axes and the two
- * poles. Returns the far half and the near half separately — parts behind the sphere
- * are dimmed rather than hidden, because on a wireframe "which way is it pointing" is
- * otherwise genuinely ambiguous.
+ * The sphere itself: the disc, the equator, one meridian, two latitude parallels, the
+ * three axes and the two poles. Returns the far half and the near half separately --
+ * parts behind the sphere are dimmed rather than hidden, because on a wireframe "which
+ * way is it pointing" is otherwise genuinely ambiguous.
  *
  * `labels` names the poles. The default is ket notation; pass `null` for none.
  */
@@ -417,15 +403,34 @@ export function wireframe(proj, { labels = ["|0⟩", "|1⟩"] } = {}) {
                              "stroke-width": 1.2, "stroke-dasharray": dash }));
   }
 
-  // each axis is two half-shafts, so the one going away from the viewer is dimmer
+  // A pair of latitude parallels, one on each side of the equator. Unlike the equator
+  // and the meridian, nobody is meant to read these as *anything* -- they carry no
+  // axis, no phase, no label -- their only job is to keep the disc from reading as
+  // flat. Dotted, so they stay a step under the two great circles even at full
+  // strength, but not so faint they disappear against the face.
+  for (const h of [0.5, -0.5]) {
+    const r = Math.sqrt(1 - h * h);
+    const { near, far } = proj.ring((t) => [r * Math.cos(t), r * Math.sin(t), h]);
+    back.push(svg("path", { d: far, fill: "none", stroke: pal.line,
+                            "stroke-width": 1, "stroke-dasharray": "2 3",
+                            "stroke-opacity": 0.45 }));
+    front.push(svg("path", { d: near, fill: "none", stroke: pal.line,
+                             "stroke-width": 1, "stroke-dasharray": "2 3",
+                             "stroke-opacity": 0.65 }));
+  }
+
+  // each axis is two half-shafts, so the one going away from the viewer is dimmer --
+  // gently: which half that is flips every time the camera turns past the silhouette,
+  // and a strong swing there reads as a highlight jumping between axes rather than as
+  // depth, so the near/far difference is kept small on purpose.
   for (const axis of AXES) {
     const colour = pal[axis.colour];
     for (const sign of [1, -1]) {
       const end = proj.project(axis.dir.map((c) => c * sign));
       const near = end.z >= 0;
       (near ? front : back).push(proj.line({ x: 0, y: 0 }, end, {
-        stroke: colour, "stroke-width": near ? 1.4 : 1,
-        "stroke-opacity": near ? 0.9 : 0.45,
+        stroke: colour, "stroke-width": near ? 1.2 : 1,
+        "stroke-opacity": near ? 0.85 : 0.65,
         "stroke-dasharray": near ? null : "2 2",
       }));
     }
@@ -523,7 +528,6 @@ export class BlochSphere {
     this.dragVector = dragVector;
     this.flag = flag;
     this.homeV = null;
-    this.glow = nextId("blochkit-glow");
 
     const viewbox = radius * 1.58;     // room for the axis labels outside the sphere
     const root = svg("svg", {
@@ -540,10 +544,6 @@ export class BlochSphere {
       root.style.cursor = "grab";
       root.style.touchAction = "none";      // a drag must rotate, not scroll the page
     }
-
-    const defs = svg("defs");
-    defs.appendChild(glowFilter(this.glow, 3));
-    root.appendChild(defs);
 
     // Two layers only: everything is re-projected on every draw, so splitting further
     // would just be more things to keep in step.
@@ -593,12 +593,11 @@ export class BlochSphere {
     layer.push(proj.line(tip, foot, { stroke: pal.muted, "stroke-width": 1,
                                       "stroke-dasharray": "2 3" }));
     layer.push(proj.line({ x: 0, y: 0 }, tip, {
-      stroke: pal.vector, "stroke-width": behind ? 2 : 2.8, "stroke-linecap": "round",
-      "stroke-opacity": behind ? 0.45 : 1,
-      filter: behind ? null : `url(#${this.glow})`,
+      stroke: pal.vector, "stroke-width": behind ? 2.2 : 2.6, "stroke-linecap": "round",
+      "stroke-opacity": behind ? 0.65 : 1,
     }));
-    layer.push(svg("circle", { cx: tip.x, cy: tip.y, r: behind ? 3.6 : 5,
-                               fill: pal.vector, "fill-opacity": behind ? 0.5 : 1 }));
+    layer.push(svg("circle", { cx: tip.x, cy: tip.y, r: behind ? 4.2 : 5,
+                               fill: pal.vector, "fill-opacity": behind ? 0.65 : 1 }));
 
     if (this.flag) layer.push(...this.#flag(tip, v[2], behind));
 
@@ -727,7 +726,6 @@ export class GateAnimation {
     this.fade = fade;
     this.arcSteps = arcSteps;
     this.collapse = new RepeatedCollapse({ period: this.period, rng });
-    this.glow = nextId("blochkit-gate-glow");
 
     const viewbox = radius * 1.52;
     this.root = svg("svg", {
@@ -737,10 +735,6 @@ export class GateAnimation {
     });
     this.root.style.width = "100%";
     this.root.style.display = "block";
-
-    const defs = svg("defs");
-    defs.appendChild(glowFilter(this.glow, 2.6));
-    this.root.appendChild(defs);
 
     this.scene = svg("g");
     this.moving = svg("g");
@@ -822,8 +816,8 @@ export class GateAnimation {
         const near = end.z >= 0;
         const layer = near ? front : back;
         layer.push(proj.line({ x: 0, y: 0 }, end, {
-          stroke: colour, "stroke-width": near ? 2.6 : 1.6,
-          "stroke-opacity": near ? 0.95 : 0.3, "stroke-linecap": "round",
+          stroke: colour, "stroke-width": near ? 2.3 : 1.8,
+          "stroke-opacity": near ? 0.9 : 0.5, "stroke-linecap": "round",
         }));
         // Only the positive half is tipped. A bare shaft names the line the gate
         // turns about but not which way round it goes, and those are different
@@ -831,7 +825,7 @@ export class GateAnimation {
         // is read from, so it has to sit on the +axis and nowhere else.
         if (sign > 0) {
           layer.push(...arrowhead(end, proj.radius * 0.14, {
-            fill: colour, "fill-opacity": near ? 0.95 : 0.3,
+            fill: colour, "fill-opacity": near ? 0.9 : 0.5,
           }));
         }
       }
@@ -888,14 +882,14 @@ export class GateAnimation {
     const layer = behind ? back : front;
     layer.push(proj.line({ x: 0, y: 0 }, at, {
       stroke: colour, "stroke-width": 1.6, "stroke-linecap": "round",
-      "stroke-opacity": behind ? 0.22 : 0.5,
+      "stroke-opacity": behind ? 0.35 : 0.5,
       "stroke-dasharray": ring ? "3 2.5" : null,
     }));
     layer.push(svg("circle", {
       cx: at.x, cy: at.y, r: ring ? 6 : 3.6,
       fill: ring ? "none" : colour, stroke: ring ? colour : "none",
-      "stroke-width": 2, "fill-opacity": behind ? 0.45 : 1,
-      "stroke-opacity": behind ? 0.45 : 1,
+      "stroke-width": 2, "fill-opacity": behind ? 0.6 : 1,
+      "stroke-opacity": behind ? 0.6 : 1,
     }));
   }
 
@@ -941,18 +935,17 @@ export class GateAnimation {
     this.moving.replaceChildren(...nodes);
   }
 
-  /** The vector in flight: bright, glowing, dimmed when it goes round the back. */
+  /** The vector in flight: bright in front, gently dimmed when it goes round the back. */
   #flier(v, alpha, colour = this.pal.vector) {
     const at = this.proj.project(v);
     const behind = at.z < 0;
-    const depth = behind ? 0.45 : 1;
+    const depth = behind ? 0.65 : 1;
     return [
       this.proj.line({ x: 0, y: 0 }, at, {
-        stroke: colour, "stroke-width": behind ? 2 : 2.8, "stroke-linecap": "round",
+        stroke: colour, "stroke-width": behind ? 2.2 : 2.6, "stroke-linecap": "round",
         "stroke-opacity": depth * alpha,
-        filter: behind ? null : `url(#${this.glow})`,
       }),
-      svg("circle", { cx: at.x, cy: at.y, r: behind ? 3.2 : 4.4, fill: colour,
+      svg("circle", { cx: at.x, cy: at.y, r: behind ? 3.6 : 4.4, fill: colour,
                       "fill-opacity": depth * alpha }),
     ];
   }

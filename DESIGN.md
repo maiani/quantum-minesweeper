@@ -3,9 +3,11 @@ version: alpha
 name: Quantum Minesweeper
 description: >-
   The visual system for the Quantum Minesweeper board, its contextual help, and
-  its setup and about pages. A dark-first, two-theme interface built on system
-  fonts and CSS custom properties, tuned so that a grid of small square tiles
-  stays readable while carrying colour-coded quantitative information.
+  its setup and about pages. A dark-first interface built on system fonts and
+  CSS custom properties, tuned so that a grid of small square tiles stays
+  readable while carrying colour-coded quantitative information. Dark and
+  light are the two shipped themes; retro is a third, trial theme sampled from
+  the poster in the repo root, and the one place a webfont appears.
 colors:
   # ---- Dark theme (the default) ----------------------------------------
   # These are the values in `:root` in static/styles/base.css, verbatim.
@@ -53,6 +55,37 @@ colors:
   axis-z-light: "#5a6b8c"
   axis-gate-light: "#a4247e"
 
+  # ---- Retro theme (trial) ----------------------------------------------
+  # The `html.retro` block in base.css. Same token names, `-retro` suffix.
+  # Colour-sampled from poster-v2.pdf in the repo root; see Colors.
+  bg-retro: "#f6dbac"
+  fg-retro: "#01204e"
+  muted-retro: "#5b6b85"
+  tile-muted-retro: "#aa9977"
+  zero-bg-retro: "#f4ce9a"
+  btn-bg-retro: "#fdf1da"
+  btn-bg-hover-retro: "#fff8ea"
+  accent-retro: "#018391"
+  accent-hover-retro: "#12a3b3"
+  on-accent-retro: "#ffffff"
+  border-retro: "rgba(1, 32, 78, 0.25)"
+  header-bg-retro: "rgba(246, 219, 172, 0.9)"
+  box-overlay-retro: "rgba(246, 219, 172, 0.65)"
+  pin-retro: "#d48f58"
+  boom-retro: "#d14820"
+  win-retro: "#46723a"
+  axis-x-retro: "#8a6a4a"
+  axis-y-retro: "#4c7a62"
+  axis-z-retro: "#4a5a7a"
+  axis-gate-retro: "#a8397e"
+
+  # ---- Retro-only chrome -------------------------------------------------
+  # No dark/light counterpart -- unlike every pair above, these name a
+  # feature (the status counters' sunken LCD-digit look) that only exists as
+  # a retro flourish, not a role every theme fills. See Colors.
+  lcd-bg-retro: "#170f08"
+  lcd-fg-retro: "#ff5a36"
+
   # ---- Theme-independent identity colours ------------------------------
   # The two entanglement-probe regions are deliberately the same on both
   # themes: they identify region A and region B, and they are drawn as rings
@@ -71,9 +104,11 @@ colors:
   error: "{colors.boom}"
   success: "{colors.win}"
 typography:
-  # `fontFamily` is one stack everywhere; there is no webfont. `fontSize` gives
-  # the settled size -- see the Typography section for the fluid ranges the
-  # stylesheets actually write, which the Dimension type cannot express.
+  # `fontFamily` is one stack everywhere except retro, the one theme with
+  # webfonts; the entries below are the base (dark- and light-shared) set.
+  # `fontSize` gives the settled size -- see the Typography section for the
+  # fluid ranges the stylesheets actually write, which the Dimension type
+  # cannot express.
   headline-page:
     fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
     fontSize: 2rem
@@ -121,6 +156,55 @@ typography:
     fontFamily: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif
     fontSize: 15px
     fontWeight: 600
+  # Retro's headings. Racing Sans One (Google Fonts, SIL OFL) -- a bold,
+  # slanted "motion" display face -- replaced an earlier pass's Titan One,
+  # which chased poster-v2.pdf's lettering more literally; "Racer", the font
+  # actually used in that poster's title, turned out to be CC BY-NC-ND and
+  # not free for commercial use, so this is an open substitute in the same
+  # racing/speed register rather than a literal match. One weight exists,
+  # hence 400 here where the base entries hold 600-700 -- see the Typography
+  # section for why faking a heavier weight is wrong here.
+  headline-page-retro:
+    fontFamily: "'Racing Sans One', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif"
+    fontSize: 2rem
+    fontWeight: 400
+  headline-app-retro:
+    fontFamily: "'Racing Sans One', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif"
+    fontSize: 1.4rem
+    fontWeight: 400
+  headline-section-retro:
+    fontFamily: "'Racing Sans One', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif"
+    fontSize: 1.25rem
+    fontWeight: 400
+  headline-result-retro:
+    fontFamily: "'Racing Sans One', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif"
+    fontSize: 1.4rem
+    fontWeight: 400
+  # Retro's body text and controls -- everything the heading face is wrong
+  # for (see above). VT323 (Google Fonts, SIL OFL) is set on `body` plus
+  # `button`, `input`, and `select` explicitly, since form controls do not inherit
+  # `body`'s font in most browsers. One entry stands in for `body-md` through
+  # `label-xs` above: the size and weight scale is unchanged by retro, only
+  # the family is, so this names the family swap once rather than six times.
+  body-md-retro:
+    fontFamily: "'VT323', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif"
+    fontSize: 1.15rem
+    fontWeight: 400
+  # `.btn` only -- see the Typography section for why this is not the body
+  # face. Press Start 2P (Google Fonts, SIL OFL) at a much smaller size than
+  # its surroundings, because it is roughly twice as wide per glyph.
+  label-md-retro:
+    fontFamily: "'Press Start 2P', 'VT323', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, sans-serif"
+    fontSize: 0.6rem
+    fontWeight: 400
+  # The status counters' sunken LCD-digit look. VT323 is also the closest
+  # open match this set has to a 7-segment display. `tabular-nums` still
+  # applies -- VT323 is monospace already, so it costs nothing extra here.
+  numeric-status-retro:
+    fontFamily: "'VT323', monospace"
+    fontSize: 1.4rem
+    fontWeight: 400
+    fontFeature: "'tnum' 1"
 rounded:
   none: 0px
   xs: 2px
@@ -303,6 +387,74 @@ components:
     textColor: "{colors.win-light}"
   result-message-lost-light:
     textColor: "{colors.boom-light}"
+
+  # ---- Retro-theme variants (trial) --------------------------------------
+  # Same shape as the light-theme variants above: colour only, borrowed from
+  # `html.retro` in base.css. The four heading entries also swap in the
+  # matching `-retro` typography token, which is where the Racing Sans One
+  # webfont comes from -- see Typography. `button-retro` does too, for Press Start
+  # 2P. `status-counter-retro`, at the end, is the one exception to
+  # "colour only" beyond that: the LCD-digit look changes its background too,
+  # not just its text colour.
+  button-retro:
+    backgroundColor: "{colors.btn-bg-retro}"
+    textColor: "{colors.fg-retro}"
+    typography: "{typography.label-md-retro}"
+  button-retro-hover:
+    backgroundColor: "{colors.btn-bg-hover-retro}"
+  button-retro-active:
+    backgroundColor: "{colors.accent-retro}"
+    textColor: "{colors.on-accent-retro}"
+  button-retro-disabled:
+    backgroundColor: "{colors.btn-bg-retro}"
+    textColor: "{colors.muted-retro}"
+  button-cta-retro:
+    backgroundColor: "{colors.accent-retro}"
+    textColor: "{colors.on-accent-retro}"
+  button-cta-retro-hover:
+    backgroundColor: "{colors.accent-hover-retro}"
+  tile-unexplored-retro:
+    backgroundColor: "{colors.btn-bg-retro}"
+    textColor: "{colors.tile-muted-retro}"
+  tile-explored-retro:
+    backgroundColor: "{colors.zero-bg-retro}"
+    textColor: "{colors.fg-retro}"
+  tile-pinned-retro:
+    backgroundColor: "{colors.btn-bg-retro}"
+    textColor: "{colors.pin-retro}"
+  tile-mine-retro:
+    backgroundColor: "{colors.zero-bg-retro}"
+    textColor: "{colors.boom-retro}"
+  card-retro:
+    backgroundColor: "{colors.box-overlay-retro}"
+    textColor: "{colors.fg-retro}"
+  panel-modal-retro:
+    backgroundColor: "{colors.bg-retro}"
+    textColor: "{colors.fg-retro}"
+  app-header-retro:
+    backgroundColor: "{colors.header-bg-retro}"
+    textColor: "{colors.fg-retro}"
+    typography: "{typography.headline-app-retro}"
+  sidebar-header-retro:
+    backgroundColor: "{colors.accent-retro}"
+    textColor: "{colors.on-accent-retro}"
+    typography: "{typography.headline-app-retro}"
+  result-message-win-retro:
+    textColor: "{colors.win-retro}"
+    typography: "{typography.headline-result-retro}"
+  result-message-lost-retro:
+    textColor: "{colors.boom-retro}"
+    typography: "{typography.headline-result-retro}"
+  # Not colour-only, unlike the rest of this block: the LCD-digit look (see
+  # Colors) has no dark/light counterpart to vary from, so this is the one
+  # retro variant with its own backgroundColor rather than a themed swap of
+  # the base `status-counter`'s transparent fill.
+  status-counter-retro:
+    backgroundColor: "{colors.lcd-bg-retro}"
+    textColor: "{colors.lcd-fg-retro}"
+    typography: "{typography.numeric-status-retro}"
+    rounded: "{rounded.xs}"
+    padding: 0.4em 0.8em
 ---
 
 # Quantum Minesweeper
@@ -386,6 +538,25 @@ set of colours that exist only to mean something.
   is in a region.
 - **One hairline** (`border`). There were once five spellings of this edge;
   there is now one token.
+- **Retro (trial).** A third theme, `html.retro`, colour-sampled directly from
+  `poster-v2.pdf` in the repo root rather than invented: `accent` is teal, the
+  poster's own "Start Game" button and its "QUANTUM" highlight; `boom` is the
+  poster's own explosion orange, not a new colour competing with it; `win` and
+  `pin` carry the WIN badge's green and the title's peach, darkened off the
+  poster's flat, large-shape values the way a token drawn as small text next
+  to the board needs to be. It follows the light theme's surface-stack
+  ordering (`bg` cream, `btn-bg` proud of it, `zero-bg` sunk) and the same
+  low-chroma treatment for the Bloch axes. It is still labelled a trial
+  rather than a third shipped theme -- its shapes (see Elevation & Depth and
+  Shapes) have not had a real narrow-phone pass, which is a lower bar than a
+  contrast audit but not yet cleared.
+
+  Two more tokens, `lcd-bg` and `lcd-fg`, exist only under retro: the status
+  counters' sunken display, standing in for the original Minesweeper's own
+  7-segment LED readout. `lcd-fg` is a second, brighter cousin of `boom`
+  rather than a reuse of it, because a small warning colour on a cream page
+  and a glowing display digit are different briefs even though they are the
+  same hue family.
 
 ### The clue ramp
 
@@ -405,13 +576,67 @@ the lowest bottom out at 4.2:1, carried by semibold digits on a tile of at
 least sixteen pixels. This is a recorded, deliberate exception -- not licence
 to relax contrast elsewhere.
 
+Retro's ramp has had that same step-by-step pass, against `zero-bg-retro`
+(`#f4ce9a`) in oklch's own space, at the nine steps `render.js`'s
+normalisation actually produces (`--clue-t` in units of 0.125). The
+light-theme numbers it started from bottomed out at 3.84:1 at pure green
+(`t=0`), the one step below the rest of that sweep; lowering `--clue-l` to
+0.44 and raising `--clue-l-drop` to 0.08 moves the floor to 4.52:1, clearing
+AA across the whole ramp -- tighter than the light theme's own 4.2:1 floor
+above, because retro had the chance to fix the one step that fell short
+rather than live with it as a recorded exception.
+
 ## Typography
 
-There is no webfont. Everything is set in the platform UI stack
-(`system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica
-Neue', Arial, sans-serif`), which keeps the installable app offline-complete
-and costs nothing to load. Hierarchy is carried by size, weight, and the muted
-token -- never by a second family.
+There is no webfont in the dark or light theme. Both are set in the platform
+UI stack (`system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
+'Helvetica Neue', Arial, sans-serif`), which keeps the installable app
+offline-complete and costs nothing to load. Hierarchy is carried by size,
+weight, and the muted token -- never by a second family.
+
+Retro is the one deliberate, labelled exception, and now uses three webfonts,
+not one, because heading-only turned out to read as "the wrong theme" the
+moment a reader's eye left the title:
+
+- **Racing Sans One** on `h1` and `h2` -- a bold, slanted "motion" display
+  face (Google Fonts, SIL OFL). The poster's own title face, "Racer", is not
+  free for commercial use (CC BY-NC-ND, a paid licence required), so this is
+  an open substitute in the same racing/speed register rather than a literal
+  match to `poster-v2.pdf`'s lettering; an earlier pass used Titan One,
+  which chased that lettering more literally. One weight exists, so
+  `font-weight` is forced to 400 under `.retro`: leaving `h1`'s 700 or
+  `.app-header h1`'s 600 in place would ask the browser to synthesise a
+  bolder weight, and a synthetic bold on a face already this heavy is where
+  display fonts go wrong.
+- **VT323** on `body`, and explicitly on `button`, `input`, and `select` --
+  most browsers' UA stylesheets do not give form controls `body`'s font by
+  inheritance, so those three are named directly rather than relying on it. A
+  first pass paired the heading face with Baloo 2, a smooth rounded face, for
+  everything else; it read as "not pixel" the moment a reader's eye left the
+  title, which is what VT323 -- a bitmap terminal face redrawn as outlines --
+  actually is. `font-size` is bumped 1.15x alongside it, because VT323 sits
+  smaller than its nominal size at a given `rem` value.
+- **Press Start 2P** on `.btn` only -- the canonical 8-bit arcade face, and
+  genuinely too wide per glyph for a paragraph, which is why it is not the
+  body face: at the same size as VT323 it would roughly double every line's
+  width. Buttons are short text -- a single letter on the move row -- so this
+  is where "unmistakably pixel" costs nothing. `font-size` drops to 0.62em
+  under `.retro` for the same reason in reverse: without it, "Go to Advanced
+  Setup" stops fitting on one line on a phone. Buttons are `min-width`, not a
+  fixed width (see Buttons in Components), so they still grow to fit rather
+  than clip.
+
+Two things keep three webfonts from quietly breaking the "offline-complete"
+rule above:
+
+- One stylesheet request, fetched by `theme_toggle.js` on demand, only once
+  retro is actually selected -- not linked unconditionally from `<head>`.
+  Dark and light never make the request.
+- Every `font-family` list still ends in the same system stack (VT323's and
+  Press Start 2P's in a bare `sans-serif`, since neither has an obvious system
+  equivalent), so a reader who picks retro while offline gets a plausible
+  fallback rather than a blank space or a FOUC-flash of the wrong glyph
+  shapes.
 
 - **Headings** are centred and accent-coloured. Section headings on document
   pages go to weight 700; the sticky application title stays at 600 and on one
@@ -509,12 +734,35 @@ bar) use a translucent `box-overlay` or `header-bg` fill with a small
 the light theme was once pinned near-opaque, it read as a wall where the dark
 one read as frosted glass.
 
+Retro replaces fill-and-shadow with a fourth depth cue instead of adding to
+it: a 90s-Windows **bevel**. A raised control (a button, an unexplored tile)
+gets a light top and left edge and a dark bottom and right edge; pressing it,
+or revealing a tile, swaps the two, so the same two tokens (`--bevel-hi`,
+`--bevel-lo`) draw every raised *and* every sunken surface in the theme.
+Both are derived, not chosen independently: `--bevel-hi` is `--btn-bg`
+lightened, `--bevel-lo` is `--fg` let through at partial opacity over
+whatever it sits on, so the bevel keeps working across `--btn-bg`, `--bg`,
+and `--zero-bg` without a third colour to keep in sync by hand. The status
+counters go one step further, into a genuinely sunken **well**: a dark fill
+(`--lcd-bg`) with the bevel inverted, standing in for the physical recess a
+7-segment display sits in. Buttons drop the scale-based press animation the
+other two themes use for the same reason silent-film title cards drop
+colour -- the bevel flip already *is* the press, and animating both would be
+two effects fighting to say the same thing.
+
 ## Shapes
 
 Everything is a rounded rectangle at **6px** (`--radius`), the `md` step. The
 scale exists mostly so the board can shed radius as tiles shrink: `sm` (4px)
 below 480px and `xs` (2px) below 360px, because a 6px radius on a 16px square
 is a circle.
+
+Retro overrides `--radius` itself, to **2px** -- Win95 chrome had none of the
+other themes' rounding, and the bevel above reads as a corner cut at a shallow
+angle, not a curve, so a near-square corner is what makes it legible as a
+bevel rather than an odd shadow. This is the one token in the file whose
+*value* differs by theme rather than only its colour -- flagged here because
+the `rounded` table above still gives one number, the dark/light one.
 
 Three shapes depart from this on purpose:
 
@@ -547,6 +795,11 @@ The accent *fill* is rationed: at most one per screen. On Setup it is the
 research-survey call to action, which is deliberately not a `.btn` at all,
 because `.btn` belongs to the game's controls.
 
+Retro replaces `scale(0.96)` with its own tactility: pressing a button flips
+its bevel from raised to sunken (see Elevation & Depth), the way a Win95
+button did, and drops the scale entirely rather than combining the two.
+Everywhere else keeps the scale.
+
 ### Tiles
 
 The board button is the densest component and the only one whose type size,
@@ -555,6 +808,14 @@ box size, and radius are all derived at runtime. Its state classes --
 the numeric grid, and the stylesheet supplies the appearance. Overlays (probe
 outlines, reveal fills, entanglement halos and links) are layered over the tile
 without disturbing its own colour, each in its own stacking level.
+
+Retro draws its bevel (see Elevation & Depth) off `:disabled` rather than off
+a state class: a tile becomes disabled exactly when it is revealed, which is
+also exactly when its bevel should flip from raised to sunken, so the one
+selector serves both without a second source of truth. `box-sizing:
+border-box` is set alongside it, retro-only, because the border a bevel needs
+would otherwise grow each tile past the width `--tile-size` derives for the
+whole row (see game.css).
 
 ### Cards and panels
 
@@ -578,6 +839,14 @@ at the start, result at the end -- and it must stay one row. It replaced a
 164px five-block panel that pushed the move tools off a laptop screen, and
 recovering that height is the standing constraint on anything added there.
 
+Retro's status counters are the one place the theme reaches for a literal
+prop rather than a restyled token: `--lcd-bg` replaces the 3% wash outright,
+the bevel is sunken rather than raised (see Elevation & Depth), and
+`.status-value` switches to VT323 -- see `status-counter-retro` and
+`numeric-status-retro` above. `.status-icon`'s colour also changes, to
+`--btn-bg`, because it is what carries the label text out of `--fg`, which
+has no contrast left to give once the fill goes black.
+
 ### Forms
 
 Inputs and selects take the control fill with a transparent 1px border that
@@ -587,20 +856,24 @@ reachability is not per-component.
 
 ## Do's and Don'ts
 
-- **Do** write every colour as a token. Add new values to `:root` *and*
-  `html.light` in `base.css`, and mirror them here in the same change.
-- **Don't** write a colour literal outside those two blocks. The only exception
-  is a black or white alpha used as a shadow or scrim.
+- **Do** write every colour as a token. Add new values to `:root`, `html.light`
+  *and* `html.retro` in `base.css`, and mirror them here in the same change.
+- **Don't** write a colour literal outside those three blocks. The only
+  exception is a black or white alpha used as a shadow or scrim.
 - **Do** keep symbols, labels, colours, and visible tool choices in the
   frontend. Game-state payloads stay presentation-free.
 - **Don't** let the renderer name a final colour. It publishes a normalised
   value (`--clue-t`, `--mine-p`, `--cols`) and the stylesheet resolves it,
   because only CSS knows which theme is on.
-- **Do** design both themes at once, and check the light one on the board.
+- **Do** design dark and light together, and check the light one on the board.
   Several of the tokens above exist only because a value that worked on
-  near-black was invisible on near-white.
-- **Don't** add a second font family, and don't introduce a webfont. The
-  installable app must stay offline-complete.
+  near-black was invisible on near-white. Retro is a trial and does not carry
+  the same obligation yet -- see Colors and Typography -- but should not be
+  made to regress either once it does.
+- **Don't** add a second font family or a webfont to the dark or light theme.
+  Both must stay offline-complete. Retro is the one deliberate, labelled
+  exception -- see Typography for how it avoids costing the other two
+  anything.
 - **Do** use `tabular-nums` for any number that updates in place.
 - **Don't** size board text or board chrome against the viewport. It scales
   with the tile.
@@ -629,24 +902,31 @@ The linter reports no errors. It reports warnings that are known and expected,
 and that should not be "fixed" by changing the palette without deciding the
 underlying design question first:
 
-- **`orphaned-tokens` for `border`, `border-light`, `probe-a`, `probe-b`.**
-  These are hairline and outline colours. The component schema models
-  `backgroundColor` and `textColor` but has no border or outline slot, so there
-  is no way to reference them. They are in active use; see Colors and Shapes.
+- **`orphaned-tokens` for `border`, `border-light`, `border-retro`, `probe-a`,
+  `probe-b`.** These are hairline and outline colours. The component schema
+  models `backgroundColor` and `textColor` but has no border or outline slot,
+  so there is no way to reference them. They are in active use; see Colors and
+  Shapes.
 - **`orphaned-tokens` for `axis-x`, `axis-y`, `axis-z`, `axis-gate` and their
-  light variants.** Same cause, one step further out: these are stroke colours
-  for SVG drawn by `blochkit.js`, and the schema has no stroke slot and no
-  component for a drawing. They are in active use; see Colors.
+  light and retro variants.** Same cause, one step further out: these are
+  stroke colours for SVG drawn by `blochkit.js`, and the schema has no stroke
+  slot and no component for a drawing. They are in active use; see Colors.
 - **`contrast-ratio` on `button-disabled` (3.31:1).** Disabled controls are
   exempt from WCAG 1.4.3.
-- **`contrast-ratio` on `tile-unexplored` (2.12:1) and its light variant
-  (2.37:1).** The `■` on an unexplored tile is decorative: the tile's state is
-  carried by its raised fill, and every board button has an explicit
-  `aria-label` naming its row, column, and state. The glyph is intentionally
-  recessive so it does not compete with the clue digits beside it.
-- **`contrast-ratio` on `tile-mine-light` (2.95:1).** Nominal only. The glyph
-  is `💥`, which the platform renders in its own colours; the token applies to
-  the surrounding text box, not to the emoji.
+- **`contrast-ratio` on `tile-unexplored` (2.12:1) and its light (2.37:1) and
+  retro (2.49:1) variants.** The `■` on an unexplored tile is decorative: the
+  tile's state is carried by its raised fill, and every board button has an
+  explicit `aria-label` naming its row, column, and state. The glyph is
+  intentionally recessive so it does not compete with the clue digits beside
+  it.
+- **`contrast-ratio` on `tile-mine-light` (2.95:1) and `tile-mine-retro`
+  (3.04:1).** Nominal only. The glyph is `💥`, which the platform renders in
+  its own colours; the token applies to the surrounding text box, not to the
+  emoji.
+- **`contrast-ratio` on `tile-pinned-retro` (2.39:1).** The retro counterpart
+  of `tile-pinned-light` below, at the same intent and roughly the same
+  ratio: a pin is a player annotation the player needs to find again at a
+  glance, not body text.
 
 Two are open questions rather than settled exceptions:
 

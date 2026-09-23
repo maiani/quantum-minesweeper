@@ -145,6 +145,76 @@ html.light {
     --clue-c: 0.19;
 }
 
+/* ---------- Retro theme: variables only ----------
+   A trial third theme, colour-sampled from the poster in the repo root
+   (poster-v2.pdf): cream page, navy ink, and the poster's own accent trio
+   rather than invented ones -- teal is the poster's "Start Game" button and
+   its "QUANTUM" highlight, so it is the interactive colour here; orange is
+   the poster's own explosion, so it is `--boom` rather than a new accent
+   fighting it for attention; the WIN badge's green and the title's peach
+   carry the same hue as `--win` and `--pin`, darkened off the poster's own
+   values the way the light theme darkens its ramp -- the poster draws them
+   as flat shapes and large type, not as small text needing to hold its own
+   against a busy board. Same surface-stack ordering as the light theme: `bg`
+   is the page, `btn-bg` proud of it, `zero-bg` sunk. Labelled here, in
+   DESIGN.md, and in AGENTS.md as the one deliberate exception to "no second
+   font family" -- see the Headings rule below. */
+html.retro {
+    --bg: #f6dbac;
+    --fg: #01204e;
+    --muted: #5b6b85;
+    --tile-muted: #aa9977;
+    --zero-bg: #f4ce9a;
+    --btn-bg: #fdf1da;
+    --btn-bg-hover: #fff8ea;
+    --accent: #018391;
+    --accent-hover: #12a3b3;
+    --header-bg: rgba(246, 219, 172, 0.9);
+    --box-overlay: rgba(246, 219, 172, 0.65);
+    --on-accent: #ffffff;
+    --border: rgba(1, 32, 78, 0.25);
+    --win: #46723a;
+    --pin: #d48f58;
+    --boom: #d14820;
+
+    /* Same three low-chroma hues as the other themes, retuned to hold their
+       own on cream instead of near-black or near-white. See the note in
+       :root for why they stay held back and `axis-gate` does not. */
+    --axis-x: #8a6a4a;
+    --axis-y: #4c7a62;
+    --axis-z: #4a5a7a;
+    --axis-gate: #a8397e;
+    --shadow-subtle: 0 1px 2px rgba(1, 32, 78, 0.14);
+
+    /* The clue ramp, now swept and checked against `--zero-bg` in oklch's own
+       space (t in nine steps of 0.125, matching render.js's normalisation):
+       the borrowed light-theme numbers bottomed out at 3.84:1 at pure green
+       (t=0), the one step below the rest of the sweep. Dropping `--clue-l`
+       and raising `--clue-l-drop` moves the floor to 4.52:1 -- clearing AA
+       everywhere on the ramp, which the light theme's own audit does not
+       quite manage at its own lowest step. */
+    --clue-l: 0.44;
+    --clue-l-drop: 0.08;
+    --clue-c: 0.19;
+
+    /* The 90s-Windows bevel: a raised control is a light edge top/left and a
+       dark edge bottom/right; pressed or sunken flips them. Neither edge is a
+       new hue -- `--bevel-hi` is `--btn-bg` lightened, `--bevel-lo` is `--fg`
+       let through at low opacity over whatever it sits on -- so the bevel
+       keeps working on every surface it is drawn over (`--btn-bg`, `--bg`,
+       `--zero-bg`) without a third colour to keep in sync by hand. */
+    --bevel-hi: color-mix(in srgb, var(--btn-bg), white 45%);
+    --bevel-lo: color-mix(in srgb, var(--fg) 55%, transparent);
+
+    /* The status counters' sunken LCD-digit look (see the Status counters
+       rule below): a near-black well and a brighter, more saturated cousin of
+       `--boom` for the digits -- `--boom` itself stays tuned for small text
+       on the cream page, which is a different brief from a glowing display
+       digit, so this is a second value rather than a re-use. */
+    --lcd-bg: #170f08;
+    --lcd-fg: #ff5a36;
+}
+
 /* ---------- Layout ---------- */
 /* No height: 100% here. It used to be harmless, but it caps the body's box at
    the viewport, and a sticky header can only stay pinned for as long as its
@@ -167,6 +237,28 @@ body {
     background: var(--bg);
     color: var(--fg);
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Retro's body face. The page title's display font is display-only -- one
+   heavy weight, drawn for a handful of large title words, not for
+   paragraphs like the "How to play" text or a dropdown's options -- so
+   headings alone left the rest of the page looking like it was still in the
+   wrong theme, and a smooth rounded pairing (an earlier pass used Baloo 2)
+   still read as "not pixel" next to it. VT323 (SIL OFL) is a bitmap
+   terminal face redrawn as outlines, which is what makes it hold up as body
+   text at all: a true pixel font such as Press Start 2P is close to
+   unreadable in a paragraph, which is why it is reserved for `.btn` below
+   instead. `button`, `input`, and `select` are listed explicitly because
+   form controls do not inherit `body`'s font in most browsers' UA
+   stylesheets -- `body` alone would leave every dropdown and text button in
+   the system font regardless. */
+html.retro body,
+html.retro button,
+html.retro input,
+html.retro select,
+html.retro textarea {
+    font-family: 'VT323', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1.15em;
 }
 
 .app-body {
@@ -199,6 +291,43 @@ h2 {
     opacity: 0.85;
     margin-top: 0;
     text-align: center;
+}
+
+/* Retro's one deliberate exception to "no second font family" (see
+   DESIGN.md and AGENTS.md): a webfont for headings only, loaded on demand by
+   theme_toggle.js so the other two themes stay offline-complete. Racing Sans
+   One (Google Fonts, SIL OFL) was picked directly -- a bold, slanted
+   "motion" display face built for racing and speed, in place of an earlier
+   pass's Titan One, which chased the poster's lettering more literally.
+   Weight is forced to 400 because Racing Sans One ships one weight, and
+   letting `h1`'s 700 or `.app-header h1`'s 600 stand would fake-bold a
+   display face already this heavy.
+
+   The stroke + offset shadow on `h1` gives the slanted face some of the
+   poster title's own layered outline (navy inline stroke, then a coloured
+   outer outline, then a drop shadow) -- see poster-v2.pdf's title -- without
+   trying to reproduce it stroke-for-stroke. Uppercase plus loosened tracking
+   is the same poster's letterforms; Racing Sans One is not drawn in small
+   caps either. */
+html.retro h1,
+html.retro h2 {
+    font-family: 'Racing Sans One', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+html.retro h1 {
+    -webkit-text-stroke: 1.5px var(--fg);
+    paint-order: stroke fill;
+    text-shadow: 2px 2px 0 var(--fg);
+}
+
+html.retro h2 {
+    -webkit-text-stroke: 1px var(--fg);
+    paint-order: stroke fill;
+    text-shadow: 1px 1px 0 var(--fg);
+    opacity: 1;
 }
 
 /* ---------- Header ---------- */
@@ -270,6 +399,140 @@ html.light .app-header h1 {
 
 html.light .header-action:hover {
     color: var(--accent-hover);
+}
+
+/* The sticky header holds the full title at a small size next to the
+   header-action icons and a fixed white-space: nowrap -- the general h1
+   stroke/shadow above is tuned for the large centred page title, and at
+   header size it crowds the row and risks the uppercase, letter-spaced text
+   overrunning the row on a narrow phone. Scaled down, not removed. */
+html.retro .app-header h1 {
+    -webkit-text-stroke: 1px var(--fg);
+    text-shadow: 1px 1px 0 var(--fg);
+    letter-spacing: 0.01em;
+}
+
+/* ---------- Retro: component flourishes ----------
+   Colour lives in the variables block above; this is the one theme that also
+   changes shape, because a palette swap alone reads as "beige", not as "the
+   90s Minesweeper" the poster is standing in for. Corners go back to nearly
+   square -- Win95 chrome had none of `--radius`'s 6px -- and depth is drawn
+   the way that era drew it: a raised control is light on its top and left
+   edge and dark on its bottom and right, and pressing it swaps the two,
+   rather than the soft shadow the other two themes use. Structural chrome --
+   `#sidebar`, `.probe-bar`, the sticky header itself -- is deliberately left
+   alone: DESIGN.md budgets their size and a 2px border would grow them. */
+html.retro {
+    --radius: 2px;
+}
+
+html.retro .btn,
+html.retro select,
+html.retro input[type="number"],
+html.retro .setup,
+html.retro .setup-form,
+html.retro .setup-survey,
+html.retro .setup-survey__cta,
+html.retro .loading-card,
+html.retro .help-card {
+    border-style: solid;
+    border-width: 2px;
+    border-top-color: var(--bevel-hi);
+    border-left-color: var(--bevel-hi);
+    border-right-color: var(--bevel-lo);
+    border-bottom-color: var(--bevel-lo);
+    box-shadow: none;
+}
+
+/* The one true pixel font, reserved for buttons: their text is a handful of
+   short words or a single letter (the move row is literally one glyph per
+   button), which is exactly what Press Start 2P's very wide, square-set
+   glyphs can carry without a paragraph turning into a wall of blocks. The
+   font-size drop is necessary, not cosmetic -- Press Start 2P is roughly
+   twice as wide per character as the body face at the same size, and without
+   it "Go to Advanced Setup" no longer fits a button on a phone. Buttons are
+   `min-width`, not fixed width (see Buttons in the Components section), so
+   they are still free to grow rather than clip. */
+html.retro .btn {
+    font-family: 'Press Start 2P', 'VT323', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.62em;
+    letter-spacing: 0.02em;
+    transition: background 0.2s, color 0.2s;
+}
+
+html.retro .btn:hover {
+    transform: none;
+}
+
+/* The bevel flip *is* the press animation here, the way it was on every
+   Win95 button; the scale/translate the other themes use would fight it. */
+html.retro .btn:active {
+    border-top-color: var(--bevel-lo);
+    border-left-color: var(--bevel-lo);
+    border-right-color: var(--bevel-hi);
+    border-bottom-color: var(--bevel-hi);
+    transform: none;
+}
+
+html.retro .btn:disabled {
+    opacity: 0.55;
+}
+
+/* The board is the one place a 2px border on every side would be too much
+   repeated a hundred times over -- and the original's own tiles read this
+   way regardless: a raised bevel while unexplored, a flat sunken face once
+   revealed. `:disabled` is that second state here, since a revealed tile
+   cannot be measured again. `box-sizing: border-box` keeps the border inside
+   `--tile-size` rather than growing past the row's own budget (see
+   game.css); the tile rule there sets none, so this is the one place it is
+   declared for retro specifically. */
+html.retro .board button {
+    box-sizing: border-box;
+    border-style: solid;
+    border-width: 2px;
+    border-top-color: var(--bevel-hi);
+    border-left-color: var(--bevel-hi);
+    border-right-color: var(--bevel-lo);
+    border-bottom-color: var(--bevel-lo);
+    box-shadow: none;
+}
+
+html.retro .board button:disabled {
+    border-top-color: var(--bevel-lo);
+    border-left-color: var(--bevel-lo);
+    border-right-color: var(--bevel-hi);
+    border-bottom-color: var(--bevel-hi);
+}
+
+/* The mine and entanglement counters get the original's own reading: a
+   sunken black well with segment-styled digits, standing in for its 7-segment
+   LED (this palette has no exact one; VT323 is the closest open terminal/LCD
+   face to it). `.status-icon` is recoloured because it is what carries the
+   label text out of `--fg`, which has no contrast left to give once the fill
+   goes black; the emoji inside it renders in its own colours regardless, and
+   `.status-glyph`'s inline SVG is painted in `currentColor`, so both still
+   read correctly against the well. */
+html.retro .status-counter {
+    background: var(--lcd-bg);
+    border-style: solid;
+    border-width: 2px;
+    border-top-color: var(--bevel-lo);
+    border-left-color: var(--bevel-lo);
+    border-right-color: var(--bevel-hi);
+    border-bottom-color: var(--bevel-hi);
+}
+
+html.retro .status-icon {
+    color: var(--btn-bg);
+}
+
+html.retro .status-value {
+    font-family: 'VT323', 'Baloo 2', monospace;
+    font-size: 1.4em;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--lcd-fg);
+    text-shadow: 0 0 4px color-mix(in srgb, var(--lcd-fg) 60%, transparent);
 }
 
 /* ---------- Help Toggle Button ---------- */

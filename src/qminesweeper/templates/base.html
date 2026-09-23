@@ -34,6 +34,7 @@
   <style>
     html { background: #090c13; }
     html.light { background: #f7f9fc; }
+    html.retro { background: #f6dbac; }
   </style>
 
   <!-- Preload theme before paint -->
@@ -42,13 +43,16 @@
       try {
         const KEY = 'qms_theme';
         let t = localStorage.getItem(KEY);
+        // Retro is opt-in only: prefers-color-scheme never selects it, only
+        // an explicit prior choice does.
         if (!t && window.matchMedia) {
           t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
         // <html> only: this runs from <head>, where document.body does not
-        // exist yet. Every theme rule keys off html.light for that reason.
-        if (t === 'light') {
-          document.documentElement.classList.add('light');
+        // exist yet. Every theme rule keys off html.light or html.retro for
+        // that reason.
+        if (t === 'light' || t === 'retro') {
+          document.documentElement.classList.add(t);
         }
       } catch (e) {}
     })();

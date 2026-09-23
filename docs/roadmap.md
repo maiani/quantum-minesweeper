@@ -167,6 +167,28 @@ the default and are untouched. Checked by `pixi run bloch-check`.
   gate/ket vocabulary, `MEASURE`, and the shared camera drag) are not yet in
   the other copy.
 
+### Retro theme
+
+A third theme, `html.retro` in `static/styles/base.css`, colour- and
+shape-sampled from `poster-v2.pdf` in the repo root and from the original
+Windows Minesweeper's own bevelled chrome and LCD counters. Switched via the
+same `#toggle-theme` button as dark/light; its three webfonts (Racing Sans
+One for the title, VT323 for body text and controls, Press Start 2P for
+buttons) load on demand so dark and light stay offline-complete. See DESIGN.md's Colors,
+Typography, Elevation & Depth, and Shapes sections.
+
+- [x] Run the light theme's own per-step clue-ramp contrast audit against
+  `--zero-bg` instead of reusing the light theme's numbers as a first pass --
+  done; see DESIGN.md's clue-ramp note.
+- [ ] Decide whether retro ships as a third permanent theme, stays a trial
+  toggle, or is removed, then update this entry and DESIGN.md's "(trial)"
+  labelling accordingly.
+- [ ] Check the bevel treatment (buttons, cards, tiles) on a real narrow-phone
+  screen and under `prefers-reduced-motion`/`prefers-contrast`.
+- [ ] Decide whether VT323's smaller-than-nominal metrics need a size pass
+  beyond the flat 1.15x bump, particularly in tight spots (the probe bar,
+  narrow dropdowns).
+
 ### Basis-changing clues
 
 - [ ] Let learners compare Z-, X-, and Y-basis expectation clues.

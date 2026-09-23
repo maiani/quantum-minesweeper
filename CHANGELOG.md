@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Added a third, trial theme, `retro`, alongside dark and light: colour- and
+  shape-sampled from `poster-v2.pdf` in the repo root (cream, navy ink, the
+  poster's own teal/orange/green accents) plus the original Windows
+  Minesweeper's own chrome -- raised/sunken bevelled buttons, cards, and
+  tiles in place of the other themes' soft shadow, near-square corners, and
+  a sunken black LCD-digit well for the status counters. Three webfonts
+  (Google Fonts, SIL OFL): Racing Sans One for the page title (the poster's
+  own title face is not free for commercial use), VT323 for body text
+  and controls, Press Start 2P for buttons only (too wide per glyph for a
+  paragraph). Its own clue-ramp lightness was swept and audited against
+  `--zero-bg`, clearing WCAG AA across every step. The header's theme button
+  now cycles dark → light → retro; retro's fonts load on demand so dark and
+  light stay offline-complete. See `docs/roadmap.md`'s Retro theme entry for
+  open follow-up work.
 - Added a live Bloch sphere to the contextual help, vendored from the
   `blochkit` renderer and adapted in `bloch-help.js`. It draws each one-qubit
   gate as a rotation the reader can drag to rotate, draws the axis it turns
