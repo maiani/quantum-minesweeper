@@ -146,8 +146,8 @@ html.light {
 }
 
 /* ---------- Retro theme: variables only ----------
-   A trial third theme, colour-sampled from the poster in the repo root
-   (poster-v2.pdf): cream page, navy ink, and the poster's own accent trio
+   A kept third theme, colour-sampled from a reference poster (not committed
+   to the repo): cream page, navy ink, and the poster's own accent trio
    rather than invented ones -- teal is the poster's "Start Game" button and
    its "QUANTUM" highlight, so it is the interactive colour here; orange is
    the poster's own explosion, so it is `--boom` rather than a new accent
@@ -258,7 +258,7 @@ html.retro input,
 html.retro select,
 html.retro textarea {
     font-family: 'VT323', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 1.15em;
+    font-size: 1.3em;
 }
 
 .app-body {
@@ -407,6 +407,15 @@ html.light .header-action:hover {
    header size it crowds the row and risks the uppercase, letter-spaced text
    overrunning the row on a narrow phone. Scaled down, not removed. */
 html.retro .app-header h1 {
+    /* --boom instead of the shared --accent teal: a warm fill off the
+       poster's own palette, against the navy stroke/shadow above, rather
+       than the same teal used for buttons and links. --pin (tried first)
+       measured 1.99:1 against --header-bg; --boom measures 3.36:1, matching
+       (not exceeding) --accent's own 3.36:1 here -- still short of AA's
+       4.5:1 for this text size, as --accent already was, but the fill this
+       chooses from is the warm half of the palette rather than the cool one
+       that was the actual complaint. */
+    color: var(--boom);
     -webkit-text-stroke: 1px var(--fg);
     text-shadow: 1px 1px 0 var(--fg);
     letter-spacing: 0.01em;

@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -69,6 +70,11 @@ settings = get_settings()
 
 # --------- App & assets ---------
 app = FastAPI()
+
+# Compresses text responses (HTML, CSS, JS, SVG, JSON) above the threshold;
+# leaves already-compressed binaries (PNG, WOFF) alone. No proxy in front of
+# uvicorn does this for us, so without it every static asset ships uncompressed.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Paths reachable without the site password. /analytics is here because a
 # browser-only client has no credentials to present, so the ingest route cannot

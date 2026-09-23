@@ -6,9 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Added a third, trial theme, `retro`, alongside dark and light: colour- and
-  shape-sampled from `poster-v2.pdf` in the repo root (cream, navy ink, the
-  poster's own teal/orange/green accents) plus the original Windows
+- Added a third theme, `retro`, alongside dark and light: colour- and
+  shape-sampled from a reference poster (cream, navy ink, the poster's own
+  teal/orange/green accents) plus the original Windows
   Minesweeper's own chrome -- raised/sunken bevelled buttons, cards, and
   tiles in place of the other themes' soft shadow, near-square corners, and
   a sunken black LCD-digit well for the status counters. Three webfonts
@@ -18,8 +18,12 @@ All notable changes to this project will be documented in this file.
   paragraph). Its own clue-ramp lightness was swept and audited against
   `--zero-bg`, clearing WCAG AA across every step. The header's theme button
   now cycles dark → light → retro; retro's fonts load on demand so dark and
-  light stay offline-complete. See `docs/roadmap.md`'s Retro theme entry for
-  open follow-up work.
+  light stay offline-complete. Body and control text is 1.3em (VT323 reads
+  small for its em size), and the title bar's fill is `--boom`'s poster
+  red-orange rather than the shared `--accent` teal, off the navy
+  stroke/shadow it already carries -- measured at 3.36:1 against
+  `--header-bg`, matching `--accent`'s own ratio there rather than improving
+  on it. See `docs/roadmap.md`'s Retro theme entry for open follow-up work.
 - Added a live Bloch sphere to the contextual help, vendored from the
   `blochkit` renderer and adapted in `bloch-help.js`. It draws each one-qubit
   gate as a rotation the reader can drag to rotate, draws the axis it turns
@@ -45,6 +49,19 @@ All notable changes to this project will be documented in this file.
   component vocabulary, and the reasoning behind them. It is wired into the
   agent instructions, the README, and the architecture notes, and records the
   deliberate contrast exceptions so they are not rediscovered as bugs.
+
+### Fixed
+
+- Enabled gzip response compression (`GZipMiddleware`), previously entirely
+  absent from the server -- nothing in front of uvicorn was compressing
+  responses either. Text assets (HTML, CSS, JS, SVG) now transfer at roughly
+  a seventh of their raw size; the static directory's own payload measured at
+  1.58MB raw versus 224KB gzipped.
+- Stopped the contextual help panel from fetching a gate's tracked SVG, both
+  on opening the panel and again on every state-button click, when
+  `JS_BLOCH_SPHERE` is on and the live sphere is what actually gets drawn.
+  The image element now carries `data-src` instead of `src` until the flag
+  is off, so the browser never starts a download the sphere is about to hide.
 
 ## [0.4.4] - 2026-09-15
 

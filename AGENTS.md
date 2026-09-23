@@ -71,11 +71,9 @@ such in code, documentation, and the paper.
   `static/styles/base.css`; `DESIGN.md` mirrors those three blocks and is
   updated in the same change. Do not introduce a second palette, a second font
   family, or a colour literal outside those three blocks. `html.retro` is
-  itself a labelled exception to the second-font-family rule -- a trial theme
-  sampled from the poster in the repo root and from the original Windows
-  Minesweeper's own chrome, with three webfonts loaded on demand so the
-  shipped dark and light themes stay offline-complete; see DESIGN.md's
-  Colors and Typography sections before touching it.
+  itself a labelled exception to the second-font-family rule: it carries
+  three webfonts, loaded on demand so dark and light stay offline-complete;
+  see DESIGN.md's Colors and Typography sections before touching it.
 - Keep `render.js` as the only game renderer. Replace moved Jinja rendering;
   never retain a second frontend path.
 - Treat shared server templates as the visible-page source. Static pages are
@@ -179,7 +177,8 @@ Use this source-of-truth hierarchy:
 - Shared visible page structure: Jinja templates under
   `src/qminesweeper/templates/`.
 - Visual design tokens and UI conventions: `DESIGN.md`, whose normative colour
-  values are `:root` and `html.light` in `static/styles/base.css`.
+  values are `:root`, `html.light`, and `html.retro` in
+  `static/styles/base.css`.
 - Stable design decisions: `docs/architecture.md`.
 - Active priorities and deferred work: `docs/roadmap.md`.
 - Released behavior: `CHANGELOG.md` and the tagged implementation.
@@ -193,8 +192,7 @@ description consistently.
 
 - `manuscript/` is a separate git repository, ignored by this one, whose
   `origin` is the authors' Overleaf project. `manuscript/qminesweeper.tex` and
-  `manuscript/qminesweeper.bib` are the single canonical source; the earlier
-  `_staging` copies were merged into them and no longer exist.
+  `manuscript/qminesweeper.bib` are the single canonical source.
 - Propose paper changes as edits to those files, and leave committing and
   pushing to Overleaf to the user. Do not push that repository.
 - Keep paper statements mathematically consistent with implemented behavior.

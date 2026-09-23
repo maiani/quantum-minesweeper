@@ -5,9 +5,10 @@ description: >-
   The visual system for the Quantum Minesweeper board, its contextual help, and
   its setup and about pages. A dark-first interface built on system fonts and
   CSS custom properties, tuned so that a grid of small square tiles stays
-  readable while carrying colour-coded quantitative information. Dark and
-  light are the two shipped themes; retro is a third, trial theme sampled from
-  the poster in the repo root, and the one place a webfont appears.
+  readable while carrying colour-coded quantitative information. Dark, light,
+  and retro are the three shipped themes; retro is the newest and still
+  getting its narrow-phone and reduced-motion pass, and the one place a
+  webfont appears.
 colors:
   # ---- Dark theme (the default) ----------------------------------------
   # These are the values in `:root` in static/styles/base.css, verbatim.
@@ -55,7 +56,7 @@ colors:
   axis-z-light: "#5a6b8c"
   axis-gate-light: "#a4247e"
 
-  # ---- Retro theme (trial) ----------------------------------------------
+  # ---- Retro theme -------------------------------------------------------
   # The `html.retro` block in base.css. Same token names, `-retro` suffix.
   # Colour-sampled from poster-v2.pdf in the repo root; see Colors.
   bg-retro: "#f6dbac"
@@ -388,7 +389,7 @@ components:
   result-message-lost-light:
     textColor: "{colors.boom-light}"
 
-  # ---- Retro-theme variants (trial) --------------------------------------
+  # ---- Retro-theme variants ----------------------------------------------
   # Same shape as the light-theme variants above: colour only, borrowed from
   # `html.retro` in base.css. The four heading entries also swap in the
   # matching `-retro` typography token, which is where the Racing Sans One
@@ -538,18 +539,18 @@ set of colours that exist only to mean something.
   is in a region.
 - **One hairline** (`border`). There were once five spellings of this edge;
   there is now one token.
-- **Retro (trial).** A third theme, `html.retro`, colour-sampled directly from
-  `poster-v2.pdf` in the repo root rather than invented: `accent` is teal, the
-  poster's own "Start Game" button and its "QUANTUM" highlight; `boom` is the
-  poster's own explosion orange, not a new colour competing with it; `win` and
-  `pin` carry the WIN badge's green and the title's peach, darkened off the
-  poster's flat, large-shape values the way a token drawn as small text next
-  to the board needs to be. It follows the light theme's surface-stack
-  ordering (`bg` cream, `btn-bg` proud of it, `zero-bg` sunk) and the same
-  low-chroma treatment for the Bloch axes. It is still labelled a trial
-  rather than a third shipped theme -- its shapes (see Elevation & Depth and
-  Shapes) have not had a real narrow-phone pass, which is a lower bar than a
-  contrast audit but not yet cleared.
+- **Retro.** A third theme, `html.retro`, colour-sampled from a reference
+  poster rather than invented: `accent` is teal, that poster's own "Start
+  Game" button and its "QUANTUM" highlight; `boom` is its explosion orange,
+  not a new colour competing with it; `win` and `pin` carry its WIN badge's
+  green and its title's peach, darkened off the poster's flat, large-shape
+  values the way a token drawn as small text next to the board needs to be.
+  It follows the light theme's surface-stack ordering (`bg` cream, `btn-bg`
+  proud of it, `zero-bg` sunk) and the same low-chroma treatment for the
+  Bloch axes. It is a kept theme, not a trial, but still incomplete: its
+  shapes (see Elevation & Depth and Shapes) have not had a real narrow-phone
+  pass, which is a lower bar than a contrast audit but not yet cleared -- see
+  `docs/roadmap.md`'s Retro theme entry for the rest of what is open.
 
   Two more tokens, `lcd-bg` and `lcd-fg`, exist only under retro: the status
   counters' sunken display, standing in for the original Minesweeper's own
@@ -867,9 +868,9 @@ reachability is not per-component.
   because only CSS knows which theme is on.
 - **Do** design dark and light together, and check the light one on the board.
   Several of the tokens above exist only because a value that worked on
-  near-black was invisible on near-white. Retro is a trial and does not carry
-  the same obligation yet -- see Colors and Typography -- but should not be
-  made to regress either once it does.
+  near-black was invisible on near-white. Retro has not had that same
+  obligation applied yet -- see Colors and Typography -- but should not be
+  made to regress once it does.
 - **Don't** add a second font family or a webfont to the dark or light theme.
   Both must stay offline-complete. Retro is the one deliberate, labelled
   exception -- see Typography for how it avoids costing the other two

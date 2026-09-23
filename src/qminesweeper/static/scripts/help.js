@@ -116,7 +116,9 @@
 
     /** Which ket the freshly injected SVG is already showing, e.g. `H_+.svg` -> "+". */
     function initialState(anim) {
-      const m = /_([^_\/?]+)\.svg/.exec(anim.getAttribute("src") || "");
+      // `data-src` when the live sphere suppressed the real fetch (see loadHelp
+      // below), `src` when the tracked SVG is what's actually on screen.
+      const m = /_([^_\/?]+)\.svg/.exec(anim.getAttribute("data-src") || anim.getAttribute("src") || "");
       if (!m) return null;
       try {
         return decodeURIComponent(m[1]);
@@ -251,14 +253,36 @@
       titleEl.textContent = HELP_CACHE[id].title;
       textEl.innerHTML = HELP_CACHE[id].text;
       shownTopic = id;
-      visualEl.innerHTML = HELP_CACHE[id].visual;
+
+      // Built off-DOM: a <template>'s content is inert, so its <img> does not
+      // fetch yet. That gives a chance to defuse the tracked gate SVG's `src`
+      // before it ever touches the live document, when the live sphere (not
+      // the SVG) is what will actually be drawn -- otherwise the browser
+      // starts that download the instant the markup lands in visualEl, only
+      // for wireBlochSphere() below to immediately hide the image again.
+      const tmpl = document.createElement("template");
+      tmpl.innerHTML = HELP_CACHE[id].visual;
+      const preloadedAnim = tmpl.content.querySelector("#gate-animation");
+      if (preloadedAnim && BLOCH_SPHERE_ON) {
+        const src = preloadedAnim.getAttribute("src");
+        if (src) {
+          preloadedAnim.removeAttribute("src");
+          preloadedAnim.setAttribute("data-src", src);
+        }
+      }
+      visualEl.replaceChildren(tmpl.content);
       visualEl.querySelectorAll('img[src^="/static/"]').forEach((img) => {
         img.src = img.getAttribute("src").replace(/^\/static/, STATIC_BASE);
       });
 
       // --- wire up the injected visual (compute template and attach handlers) ---
       const anim = visualEl.querySelector('#gate-animation');
-      if (anim) {
+      // With the live sphere on, `anim` carries `data-src` rather than `src`
+      // (see above) and is only ever hidden, never redrawn -- wiring its click
+      // handler here would just fetch each state's SVG in the background for
+      // no visible effect. wireBlochSphere()'s own listener, added below,
+      // covers state buttons while the sphere is on.
+      if (anim && !BLOCH_SPHERE_ON) {
         console.log("[help.js] Found #gate-animation:", anim);
 
         let template = anim.getAttribute('data-src-template');
