@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-09-11_
+_Last updated: 2026-09-25_
 
 This is the source of truth for active work and task status, and the only
 current-work list in the repository.
@@ -87,6 +87,18 @@ A local Python benchmark on 2026-08-09 measured about 42 ms for chppy
 whole-board observables on the largest 375-qubit preset. This does not measure
 Pyodide, DOM rendering, startup, or mobile hardware.
 
+An event on 2026-09-25 reported pages slowing down the longer they were played
+until a reload. The causes found in code, a MathJax typeset list that never
+released discarded help content, orphaned Bloch-sphere animation loops, and a
+clue grid querying about nine expectations per explored cell, are fixed; see
+`CHANGELOG.md`. So is the server side: a Sandbox reveal on Stim took seconds
+on the largest preset while blocking every other request, and game work now
+runs off the event loop.
+
+- [x] Shrink the browser save. Every move writes the whole tableau to
+  localStorage as nested JSON lists: about 1.7 MB on the 25x15 preset, about
+  25 ms per move in CPython before any Pyodide conversion. Save version 2
+  bit-packs the tableau: about 108 KB and 1.3 ms.
 - [ ] Benchmark representative boards inside Pyodide on desktop and mobile.
 - [ ] Profile runtime startup, simulator work, observable calculation, and DOM
   rendering separately.

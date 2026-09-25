@@ -25,6 +25,9 @@ decisions, and constraints that hold indefinitely. Active work belongs in
 - Gates cannot target explored cells. Explored cells represent revealed
   classical information; transforming them would make the displayed state
   misleading and could turn a revealed safe cell into a mine.
+- A two-qubit gate needs two different cells. A control that is its own
+  target is not a quantum operation, so the board refuses it before any
+  simulator sees it, and every backend refuses it too (`quantum_backend.py`).
 
 ## Runtime structure
 
@@ -33,6 +36,13 @@ Quantum Minesweeper is one product with three entry paths:
 - The TUI uses `board`, `game`, and the selected simulator backend directly.
 - Server mode uses FastAPI and Jinja, with game state computed on the server.
 - Browser-only mode runs the same Python rules in Pyodide on `ChppyBackend`.
+
+Server mode keeps game state in one process. Route handlers run each game's
+simulation, serialization, and its SQLite writes in a worker thread while
+holding that game's `asyncio.Lock`: one slow request, such as a large Sandbox
+reveal, does not stall other players on the event loop, and two requests for
+one game still run one after the other. Only the event loop mutates the
+in-memory game store.
 
 The server and browser modes share the game contract, renderer, templates,
 styles, documentation, and terminology. The browser build takes the deployment's
@@ -161,6 +171,8 @@ is declared once through `ONE_QUBIT_GATES` and `TWO_QUBIT_GATES` in
 - `ChppyBackend` is the default for local installs and the browser build. It is
   a NumPy stabilizer tableau with no native extension dependency.
 - `StimBackend` is optional and is the default in Docker/server deployment.
+  Single-qubit expectations use Stim's `peek_x/y/z`, and region entropies
+  reuse one stabilizer bit matrix until the next gate, measurement, or reset.
 - `QiskitBackend` is optional and provides an additional parity target.
 
 Optional backends are imported lazily. Backend parity tests cover all installed
@@ -417,7 +429,11 @@ reset, and new-same operations all return the shared serialized state.
 The browser session can export and import a versioned snapshot containing setup
 parameters, game status, preparation circuit, clue and flood-fill settings,
 exploration and pin state, measured outcomes, and the chppy tableau. The web
-frontend persists this snapshot in `localStorage`.
+frontend persists this snapshot in `localStorage` after every move, so since
+save version 2 the tableau is bit-packed and base64-encoded rather than stored
+as nested lists (about 108 KB instead of 1.7 MB on the 375-cell preset);
+version-1 saves still restore. A restored tableau must pass
+`chppy.CHP.is_valid()`, or the save is discarded.
 
 `scripts/build_browser.py` produces `dist/` with:
 
@@ -465,7 +481,9 @@ produced first.
 ## Performance boundary
 
 Whole-board observables, especially `expected_mines()` and
-`entanglement_score()`, are the main chppy render cost. Optimize only from
+`entanglement_score()`, are the main chppy render cost. The clue grid reads
+each cell's expectation at most once per export rather than once per
+neighbouring clue, so its cost no longer grows ninefold as the board opens up. Optimize only from
 measured browser evidence. Preferred mitigations are backend-agnostic
 expectation caching, invalidation after measurements and gates, and lazy or
 throttled entanglement display before reducing supported board sizes.

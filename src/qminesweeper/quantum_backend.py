@@ -100,7 +100,9 @@ class StabilizerQuantumState(ABC):
 
         Contract (all backends must agree):
         - Single-qubit gates are **broadcast** over every index in ``targets``.
-        - Two-qubit gates require **exactly two** targets and raise otherwise.
+        - Two-qubit gates require **exactly two distinct** targets and raise
+          ``ValueError`` otherwise. A gate naming one qubit twice is not an
+          operation, and a simulator must not be left to interpret it.
 
         Gate vocabulary must match what backends emit in random_clifford_circuit.
         """

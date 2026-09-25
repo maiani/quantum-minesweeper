@@ -289,8 +289,14 @@ class QMineSweeperBoard:
         revealed classical information. Gates must not target it. Otherwise a
         player could accidentally turn a revealed safe cell into a mine, while
         re-hiding the cell after the gate creates confusing pending cells.
+
+        A two-qubit gate needs two different cells. A control that is also its
+        own target is not a quantum operation, so it is refused here, before
+        any simulator is asked to interpret it.
         """
         idxs = [self.index(r, c) for (r, c) in targets]
+        if len(set(idxs)) != len(idxs):
+            raise ValueError("A two-qubit gate needs two different cells")
         for r, c in targets:
             if self._exploration[r, c] == CellState.EXPLORED:
                 raise ValueError("Cannot apply gates to explored cells")
@@ -394,15 +400,29 @@ class QMineSweeperBoard:
         -2 = pinned
          9 = definite mine
          else = fractional clue value
+
+        Values match ``get_clue`` exactly. Each cell's expectation is read at
+        most once per export rather than once per neighbouring clue: calling
+        ``get_clue`` per explored cell costs nine simulator queries each, so a
+        late-game export on a large, mostly explored board did up to nine
+        times the work, and moves slowed down as the board opened up.
         """
         grid = np.full((self.rows, self.cols), -1.0, dtype=float)
-        for r in range(self.rows):
-            for c in range(self.cols):
-                st = self._exploration[r, c]
-                if st == CellState.UNEXPLORED:
-                    grid[r, c] = -1.0
-                elif st == CellState.PINNED:
-                    grid[r, c] = -2.0
-                else:
-                    grid[r, c] = self.get_clue(r, c)
+        grid[self._exploration == CellState.PINNED] = -2.0
+        b = self._clue_basis
+        memo: dict[int, float] = {}
+
+        def exp_at(idx: int) -> float:
+            if idx not in memo:
+                memo[idx] = self.expectation(idx, b)
+            return memo[idx]
+
+        for r, c in zip(*np.nonzero(self._exploration == CellState.EXPLORED)):
+            r, c = int(r), int(c)
+            # Same tolerance and same neighbour order as get_clue/clue_value,
+            # so the floats are bit-for-bit what those methods return.
+            if exp_at(self.index(r, c)) <= -1.0 + 1e-9:
+                grid[r, c] = 9.0
+            else:
+                grid[r, c] = sum(0.5 * (1.0 - exp_at(self.index(nr, nc))) for nr, nc in self.neighbors(r, c))
         return grid

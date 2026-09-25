@@ -157,7 +157,8 @@ class QiskitState(StabilizerQuantumState):
         Raises
         ------
         ValueError
-            If the gate is unsupported or applied to the wrong number of qubits.
+            If the gate is unsupported, applied to the wrong number of qubits,
+            or applied to the same qubit twice.
         """
         if isinstance(gate, str):
             try:
@@ -219,6 +220,10 @@ class QiskitState(StabilizerQuantumState):
         else:
             if cl.num_qubits != len(targets):
                 raise ValueError(f"Gate {gate_enum} expects {cl.num_qubits} qubits, got {len(targets)}")
+            # Qiskit's evolve() does not reject a repeated qubit, and the result
+            # is not the state of any operation. See StabilizerQuantumState.
+            if len(set(targets)) != len(targets):
+                raise ValueError(f"Gate {gate_enum} needs {cl.num_qubits} different qubits, got {targets}")
             self.state = self.state.evolve(cl, targets)
 
 

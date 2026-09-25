@@ -1,6 +1,7 @@
 # qminesweeper/server.py
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import json
@@ -16,6 +17,7 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, Form, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import (
@@ -347,6 +349,26 @@ def admin_authed(request: Request) -> bool:
 # game_id -> {board, game, config}
 GAMES: dict[str, dict] = {}
 
+# Game work -- simulation, serialization, and the SQLite writes that go with
+# it -- runs in worker threads (run_in_threadpool), so one slow request such as
+# a large Sandbox reveal or an entangled setup cannot stall every other player
+# on the event loop. Boards and simulators are not thread-safe, so any request
+# that touches a game's board holds that game's lock for the whole of the
+# work: two requests for one game (a double click) still run one after the
+# other, while different games interleave.
+#
+# Both dicts are only ever mutated on the event loop thread. Worker threads
+# read a game's record and mutate its board, never GAMES itself, which keeps
+# prune_stale_games' iteration safe.
+_GAME_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _game_lock(game_id: str) -> asyncio.Lock:
+    lock = _GAME_LOCKS.get(game_id)
+    if lock is None:
+        lock = _GAME_LOCKS[game_id] = asyncio.Lock()
+    return lock
+
 
 # --------- Helpers ---------
 def _now_iso() -> str:
@@ -418,6 +440,7 @@ def prune_stale_games() -> None:
         if game.status == GameStatus.ONGOING:
             STATS_DB.outcome(game_id=gid, ts=_now_iso(), status="ABANDONED")
         GAMES.pop(gid, None)
+        _GAME_LOCKS.pop(gid, None)
 
     # Clean database store
     n = STATS_DB.prune_abandoned(minutes=settings.ABANDON_THRESHOLD_MIN)
@@ -812,7 +835,11 @@ async def setup_post(
     entanglement_probes, two_area_probes = probe_rules_for_regions(entanglement_probe_regions, _probe_region_limit())
 
     try:
-        board, game = build_board_and_game(rows, cols, mines, ent_level, win, mv, entanglement_probes, two_area_probes)
+        # Sampling an entangled layout is the slow part of setup; keep it off
+        # the event loop. The new game is not in GAMES yet, so needs no lock.
+        board, game = await run_in_threadpool(
+            build_board_and_game, rows, cols, mines, ent_level, win, mv, entanglement_probes, two_area_probes
+        )
     except ValueError as e:
         log.info(f"SETUP rejected user={user_id} rows={rows} cols={cols} mines={mines} ent={ent_level}: {e}")
         return _render_setup_error(request, user_id, game_id, str(e))
@@ -857,25 +884,29 @@ async def setup_post(
     return attach_user_cookie(RedirectResponse(f"/game?game_id={game_id}", status_code=303), user_id, request)
 
 
+def _game_page_state(record: dict, game_id: str, user_id: str) -> dict:
+    """GET /game's game work, run in a worker thread under the game's lock."""
+    # Update last_seen + DB heartbeat (online)
+    record["last_seen"] = datetime.now(timezone.utc)
+    STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
+    # Persist terminal outcome once it happens
+    _record_outcome(game_id, record["game"], user_id)
+    return serialize_game(record["board"], record["game"], game_id)
+
+
 @app.get("/game", response_class=HTMLResponse)
 async def game_get(request: Request, game_id: Optional[str] = Query(None, alias="game_id")):
     user_id = ensure_user_id(request)
     if not game_id or game_id not in GAMES:
         return attach_user_cookie(RedirectResponse("/setup", status_code=303), user_id, request)
 
-    # Update last_seen + DB heartbeat (online)
-    GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
-    STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
-
-    board: QMineSweeperBoard = GAMES[game_id]["board"]
-    game: QMineSweeperGame = GAMES[game_id]["game"]
-
-    # Persist terminal outcome once it happens
-    _record_outcome(game_id, game, user_id)
+    record = GAMES[game_id]
+    async with _game_lock(game_id):
+        state = await run_in_threadpool(_game_page_state, record, game_id, user_id)
+    game: QMineSweeperGame = record["game"]
 
     # Game state (the shared contract) + app config (server-only feature flags),
     # inlined separately into the shell. render.js builds the view from both.
-    state = serialize_game(board, game, game_id)
     config = settings.product_config().game_config(
         entanglement_probes=game.cfg.entanglement_probes,
         two_area_probes=game.cfg.two_area_probes,
@@ -909,8 +940,15 @@ async def move_post(
         # Game expired/pruned: tell the client to fall back to setup.
         return JSONResponse({"error": "game_not_found", "redirect": "/setup"}, status_code=404)
 
-    board: QMineSweeperBoard = GAMES[game_id]["board"]
-    game: QMineSweeperGame = GAMES[game_id]["game"]
+    record = GAMES[game_id]
+    async with _game_lock(game_id):
+        return await run_in_threadpool(_apply_move, record, game_id, cmd, user_id)
+
+
+def _apply_move(record: dict, game_id: str, cmd: str, user_id: str) -> dict:
+    """POST /move's game work, run in a worker thread under the game's lock."""
+    board: QMineSweeperBoard = record["board"]
+    game: QMineSweeperGame = record["game"]
 
     try:
         command = parse_command(cmd)
@@ -926,7 +964,7 @@ async def move_post(
         log.exception(f"MOVE error gid={game_id} cmd='{cmd}' err={e}")
 
     _record_outcome(game_id, game, user_id)
-    GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
+    record["last_seen"] = datetime.now(timezone.utc)
     STATS_DB.heartbeat(game_id=game_id, ts=_now_iso())
 
     return serialize_game(board, game, game_id)
@@ -941,12 +979,11 @@ async def probe_post(request: Request, game_id: Optional[str] = Query(None, alia
         payload = await request.json()
         if not isinstance(payload, dict):
             raise ValueError("JSON body must be an object")
-        result = probe_regions(
-            GAMES[game_id]["board"],
-            GAMES[game_id]["game"],
-            payload.get("area_a"),
-            payload.get("area_b"),
-        )
+        record = GAMES[game_id]
+        async with _game_lock(game_id):
+            result = await run_in_threadpool(
+                probe_regions, record["board"], record["game"], payload.get("area_a"), payload.get("area_b")
+            )
     except (ValueError, TypeError, KeyError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse(result)
@@ -960,7 +997,9 @@ async def reveal_post(game_id: Optional[str] = Query(None, alias="game_id")):
     if not settings.ENABLE_SANDBOX_REVEAL:
         return JSONResponse({"error": "Sandbox Reveal is disabled"}, status_code=403)
     try:
-        result = reveal_board(GAMES[game_id]["board"], GAMES[game_id]["game"])
+        record = GAMES[game_id]
+        async with _game_lock(game_id):
+            result = await run_in_threadpool(reveal_board, record["board"], record["game"])
     except (ValueError, TypeError, KeyError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse(result)
@@ -987,7 +1026,8 @@ async def game_post(
             allowed = True
 
         if allowed:
-            apply_command(board, game, Command("reset"))
+            async with _game_lock(game_id):
+                await run_in_threadpool(apply_command, board, game, Command("reset"))
             GAMES[game_id]["last_seen"] = datetime.now(timezone.utc)
             STATS_DB.reset_move_counters(game_id=game_id, ts=_now_iso())
         else:
@@ -996,7 +1036,8 @@ async def game_post(
     elif action == "new_same":
         # Fresh game_id, same rules
         new_game_id = str(uuid4())
-        board2, game2 = build_board_and_game(
+        board2, game2 = await run_in_threadpool(
+            build_board_and_game,
             cfg["rows"],
             cfg["cols"],
             cfg["mines"],

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import itertools
 
+import numpy as np
 import pytest
 from conftest import GATE_MATRICES, TWO_QUBIT_MATRICES, reference_expectation, reference_state
 
@@ -94,6 +95,25 @@ def test_one_qubit_gate_broadcasts_over_targets(gate: str):
 def test_two_qubit_gate_requires_exactly_two_targets(gate: str, targets: list[int]):
     with pytest.raises(ValueError):
         CHP(3).apply_gate(gate, targets)
+
+
+@pytest.mark.parametrize("gate", TWO_QUBIT)
+def test_two_qubit_gate_rejects_the_same_qubit_twice(gate: str):
+    """Naming one qubit twice is refused, and leaves the tableau untouched.
+
+    This used to run: the primitives read column views, so ``CX(a, a)`` XORed
+    qubit a's columns with themselves and zeroed it out of every row.
+    """
+    sim = CHP(2)
+    sim.apply_gate("H", [0])
+    sim.apply_gate("CX", [0, 1])
+    before = (sim.x.copy(), sim.z.copy(), sim.r.copy())
+    with pytest.raises(ValueError, match="two different qubits"):
+        sim.apply_gate(gate, [1, 1])
+    assert np.array_equal(sim.x, before[0])
+    assert np.array_equal(sim.z, before[1])
+    assert np.array_equal(sim.r, before[2])
+    assert sim.is_valid()
 
 
 @pytest.mark.parametrize("gate", ["", "CNOT", "T", "h", "sdg", "RX"])

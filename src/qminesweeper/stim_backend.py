@@ -1,6 +1,7 @@
 # qminesweeper/stim_backend.py
 from __future__ import annotations
 
+import numpy as np
 import stim
 
 from qminesweeper.quantum_backend import QuantumBackend, QuantumGate, StabilizerQuantumState, validate_subset
@@ -60,6 +61,25 @@ def _bit_rank(rows: list[int]) -> int:
     return rank
 
 
+def _gf2_rank(matrix: np.ndarray) -> int:
+    """GF(2) rank of a 0/1 matrix, one row per generator.
+
+    Rows become integer bitmasks for ``_bit_rank``. Duplicate and zero rows
+    cannot change the rank, so they are dropped first; a pair query projects
+    every generator onto four columns, leaving at most fifteen distinct rows.
+    """
+    width = matrix.shape[1]
+    if width <= 63:
+        # Distinct powers of two, so the sum of a row's weights is its bitmask.
+        weights = np.left_shift(np.uint64(1), np.arange(width, dtype=np.uint64))
+        values = (matrix.astype(np.uint64) * weights).sum(axis=1, dtype=np.uint64)
+        rows = np.unique(values[values != 0]).tolist()
+    else:
+        packed = np.packbits(matrix, axis=1)
+        rows = list({int.from_bytes(row.tobytes(), "big") for row in packed if row.any()})
+    return _bit_rank(rows)
+
+
 class StimState(StabilizerQuantumState):
     """Stim-based stabilizer simulation backend."""
 
@@ -73,14 +93,35 @@ class StimState(StabilizerQuantumState):
         """Initialize tableau to |0⟩^n."""
         self.tab = stim.TableauSimulator()
         self.tab.set_num_qubits(self.n)
+        self._stabilizer_bits: tuple[np.ndarray, np.ndarray] | None = None
 
     def _do1(self, opname: str, t: int) -> None:
         """Apply a single-qubit op by name to target index."""
+        self._stabilizer_bits = None
         self.tab.do(stim.Circuit(f"{opname} {t}"))
 
     def _do2(self, opname: str, t0: int, t1: int) -> None:
         """Apply a two-qubit op by name to (t0, t1)."""
+        self._stabilizer_bits = None
         self.tab.do(stim.Circuit(f"{opname} {t0} {t1}"))
+
+    def _stabilizers(self) -> tuple[np.ndarray, np.ndarray]:
+        """X and Z bits of a stabilizer generating set, one row per generator.
+
+        Cached until the next gate, measurement or reset. A Sandbox reveal asks
+        for thousands of region entropies of one unchanged state, and rebuilding
+        and re-parsing the generators for every query took seconds on the
+        largest boards, all of it on the server's event loop.
+        """
+        if self._stabilizer_bits is None:
+            xs = np.zeros((self.n, self.n), dtype=np.uint8)
+            zs = np.zeros((self.n, self.n), dtype=np.uint8)
+            for row, stabilizer in enumerate(self.tab.canonical_stabilizers()):
+                x, z = stabilizer.to_numpy()
+                xs[row] = x[: self.n]
+                zs[row] = z[: self.n]
+            self._stabilizer_bits = (xs, zs)
+        return self._stabilizer_bits
 
     # ---------- public API ----------
 
@@ -102,21 +143,9 @@ class StimState(StabilizerQuantumState):
         if k > self.n - k:
             region = tuple(q for q in range(self.n) if q not in region)
             k = len(region)
-        rows: list[int] = []
-        for stabilizer in self.tab.canonical_stabilizers():
-            text = str(stabilizer)
-            # Stim's text starts with a sign, followed by one Pauli letter per
-            # qubit; '_' denotes identity.
-            paulis = text[1:]
-            bits = 0
-            for local, q in enumerate(region):
-                letter = paulis[q]
-                if letter in "XY":
-                    bits |= 1 << local
-                if letter in "ZY":
-                    bits |= 1 << (k + local)
-            rows.append(bits)
-        return float(_bit_rank(rows) - k)
+        xs, zs = self._stabilizers()
+        cols = list(region)
+        return float(_gf2_rank(np.concatenate((xs[:, cols], zs[:, cols]), axis=1)) - k)
 
     def expectation_pauli(self, idx: int, basis: str) -> float:
         """
@@ -125,10 +154,18 @@ class StimState(StabilizerQuantumState):
         """
         if basis not in ("X", "Y", "Z"):
             raise ValueError("Basis must be 'X','Y','Z'")
-        pauli = ["I"] * self.n
-        pauli[idx] = basis
-        obs = stim.PauliString("".join(pauli))
-        return float(self.tab.peek_observable_expectation(obs))
+        # Checked here because Stim would silently grow the simulator to fit an
+        # index past the end.
+        if not 0 <= idx < self.n:
+            raise IndexError(f"qubit {idx} out of range for {self.n} qubits")
+        # peek_x/y/z return +1, -1 or 0 for one qubit directly. The general
+        # peek_observable_expectation needs an n-qubit Pauli string built per
+        # call, which made every whole-board observable quadratic in n.
+        if basis == "X":
+            return float(self.tab.peek_x(idx))
+        if basis == "Y":
+            return float(self.tab.peek_y(idx))
+        return float(self.tab.peek_z(idx))
 
     def measure(self, idx: int, basis: str = "Z") -> int:
         """
@@ -136,6 +173,7 @@ class StimState(StabilizerQuantumState):
         We rotate into Z, measure, then rotate back, so the post-measurement
         state matches a true X/Y/Z measurement collapse.
         """
+        self._stabilizer_bits = None
         if basis == "Z":
             return int(self.tab.measure(idx))
 
@@ -162,7 +200,8 @@ class StimState(StabilizerQuantumState):
         Apply a supported Clifford gate.
 
         Single-qubit gates are broadcast over every index in ``targets``;
-        two-qubit gates require exactly two targets. (See StabilizerQuantumState.)
+        two-qubit gates require exactly two distinct targets. (See
+        StabilizerQuantumState.)
 
         Parameters
         ----------
@@ -188,6 +227,8 @@ class StimState(StabilizerQuantumState):
         if gate_enum in _TWO_Q_STIM:
             if len(targets) != 2:
                 raise ValueError(f"{gate_enum.value} expects 2 targets, got {len(targets)}")
+            if targets[0] == targets[1]:
+                raise ValueError(f"{gate_enum.value} needs two different qubits, got {targets[0]} twice")
             self._do2(_TWO_Q_STIM[gate_enum], targets[0], targets[1])
             return
 

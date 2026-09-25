@@ -83,9 +83,14 @@ self.addEventListener("fetch", (event) => {
 // fall back to cache only when the network is unavailable (offline).
 async function networkFirst(req) {
   const cache = await caches.open(CACHE);
+  // A `t` query parameter is a one-shot cache-buster: help.js appends
+  // `?t=<timestamp>` to a gate SVG so re-picking a state replays its
+  // animation. That URL is never requested again, so storing it only grows
+  // the cache, by one entry per click, until the next build replaces it.
+  const oneShot = new URL(req.url).searchParams.has("t");
   try {
     const res = await fetch(req);
-    if (res && res.ok) {
+    if (res && res.ok && !oneShot) {
       // Clone before returning: a Response body can only be read once.
       cache.put(req, res.clone()).catch(() => {});
     }

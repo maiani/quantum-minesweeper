@@ -113,3 +113,16 @@ def test_two_qubit_gate_parity(gate: QuantumGate):
                 got = expect(states[name], p, 2)
                 want = ref[tuple(sorted(p.items()))]
                 assert abs(got - want) < TOL, f"{name} {gate.value} on {name0},{name1}: ⟨{p}⟩ {got} != stim {want}"
+
+
+@pytest.mark.parametrize("gate", TWO_Q, ids=lambda g: g.value)
+@pytest.mark.parametrize("name", sorted(BACKENDS))
+def test_two_qubit_gate_on_one_qubit_is_rejected(name: str, gate: QuantumGate):
+    """Every backend refuses a two-qubit gate that names one qubit twice.
+
+    Before this was part of the contract the three disagreed: Stim raised, Qiskit
+    returned a meaningless state, and chppy zeroed the qubit out of its tableau.
+    """
+    factory, _ = BACKENDS[name]
+    with pytest.raises(ValueError):
+        factory(2).apply_gate(gate.value, [1, 1])

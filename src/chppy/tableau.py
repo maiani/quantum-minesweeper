@@ -105,6 +105,34 @@ class CHP:
         """Reinitialise to |0...0⟩ (same qubit count)."""
         self._init_state()
 
+    def is_valid(self) -> bool:
+        """Return whether the arrays hold a well-formed tableau.
+
+        Every gate and measurement preserves the structure checked here, so
+        this is for arrays written from outside, such as a restored snapshot.
+        Checks shapes, that every bit is 0 or 1, and that the 2n generator rows
+        form a symplectic basis: stabilizers commute with each other,
+        destabilizers commute with each other, and destabilizer i anticommutes
+        with stabilizer j exactly when i == j. Phase bits are free, and the
+        scratch row is ignored.
+        """
+        n = self.n
+        shape = (2 * n + 1, n)
+        if self.x.shape != shape or self.z.shape != shape or self.r.shape != (2 * n + 1,):
+            return False
+        if self.x.max(initial=0) > 1 or self.z.max(initial=0) > 1 or self.r.max(initial=0) > 1:
+            return False
+        # Symplectic products <P_i, P_j> = x_i·z_j + z_i·x_j (mod 2) for every
+        # pair of rows. float64 keeps the matmul on the fast path; the sums
+        # stay below n, far inside the exactly representable integers.
+        x = self.x[: 2 * n].astype(np.float64)
+        z = self.z[: 2 * n].astype(np.float64)
+        products = np.mod(x @ z.T + z @ x.T, 2)
+        expected = np.zeros((2 * n, 2 * n))
+        expected[:n, n:] = np.eye(n)
+        expected[n:, :n] = np.eye(n)
+        return bool(np.array_equal(products, expected))
+
     def entanglement_entropy(self, subset: list[int]) -> float:
         """Return ``S(subset : complement)`` for this pure stabilizer state.
 
@@ -253,7 +281,8 @@ class CHP:
         """Apply a named gate to the given targets.
 
         Single-qubit gates are broadcast: each qubit in ``targets`` receives
-        the gate in order. Two-qubit gates require exactly two targets.
+        the gate in order. Two-qubit gates require exactly two distinct
+        targets.
 
         Gate names must be in the supported set (see module docstring).
         """
@@ -264,7 +293,14 @@ class CHP:
         if gate in _2Q:
             if len(targets) != 2:
                 raise ValueError(f"{gate} expects 2 targets, got {len(targets)}")
-            self._apply_2q(gate, int(targets[0]), int(targets[1]))
+            a, b = int(targets[0]), int(targets[1])
+            # A two-qubit gate on one qubit is not an operation at all. Here it
+            # would also be destructive: the primitives read column views, so
+            # with a == b ``x[:, a] ^= x[:, a]`` zeroes the qubit out of every
+            # row and leaves a tableau that describes no quantum state.
+            if a == b:
+                raise ValueError(f"{gate} needs two different qubits, got {a} twice")
+            self._apply_2q(gate, a, b)
             return
         raise ValueError(f"Unsupported gate: '{gate}'. Supported: {sorted(_1Q | _2Q)}")
 

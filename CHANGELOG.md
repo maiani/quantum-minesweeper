@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- The help panel keeps the start state you picked when you change gate.
+  Picking |+> on X and then moving to H or Measure opens them on |+> instead
+  of each topic's own default, for the live Bloch sphere and the gate SVGs
+  alike. The choice is remembered across reloads (`qms_help_state`); until
+  you pick one, each topic opens on its default as before.
+- Browser saves are now version 2: the tableau is bit-packed and
+  base64-encoded instead of stored as nested lists. On the 25x15 preset a save,
+  written after every move, went from about 1.7 MB to 108 KB, and exporting it
+  from about 26 ms to 1.3 ms in CPython, before the per-element conversion out
+  of Pyodide that the lists also needed. Version-1 saves still restore.
+
+### Fixed
+
+- A Sandbox reveal on the Stim backend, the server default, took 2 to 6
+  seconds on the 25x15 preset, and every other player's request waited behind
+  it. Each region-entropy query rebuilt and re-parsed every stabilizer as text;
+  the bits are now cached until the state next changes, and single-qubit
+  expectations use `peek_x/y/z` instead of an n-qubit Pauli string per call.
+  The same reveal now takes 20 to 35 ms, and an ordinary move about 1.2 ms
+  instead of 11 ms.
+- Server routes ran simulation work on the event loop, so any slow request
+  stalled everyone. Game work now runs in a worker thread under a per-game
+  lock: different games interleave, and one game's requests still run one at
+  a time.
+
+- Two-qubit gates can no longer target one cell twice. The board accepted
+  `CX a a` (and `CY`, `CZ`, `SWAP`), and chppy, the default and browser
+  simulator, then XORed the cell's tableau columns with themselves, deleting
+  the qubit from every stabilizer. The result was no quantum state at all: the
+  cell read as certainly safe with a Bloch vector of length sqrt(3) and a
+  region entropy of -1 bits, so a definite mine could be "cleared" and a Clear
+  game won by clicking each cell twice. The board now refuses the move
+  (`A two-qubit gate needs two different cells`), every backend refuses it
+  as part of the `apply_gate` contract (Qiskit had silently accepted it; Stim
+  already raised), and clicking the picked cell again now cancels the pick.
+- Browser saves whose tableau is not a valid stabilizer state, as a save made
+  after that move would be, are discarded on restore instead of bringing the
+  broken cells back. `chppy.CHP.is_valid()` is the new structural check.
+- The page no longer slows down the longer it is played. Every help-topic load
+  typeset the whole document with MathJax and never told it about the help
+  content it had just thrown away, so each discarded expression and its
+  detached DOM stayed in MathJax's list for the life of the page. That happened
+  on every tool click even with help off, and on every hover with it on. Help
+  now calls `typesetClear` before replacing its content and typesets only the
+  panel, one typeset at a time.
+- Overlapping help loads, as one tool click produces, could each mount a live
+  Bloch sphere. The second overwrote the first without stopping it, leaving
+  its animation loop redrawing a detached SVG every frame until reload. Only
+  the newest load may now mount a sphere.
+- Moves no longer get slower as the board opens up. The exported clue grid
+  queried the simulator about nine times per explored cell; it now queries
+  each cell at most once per export, with identical values. On the 25x15
+  preset, late-game moves were about 3x slower than early ones before this.
+- The PWA service worker no longer stores the one-shot `?t=` gate-SVG URLs
+  help requests (when the live Bloch sphere is off), which grew its cache by
+  one entry per state-button click until the next build.
+
 ## [0.5.0] - 2026-09-23
 
 ### Added

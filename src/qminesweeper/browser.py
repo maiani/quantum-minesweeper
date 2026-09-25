@@ -22,6 +22,7 @@ is data the page may choose to send. See `analytics_record`.
 
 from __future__ import annotations
 
+import base64
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -44,7 +45,24 @@ from qminesweeper.game import GameConfig, GameStatus, QMineSweeperGame
 
 # A fixed id is fine: the browser session only ever holds one game.
 _GAME_ID = "browser"
-SAVE_VERSION = 1
+# Version 2 bit-packs the tableau; see export_save. Version 1 saves, which
+# store it as nested lists of 0/1, still restore.
+SAVE_VERSION = 2
+_READABLE_SAVE_VERSIONS = (1, 2)
+
+
+def _pack_bits(bits: np.ndarray) -> str:
+    """0/1 array -> base64 of its bits, 8 per byte, row-major."""
+    return base64.b64encode(np.packbits(bits, axis=None).tobytes()).decode("ascii")
+
+
+def _unpack_bits(text: str, shape: tuple[int, ...]) -> np.ndarray:
+    """Inverse of ``_pack_bits`` for an array of ``shape``; ValueError if it does not fit."""
+    raw = np.frombuffer(base64.b64decode(text, validate=True), dtype=np.uint8)
+    count = int(np.prod(shape))
+    if raw.size != (count + 7) // 8:
+        raise ValueError("tableau bits do not match the board size")
+    return np.unpackbits(raw, count=count).reshape(shape)
 
 
 class BrowserSession:
@@ -213,6 +231,12 @@ class BrowserSession:
         The browser stores this dict in localStorage. It is a snapshot, not a
         replay log: reload restore does not depend on re-sampling random setup or
         re-playing random measurements.
+
+        The page writes one after every move, so its size matters. The tableau
+        is two (2n+1) x n bit matrices; as nested JSON lists that was about
+        1.7 MB on the 375-cell preset, converted element by element out of
+        Pyodide on each move. Packed eight bits to a byte and base64-encoded it
+        is about 94 KB and a single string.
         """
         self._require_game()
         if self._params is None:
@@ -243,9 +267,9 @@ class BrowserSession:
             },
             "tableau": {
                 "n": state.n,
-                "x": state.x.tolist(),
-                "z": state.z.tolist(),
-                "r": state.r.tolist(),
+                "x": _pack_bits(state.x),
+                "z": _pack_bits(state.z),
+                "r": _pack_bits(state.r),
             },
             # Optional, and deliberately not a version bump: a save written
             # before this field existed still restores, and import treats a
@@ -257,7 +281,7 @@ class BrowserSession:
 
     def import_save(self, snapshot: dict) -> dict:
         """Restore a save snapshot and return the restored game state."""
-        if not isinstance(snapshot, dict) or snapshot.get("version") != SAVE_VERSION:
+        if not isinstance(snapshot, dict) or snapshot.get("version") not in _READABLE_SAVE_VERSIONS:
             raise ValueError("unsupported browser save format")
         try:
             params = snapshot["params"]
@@ -289,9 +313,20 @@ class BrowserSession:
             state = board.state
             if not isinstance(state, ChppyState) or int(tableau["n"]) != state.n:
                 raise ValueError("save does not match board size")
-            state.x[:, :] = np.array(tableau["x"], dtype=np.uint8)
-            state.z[:, :] = np.array(tableau["z"], dtype=np.uint8)
-            state.r[:] = np.array(tableau["r"], dtype=np.uint8)
+            if snapshot["version"] == 1:
+                state.x[:, :] = np.array(tableau["x"], dtype=np.uint8)
+                state.z[:, :] = np.array(tableau["z"], dtype=np.uint8)
+                state.r[:] = np.array(tableau["r"], dtype=np.uint8)
+            else:
+                state.x[:, :] = _unpack_bits(str(tableau["x"]), state.x.shape)
+                state.z[:, :] = _unpack_bits(str(tableau["z"]), state.z.shape)
+                state.r[:] = _unpack_bits(str(tableau["r"]), state.r.shape)
+            # Saves written before two-qubit gates on one cell were refused can
+            # hold a tableau that gate corrupted. Restoring one would bring back
+            # cells with impossible Bloch vectors and negative entropy, so it is
+            # rejected like any other malformed save and the player starts over.
+            if not state.is_valid():
+                raise ValueError("tableau is not a valid stabilizer state")
 
             board._exploration[:, :] = np.array(snapshot["board"]["exploration"], dtype=np.int8)
             board._measured = {int(idx): int(outcome) for idx, outcome in snapshot["board"]["measured"]}

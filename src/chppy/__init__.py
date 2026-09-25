@@ -24,7 +24,8 @@ Supported gates
 Single-qubit: ``X Y Z H S Sdg SX SXdg SY SYdg``
 Two-qubit:    ``CX CY CZ SWAP``
 
-A ``dg`` suffix denotes the adjoint, so ``Sdg`` is S-dagger.
+A ``dg`` suffix denotes the adjoint, so ``Sdg`` is S-dagger. A two-qubit gate
+takes two different qubits; naming one qubit twice raises ``ValueError``.
 
 Reference: Aaronson, S. & Gottesman, D. (2004). Improved simulation of
 stabilizer circuits. Phys. Rev. A 70, 052328.

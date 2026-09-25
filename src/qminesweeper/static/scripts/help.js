@@ -94,6 +94,9 @@
     let shownTopic = null;
     let blochModule = null; // the import() promise, kept so the module loads once
     let liveSphere = null; // the animation currently on screen, if any
+    // Bumped by every wireBlochSphere() call; only the newest call may mount a
+    // sphere. See the comment inside wireBlochSphere() for the race it closes.
+    let sphereTicket = 0;
 
     // The specifier has to be resolved to a full URL before import() sees it.
     // STATIC_BASE is "/static" on the server but a bare "static" in the browser
@@ -131,6 +134,38 @@
     // selector for a topic that has no visual.html of its own; the gates ship their
     // own buttons, and those stay the source for them.
     const KETS = ["0", "1", "+", "-", "i", "-i"];
+
+    // --- The start state carries across topics ---
+    // The state the reader last picked with a state button. Changing topic
+    // (hovering or choosing another gate) opens the new topic on this state
+    // instead of on the topic's own default, so gates can be compared on the
+    // same input. Until the reader picks one, each topic keeps its default.
+    // Kept in localStorage like the help toggle and the current tool, so a
+    // page reload (every New Game in server mode) does not reset it either.
+    const STATE_KEY = "qms_help_state";
+    const savedState = localStorage.getItem(STATE_KEY);
+    let chosenState = KETS.includes(savedState) ? savedState : null;
+
+    // One listener on the panel's visual slot, which outlives its content,
+    // records every pick. The buttons' own handlers do the drawing.
+    visualEl.addEventListener("click", (event) => {
+      const btn = event.target.closest ? event.target.closest("button[data-state]") : null;
+      if (!btn || !KETS.includes(btn.dataset.state)) return;
+      chosenState = btn.dataset.state;
+      localStorage.setItem(STATE_KEY, chosenState);
+    });
+
+    /** The carried state, if `root` offers a button for it; otherwise null. */
+    function carriedState(root) {
+      if (!chosenState) return null;
+      const offered = Array.from(root.querySelectorAll("button[data-state]"), (btn) => btn.dataset.state);
+      return offered.includes(chosenState) ? chosenState : null;
+    }
+
+    /** A gate SVG's URL for another state: `.../X_0.svg` -> `.../X_%2B.svg`. */
+    function svgForState(src, state) {
+      return src.replace(/_[^_\/?]+(\.svg)(\?.*)?$/, `_${encodeURIComponent(state)}$1`);
+    }
 
     /**
      * Build a visual from nothing, for a topic whose visual.html is empty.
@@ -176,6 +211,17 @@
      */
     async function wireBlochSphere(visualEl, anim, id) {
       stopSphere(); // the previous topic's loop; its SVG has just been discarded
+      // Take a ticket *before* awaiting. Two help loads can both reach the
+      // await below before either resumes: a tool click loads its topic twice
+      // (once from the button's tool:selected event, once from the document
+      // click listener), and the first visit to a topic waits on a fetch. Both
+      // then pass the topic check, since it is the same topic, and each builds
+      // a sphere. The second overwrote `liveSphere` without stopping the
+      // first, whose requestAnimationFrame loop kept redrawing a detached SVG
+      // sixty times a second for the life of the page. Every such orphan
+      // added per-frame work, so the page slowed down the longer it was
+      // played, until a reload. Only the newest call may mount now.
+      const ticket = ++sphereTicket;
       if (!BLOCH_SPHERE_ON) return;
 
       const mod = await loadBloch().catch((err) => {
@@ -185,7 +231,7 @@
       // Two-qubit gates and non-gate topics have no sphere. The topic check also
       // covers the panel having moved on while the module loaded, which the DOM
       // cannot answer for a topic that had no node of its own to begin with.
-      if (!mod || !mod.canDraw(id) || shownTopic !== id) return;
+      if (!mod || !mod.canDraw(id) || shownTopic !== id || ticket !== sphereTicket) return;
 
       let host;
       if (anim) {
@@ -199,8 +245,10 @@
 
       // Built per topic: GateAnimation binds to the container it was given, and
       // that container is new every time the panel replaces its own innerHTML.
+      // Never overwrite a running loop without stopping it first.
+      stopSphere();
       liveSphere = new mod.GateSphere(host);
-      liveSphere.show(id, (anim && initialState(anim)) || mod.defaultState(id));
+      liveSphere.show(id, carriedState(visualEl) || (anim && initialState(anim)) || mod.defaultState(id));
 
       // For a gate these buttons already drive the (now hidden) SVG and this just
       // listens in; for a built visual they are ours and this is their only wiring.
@@ -209,6 +257,39 @@
           if (liveSphere) liveSphere.show(id, btn.dataset.state);
         });
       });
+    }
+
+    // --- MathJax bookkeeping ---
+    // MathJax keeps every expression it has typeset in an internal list, and
+    // this panel throws its content away on every topic change: on each hover
+    // while help is on, and on every tool click even while it is off. Nothing
+    // ever told MathJax, so each discarded expression, with the detached DOM
+    // it holds, stayed in that list for the life of the page. Memory grew with
+    // every move and hover until a reload. MathJax's documented remedy is
+    // typesetClear() on content before removing it, and typesetting only the
+    // new content rather than the whole document.
+    //
+    // Typesets are chained because MathJax's are asynchronous and must not
+    // overlap; chaining them is the pattern MathJax's own documentation gives.
+    let typesetQueue = Promise.resolve();
+    const mathJaxV3 = () => Boolean(window.MathJax && typeof window.MathJax.typesetPromise === "function");
+
+    // Call BEFORE replacing the panel's content: typesetClear() finds the
+    // expressions to forget by DOM containment, which fails once they are gone.
+    function forgetPanelMath() {
+      if (mathJaxV3() && typeof MathJax.typesetClear === "function") {
+        MathJax.typesetClear([textEl, visualEl]);
+      }
+    }
+
+    function typesetPanel() {
+      if (mathJaxV3()) {
+        typesetQueue = typesetQueue
+          .then(() => MathJax.typesetPromise([textEl, visualEl]))
+          .catch((err) => console.warn("[help.js] MathJax typeset failed:", err));
+      } else if (window.MathJax && window.MathJax.Hub && typeof window.MathJax.Hub.Queue === "function") {
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+      }
     }
 
     // --- Cache + loader ---
@@ -250,6 +331,7 @@
         }
       }
 
+      forgetPanelMath(); // both textEl and visualEl are replaced below
       titleEl.textContent = HELP_CACHE[id].title;
       textEl.innerHTML = HELP_CACHE[id].text;
       shownTopic = id;
@@ -263,6 +345,13 @@
       const tmpl = document.createElement("template");
       tmpl.innerHTML = HELP_CACHE[id].visual;
       const preloadedAnim = tmpl.content.querySelector("#gate-animation");
+      // With the SVGs on screen, open on the carried state (see carriedState)
+      // by pointing the image at it before it is inserted, so the default
+      // state's SVG is never fetched only to be replaced.
+      const carried = carriedState(tmpl.content);
+      if (preloadedAnim && !BLOCH_SPHERE_ON && carried && preloadedAnim.getAttribute("src")) {
+        preloadedAnim.setAttribute("src", svgForState(preloadedAnim.getAttribute("src"), carried));
+      }
       if (preloadedAnim && BLOCH_SPHERE_ON) {
         const src = preloadedAnim.getAttribute("src");
         if (src) {
@@ -338,13 +427,7 @@
       // the sphere is its first illustration. A no-op when the flag is off.
       wireBlochSphere(visualEl, anim, id);
 
-      if (window.MathJax) {
-        if (typeof MathJax.typesetPromise === "function") {
-          MathJax.typesetPromise();
-        } else if (window.MathJax.Hub && typeof window.MathJax.Hub.Queue === "function") {
-          MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
-        }
-      }
+      typesetPanel();
     }
 
     // --- Attach listeners ---

@@ -59,7 +59,7 @@ function updateToolHint() {
   } else if (currentGateArity() === 1) {
     hint.textContent = `${currentTool}: click an unopened cell.`;
   } else if (currentGateArity() === 2 && firstPick) {
-    hint.textContent = `${currentTool}: now click the second cell.`;
+    hint.textContent = `${currentTool}: now click a second, different cell.`;
   } else if (currentGateArity() === 2) {
     hint.textContent = `${currentTool}: click the first of two cells.`;
   } else {
@@ -149,6 +149,13 @@ function clickCell(r, c) {
       return;
     } else {
       const [r1,c1] = firstPick;
+      // Clicking the picked cell again un-picks it. A two-qubit gate needs two
+      // different cells (the engine refuses the same cell twice), so this is
+      // the only useful meaning a second click on it can have.
+      if (r1 === r && c1 === c) {
+        cancelMovePick();
+        return;
+      }
       firstPick = null;
       // clear highlight from all buttons
       document.querySelectorAll('.board button').forEach(b => b.classList.remove('pick'));
