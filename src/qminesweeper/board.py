@@ -238,6 +238,32 @@ class QMineSweeperBoard:
         """Return ⟨basis⟩ expectation value for qubit idx."""
         return self.state.expectation_pauli(idx, basis)
 
+    def bloch_vectors(self) -> np.ndarray:
+        """Return every cell's Bloch vector, an ``(n, 3)`` array of (⟨X⟩, ⟨Y⟩, ⟨Z⟩).
+
+        One pass of 3n simulator queries. The exports and observables below
+        accept it in place of querying the simulator themselves, so a
+        serialization reads each cell's state once rather than once per
+        observable (see ``engine.serialize_game``). Values are exactly what
+        ``expectation`` returns.
+        """
+        vectors = [[self.expectation(i, b) for b in "XYZ"] for i in range(self.n)]
+        return np.array(vectors, dtype=float).reshape(self.n, 3)
+
+    def _axis_reader(self, bloch: Optional[np.ndarray]):
+        """``read(idx, axis)`` for axis 0/1/2 = X/Y/Z, from ``bloch`` or memoized simulator queries."""
+        if bloch is not None:
+            return lambda idx, axis: float(bloch[idx, axis])
+        memo: dict[tuple[int, int], float] = {}
+
+        def read(idx: int, axis: int) -> float:
+            key = (idx, axis)
+            if key not in memo:
+                memo[key] = self.expectation(idx, "XYZ"[axis])
+            return memo[key]
+
+        return read
+
     def mine_probability_z(self, idx: int) -> float:
         """Return probability that qubit idx is a mine (Z=1)."""
         return 0.5 * (1.0 - self.expectation(idx, "Z"))
@@ -267,9 +293,14 @@ class QMineSweeperBoard:
         vals = np.array([self.expectation(i, basis) for i in range(self.n)], dtype=float)
         return vals.reshape(self.rows, self.cols)
 
-    def expected_mines(self) -> float:
-        """Return expected total number of mines (sum of Z-probs)."""
-        return sum(self.mine_probability_z(i) for i in range(self.n))
+    def expected_mines(self, bloch: Optional[np.ndarray] = None) -> float:
+        """Return expected total number of mines (sum of Z-probs).
+
+        ``bloch``, from ``bloch_vectors``, saves re-querying the simulator.
+        """
+        if bloch is None:
+            return sum(self.mine_probability_z(i) for i in range(self.n))
+        return sum(0.5 * (1.0 - float(bloch[i, 2])) for i in range(self.n))
 
     # ---------- mechanics: pins & measurement & gates ----------
     def toggle_pin(self, r: int, c: int) -> None:
@@ -374,14 +405,27 @@ class QMineSweeperBoard:
         p = 0.5 * (1.0 + s)
         return self._H2(p)
 
-    def entropy_map(self) -> np.ndarray:
-        """Return board of single-qubit entropies (bits)."""
-        vals = np.array([self.single_qubit_entropy(i) for i in range(self.n)], dtype=float)
+    def entropy_map(self, bloch: Optional[np.ndarray] = None) -> np.ndarray:
+        """Return board of single-qubit entropies (bits).
+
+        ``bloch``, from ``bloch_vectors``, saves re-querying the simulator; the
+        arithmetic is the same as ``single_qubit_entropy``'s.
+        """
+        if bloch is None:
+            vals = np.array([self.single_qubit_entropy(i) for i in range(self.n)], dtype=float)
+        else:
+            vals = np.array(
+                [
+                    self._H2(0.5 * (1.0 + math.sqrt(ex * ex + ey * ey + ez * ez)))
+                    for ex, ey, ez in ((float(v[0]), float(v[1]), float(v[2])) for v in bloch)
+                ],
+                dtype=float,
+            )
         return vals.reshape(self.rows, self.cols)
 
-    def entanglement_score(self, agg: str = "mean") -> float:
+    def entanglement_score(self, agg: str = "mean", bloch: Optional[np.ndarray] = None) -> float:
         """Aggregate single-qubit entropy across board (mean/median/max)."""
-        emap = self.entropy_map()
+        emap = self.entropy_map(bloch)
         if agg == "mean":
             return float(np.mean(emap))
         if agg == "median":
@@ -391,7 +435,7 @@ class QMineSweeperBoard:
         raise ValueError("agg must be one of: mean, median, max")
 
     # ---------- export for UI ----------
-    def export_numeric_grid(self) -> np.ndarray:
+    def export_numeric_grid(self, bloch: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Export board for UI rendering.
 
@@ -406,16 +450,15 @@ class QMineSweeperBoard:
         ``get_clue`` per explored cell costs nine simulator queries each, so a
         late-game export on a large, mostly explored board did up to nine
         times the work, and moves slowed down as the board opened up.
+        ``bloch``, from ``bloch_vectors``, replaces those queries entirely.
         """
         grid = np.full((self.rows, self.cols), -1.0, dtype=float)
         grid[self._exploration == CellState.PINNED] = -2.0
-        b = self._clue_basis
-        memo: dict[int, float] = {}
+        read = self._axis_reader(bloch)
+        axis = "XYZ".index(self._clue_basis)
 
         def exp_at(idx: int) -> float:
-            if idx not in memo:
-                memo[idx] = self.expectation(idx, b)
-            return memo[idx]
+            return read(idx, axis)
 
         for r, c in zip(*np.nonzero(self._exploration == CellState.EXPLORED)):
             r, c = int(r), int(c)
@@ -426,3 +469,33 @@ class QMineSweeperBoard:
             else:
                 grid[r, c] = sum(0.5 * (1.0 - exp_at(self.index(nr, nc))) for nr, nc in self.neighbors(r, c))
         return grid
+
+    def export_clue_phase_grid(self, bloch: Optional[np.ndarray] = None) -> np.ndarray:
+        """Export each clue's neighbourhood phase, a ``(rows, cols, 2)`` array.
+
+        A clue sums its neighbours' Bloch vectors along the clue axis (Z, as
+        mine probabilities). This is the rest of that same sum: the two
+        components transverse to the axis, in right-handed cyclic order, so for
+        the Z basis ``(Σ⟨X⟩, Σ⟨Y⟩)`` over the neighbours. Its angle is the
+        neighbourhood's phase on the Bloch sphere -- S turns it by +90°, Z by
+        180° -- which the frontend draws as the clue's colour. The number alone
+        cannot show a phase gate at all.
+
+        ``(0, 0)`` wherever ``export_numeric_grid`` shows no clue (unexplored,
+        pinned, definite mine), and wherever the neighbours carry no transverse
+        component: classical neighbours, entangled ones (whose single-qubit
+        Bloch vectors are too short to point anywhere), or opposite phases
+        that cancel.
+        """
+        phase = np.zeros((self.rows, self.cols, 2), dtype=float)
+        read = self._axis_reader(bloch)
+        axis = "XYZ".index(self._clue_basis)
+        first, second = (axis + 1) % 3, (axis + 2) % 3
+        for r, c in zip(*np.nonzero(self._exploration == CellState.EXPLORED)):
+            r, c = int(r), int(c)
+            if read(self.index(r, c), axis) <= -1.0 + 1e-9:
+                continue  # a definite mine shows no clue (see get_clue)
+            nbrs = [self.index(nr, nc) for nr, nc in self.neighbors(r, c)]
+            phase[r, c, 0] = sum(read(i, first) for i in nbrs)
+            phase[r, c, 1] = sum(read(i, second) for i in nbrs)
+        return phase

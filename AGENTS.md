@@ -41,6 +41,10 @@ substantive logic in Python or `scripts/`, not in task-runner recipes.
 - Mine probability is
   $p_i = \langle M_i\rangle = (1 - \langle Z_i\rangle) / 2$.
 - A clue is the sum of neighboring Z-basis mine probabilities.
+- A clue's colour is the phase of the same neighbourhood sum's transverse part,
+  $(\sum \langle X\rangle, \sum \langle Y\rangle)$, drawn as hue; no transverse
+  part, no colour. It is presentation of data in `clue_phase`, never a second
+  number.
 - The supported model is stabilizer/Clifford.
 - `Identify`, `Clear`, and `Sandbox` are win conditions; move sets are separate.
 - Pinning is a player annotation, not a quantum operation.

@@ -492,7 +492,7 @@ changed together.
 serialized game state carries no symbols, labels, or colours. `render.js`
 decides *which* presentation a cell gets and publishes it as a custom property;
 the stylesheet decides what that presentation looks like in the active theme.
-The clue ramp is the worked example, described under Colors below.
+The clue phase colour is the worked example, described under Colors below.
 
 ## Colors
 
@@ -562,33 +562,49 @@ set of colours that exist only to mean something.
   and a glowing display digit are different briefs even though they are the
   same hue family.
 
-### The clue ramp
+### The clue phase colour
 
-The board's numbers run green (low) to red (high), and this is the one place
-where colour is computed rather than chosen. `render.js` normalises the clue to
-`--clue-t` in `[0, 1]`; `game.css` sweeps the hue from 150deg to 25deg across
-that range and draws it at a lightness and chroma the *theme* supplies
-(`--clue-l`, `--clue-l-drop`, `--clue-c`). The hue sweep is the palette; the
-lightness it is drawn at has to differ per theme, and only CSS knows which
-theme is on.
+A clue's number is the Z part of its neighbours' summed Bloch vector: the sum
+of their mine probabilities. Its colour is the rest of that same vector sum,
+(ΣX, ΣY), sent as `clue_phase` in the game state. The hue is the angle of that
+pair -- the neighbourhood's phase on the Bloch sphere -- so a phase gate, which
+changes no number at all, still visibly changes the clue: S turns it a quarter
+of the way round the wheel, Z half way. A clue whose neighbours carry no phase
+(classical, entangled with other cells, or in opposite phases that cancel) is
+plain `fg` ink on a plain `zero-bg` tile. Colour no longer says how dangerous a
+clue is; the number already does.
 
-The light theme's ramp deliberately falls just short of WCAG AA in its middle.
-A green light enough to look green cannot reach 4.5:1 on any light background,
-so holding strict AA across the whole sweep forces the midrange into olive and
-khaki. Clues from about 1.5 up clear 4.5:1 on the explored-tile background;
-the lowest bottom out at 4.2:1, carried by semibold digits on a tile of at
-least sixteen pixels. This is a recorded, deliberate exception -- not licence
-to relax contrast elsewhere.
+- **The wheel.** Phase 0, |+>, sits at OKLCH hue 65 (`--phase-hue0`, one value
+  for all themes), so the four equator states read orange (|+>), green (|i>),
+  blue (|->) and magenta (|-i>), with the angles between filling the circle in
+  the same rainbow order. Of the anchorings tried in 5-degree steps, this
+  quartet is the most colourful and, under simulated protan and deutan vision
+  (Machado 2009), separates the four almost as well as the most robust offset
+  (0.046 against 0.048 OKLab at worst). No hue wheel is safe for every reader:
+  the adjacent quarter-turns -- orange and green, blue and magenta -- are the
+  pairs a red-green deficiency confuses, which is why every clue's label also
+  carries its phase in degrees.
+- **Lightness is one value per theme** (`--phase-l`), for every hue, so no
+  phase is more legible than another. Chroma is as strong as sRGB can show at
+  that hue and lightness, capped at `--phase-c`: at one lightness a teal runs
+  out of screen colours long before a magenta does. CSS cannot ask where the
+  gamut boundary is, so `render.js` finds it and publishes the result (see
+  Do's and Don'ts).
+- **The tile takes a pastel of the same hue** at `zero-bg`'s own lightness
+  (`--phase-tint-l`, capped at `--phase-tint-c`), so a phased tile still reads
+  as an opened one. Thin semibold digits carry very little colour on their own,
+  above all on retro's cream; the tint is what makes the phase readable at a
+  glance. At game over the digit takes the usual mute while the tint stays.
 
-Retro's ramp has had that same step-by-step pass, against `zero-bg-retro`
-(`#f4ce9a`) in oklch's own space, at the nine steps `render.js`'s
-normalisation actually produces (`--clue-t` in units of 0.125). The
-light-theme numbers it started from bottomed out at 3.84:1 at pure green
-(`t=0`), the one step below the rest of that sweep; lowering `--clue-l` to
-0.44 and raising `--clue-l-drop` to 0.08 moves the floor to 4.52:1, clearing
-AA across the whole ramp -- tighter than the light theme's own 4.2:1 floor
-above, because retro had the chance to fix the one step that fell short
-rather than live with it as a recorded exception.
+| Theme | `--phase-l` | `--phase-c` | Tint L / cap | Worst digit on its tint |
+|---|---|---|---|---|
+| Dark | 0.75 | 0.14 | 0.231 / 0.045 | 7.20:1 |
+| Light | 0.48 | 0.14 | 0.901 / 0.05 | 4.66:1 |
+| Retro | 0.46 | 0.14 | 0.872 / 0.07 | 4.67:1 |
+
+Every phase clears WCAG AA in every theme, measured at one-degree steps round
+the whole wheel. The light themes' lightness is set by that constraint: dark
+digits on a pale tile must stay near L 0.47 to reach 4.5:1 at every hue.
 
 ## Typography
 
@@ -828,7 +844,8 @@ Everywhere else keeps the scale.
 The board button is the densest component and the only one whose type size,
 box size, and radius are all derived at runtime. Its state classes --
 `unexplored`, `pinned`, `mine`, `clue`, `empty` -- are set by `render.js` from
-the numeric grid, and the stylesheet supplies the appearance. Overlays (probe
+the numeric grid, plus `phased` on a clue whose neighbourhood has a phase (see
+The clue phase colour), and the stylesheet supplies the appearance. Overlays (probe
 outlines, reveal fills, entanglement halos and links) are layered over the tile
 without disturbing its own colour, each in its own stacking level.
 
@@ -886,8 +903,12 @@ reachability is not per-component.
 - **Do** keep symbols, labels, colours, and visible tool choices in the
   frontend. Game-state payloads stay presentation-free.
 - **Don't** let the renderer name a final colour. It publishes a normalised
-  value (`--clue-t`, `--mine-p`, `--cols`) and the stylesheet resolves it,
-  because only CSS knows which theme is on.
+  value (`--mine-p`, `--cols`, the clue's `--clue-hue`) and the stylesheet
+  resolves it, because only CSS knows which theme is on. The clue's chroma is
+  the one number the renderer derives from the theme: it reads the theme's
+  `--phase-*` tokens to find the sRGB boundary for that hue, publishes the
+  fitted chroma, and redraws the board when the theme changes. The colour
+  itself is still composed in `game.css`, from tokens.
 - **Do** design dark and light together, and check the light one on the board.
   Several of the tokens above exist only because a value that worked on
   near-black was invisible on near-white. Retro has not had that same
@@ -962,5 +983,5 @@ Two are open questions rather than settled exceptions:
   tile. A pin is a player annotation the player needs to find again at a
   glance.
 
-The clue ramp's own light-theme shortfall is separate, measured, and
-deliberate; it is documented under Colors above.
+The clue phase colour has no such exception: every phase clears 4.5:1 in every
+theme, as measured under Colors above.

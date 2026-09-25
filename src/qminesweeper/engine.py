@@ -34,19 +34,26 @@ def serialize_game(board: QMineSweeperBoard, game: QMineSweeperGame, game_id: st
     """The game-state contract: game data only.
 
     `grid` uses board.export_numeric_grid()'s encoding (-1 unexplored, -2 pinned,
-    9 mine, else clue). Presentation (symbols, colours, labels) and config
-    (feature flags) are NOT here — the frontend owns those.
+    9 mine, else clue). `clue_phase[r][c]` is that clue's transverse
+    neighbourhood sum, `[Σ⟨X⟩, Σ⟨Y⟩]` (board.export_clue_phase_grid), the data
+    the frontend draws as the clue's colour. Presentation (symbols, colours,
+    labels) and config (feature flags) are NOT here — the frontend owns those.
+
+    Every cell's Bloch vector is read once and shared by the grid, the phases,
+    the mine count and the entanglement score.
     """
+    bloch = board.bloch_vectors()
     return {
         "game_id": game_id,
         "rows": board.rows,
         "cols": board.cols,
-        "grid": board.export_numeric_grid().tolist(),
+        "grid": board.export_numeric_grid(bloch).tolist(),
+        "clue_phase": board.export_clue_phase_grid(bloch).tolist(),
         "status": game.status.name,
         "win_condition": game.cfg.win_condition.name,
         "moveset": game.cfg.move_set.name,
-        "mines_exp": board.expected_mines(),
-        "ent_measure": board.entanglement_score("mean") * board.n,
+        "mines_exp": board.expected_mines(bloch),
+        "ent_measure": board.entanglement_score("mean", bloch) * board.n,
     }
 
 

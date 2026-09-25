@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Clues are now coloured by their neighbourhood's phase, so a phase gate is
+  visible. The number is unchanged, the sum of the neighbours' Z-basis mine
+  probabilities; the colour is the transverse part of the same Bloch-vector
+  sum, (ΣX, ΣY), drawn as hue: |+> orange, |i> green, |-> blue, |-i>
+  magenta, with the angles between blending, and a pastel of the same hue on
+  the tile behind. S turns a clue's colour a quarter of the way round, Z half
+  way. A clue with no phase nearby (classical, entangled, or cancelling
+  neighbours) is plain ink, so colour also tells a coherent superposition
+  from an entangled cell. This replaces the green-to-red ramp, which only
+  repeated the number. Lightness is fixed per theme so every phase is equally
+  legible, and chroma is fitted to the sRGB gamut per hue; every phase clears
+  4.5:1 in all three themes (dark 7.2:1, light 4.66:1, retro 4.67:1 at worst).
+  The game state gains `clue_phase`, and the screen-reader label names each
+  clue's phase in degrees.
+- Serialization reads each cell's Bloch vector once and shares it across the
+  clue grid, the phases, the mine count and the entanglement score: 3n
+  simulator queries per state, down from up to 5n, with identical values.
 - Retro is now the default theme: a first visit, or any visit without a saved
   choice, opens in it instead of following the system's light/dark
   preference. A saved choice is kept, and the theme button now cycles retro,

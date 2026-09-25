@@ -78,19 +78,22 @@
     --tile-min: 16px;
     --tile-gap: clamp(1px, 0.4vw, 3px);
 
-    /* Clue colour ramp: low clues green, high clues red, as before. The hue
-       sweep is the palette; what lives here is the lightness and chroma that
-       hue is drawn at, because those are what have to differ between the
-       themes -- the same colour cannot read on a near-black and a near-white
-       tile. game.css builds the final colour from these plus the per-cell
-       --clue-t that render.js sets.
-
-       --clue-l-drop is how much lightness the ramp sheds on the way to red. A
-       saturated red does not exist at the lightness a green wants; holding one
-       lightness across the whole sweep ends it at a pale salmon instead. */
-    --clue-l: 0.87;
-    --clue-l-drop: 0.17;
-    --clue-c: 0.18;
+    /* Clue phase colour. A clue's hue is the phase of its neighbours' summed
+       Bloch vector (render.js); what lives here is what has to differ between
+       themes. --phase-l is the digits' OKLCH lightness, one value for every
+       hue so every phase reads equally well; --phase-c caps their chroma,
+       which render.js also holds inside sRGB for each hue, because at one
+       lightness some hues reach far further than others. --phase-tint-l and
+       --phase-tint-c are the same for the pastel the tile behind a phased
+       clue takes; the tint lightness is --zero-bg's own, so a tinted tile
+       still reads as an opened one. Every hue clears 4.5:1 against its tint
+       here (7.2:1 at worst). --phase-hue0 is where phase 0, |+>, sits on the
+       wheel, shared by all three themes. See DESIGN.md's clue phase notes. */
+    --phase-hue0: 65;
+    --phase-l: 0.75;
+    --phase-c: 0.14;
+    --phase-tint-l: 0.231;
+    --phase-tint-c: 0.045;
 }
 
 /* ---------- Light theme: variables only ---------- */
@@ -125,24 +128,13 @@ html.light {
     --axis-gate: #a4247e;
     --shadow-subtle: 0 1px 2px rgba(30, 45, 80, 0.10);
 
-    /* Much darker than the dark theme's: these sit on a near-white tile, where
-       the dark theme's bright ramp washes out. Only a small lightness drop is
-       needed on the way to red, because these are dark colours on a light
-       ground and red is already at home at this lightness.
-
-       The exact lightness is a judgement call, not a free choice. A green light
-       enough to look green cannot reach 4.5:1 on any light background -- the
-       contrast equation has no solution above about L 0.52 -- so holding strict
-       AA across the whole ramp forces the middle of it into olive and khaki.
-       This sits just below that line. The numbers are set for the explored
-       cell's background, not the page's, because that is what clue text is
-       actually drawn on: clues from about 1.5 up clear 4.5:1 there, and the
-       lowest bottom out at 4.2:1, carried by semibold digits on a tile at least
-       16px square. The alternative considered was keeping AA and desaturating
-       the yellow band to slate, which is accessible but much less colourful. */
-    --clue-l: 0.50;
-    --clue-l-drop: 0.06;
-    --clue-c: 0.19;
+    /* Clue phase colour (see :root). Dark digits on a near-white tile, so the
+       lightness drops to where every hue clears 4.5:1 against its own tint
+       (4.6:1 at worst, the greens); the tint takes --zero-bg's lightness. */
+    --phase-l: 0.48;
+    --phase-c: 0.14;
+    --phase-tint-l: 0.901;
+    --phase-tint-c: 0.05;
 }
 
 /* ---------- Retro theme: variables only ----------
@@ -186,16 +178,14 @@ html.retro {
     --axis-gate: #a8397e;
     --shadow-subtle: 0 1px 2px rgba(1, 32, 78, 0.14);
 
-    /* The clue ramp, now swept and checked against `--zero-bg` in oklch's own
-       space (t in nine steps of 0.125, matching render.js's normalisation):
-       the borrowed light-theme numbers bottomed out at 3.84:1 at pure green
-       (t=0), the one step below the rest of the sweep. Dropping `--clue-l`
-       and raising `--clue-l-drop` moves the floor to 4.52:1 -- clearing AA
-       everywhere on the ramp, which the light theme's own audit does not
-       quite manage at its own lowest step. */
-    --clue-l: 0.44;
-    --clue-l-drop: 0.08;
-    --clue-c: 0.19;
+    /* Clue phase colour (see :root). Cream tiles need the darkest digits of
+       the three themes for every hue to clear 4.5:1 against its tint (4.6:1
+       at worst), and take the strongest tint, since pastels on cream are what
+       make the phase read at a glance at this lightness. */
+    --phase-l: 0.46;
+    --phase-c: 0.14;
+    --phase-tint-l: 0.872;
+    --phase-tint-c: 0.07;
 
     /* The 90s-Windows bevel: a raised control is a light edge top/left and a
        dark edge bottom/right; pressed or sunken flips them. Neither edge is a

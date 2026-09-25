@@ -16,6 +16,7 @@ _STATE_KEYS = {
     "rows",
     "cols",
     "grid",
+    "clue_phase",
     "status",
     "win_condition",
     "moveset",

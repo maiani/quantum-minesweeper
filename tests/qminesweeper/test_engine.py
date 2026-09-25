@@ -99,12 +99,15 @@ def test_serialize_game_golden():
         "rows",
         "cols",
         "grid",
+        "clue_phase",
         "status",
         "win_condition",
         "moveset",
         "mines_exp",
         "ent_measure",
     }
+    # A classical board has no phase anywhere.
+    assert state["clue_phase"] == [[[0.0, 0.0]] * 5 for _ in range(5)]
     # No presentation/config leaks into the contract.
     for banned in ("features", "allowed_moves", "clue_color"):
         assert banned not in state

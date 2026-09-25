@@ -113,29 +113,103 @@ function formatNumber(val, moveset) {
 // The server's grid uses sentinel numbers (see board.export_numeric_grid):
 //   -1 = unexplored, -2 = pinned, 9 = definite mine, 0 = empty (clue 0),
 //   anything else (0..8, possibly fractional) = a clue value.
-// Returns { text, cls, color }: the glyph to show, the CSS class, and (for clues)
-// a red→green colour string. This is the ONLY place sentinels are interpreted.
+// Returns { text, cls }: the glyph to show and the CSS class. A clue's colour is
+// not decided here -- it comes from the clue's phase (see phaseStyle below).
+// This is the ONLY place sentinels are interpreted.
 // `moveset` is the game's (state.moveset), for formatNumber above.
-// The clue value the colour ramp treats as fully "dangerous". See decodeCell.
-const CLUE_RAMP_MAX = 6.0;
-
 function decodeCell(val, moveset) {
-  if (val === -1) return { text: "■", cls: "unexplored", color: null };
-  if (val === -2) return { text: "⚑", cls: "pinned", color: null };
-  if (val === 9) return { text: "💥", cls: "mine", color: null };
-  if (val === 0) return { text: " ", cls: "empty", color: null }; // non-breaking space keeps the cell sized
-  // Clue: a position on the green(low)→red(high) ramp, as a number in [0, 1].
-  // The colour itself is game.css's, because only the stylesheet knows which
-  // theme is on and the same hue has to be drawn light on a dark tile and dark
-  // on a light one.
-  //
-  // The ramp spans 0 to CLUE_RAMP_MAX rather than the 0 to 8 a clue can reach
-  // in principle. Nearly every clue on a real board falls between 0 and 3, so
-  // stretching the ramp to 8 spent most of it on values that never occur and
-  // left 1.0 and 2.0 the same green. Anything above the top of the ramp is
-  // already maximally dangerous, so it simply pins to red.
-  const t = Math.max(0.0, Math.min(val / CLUE_RAMP_MAX, 1.0));
-  return { text: formatNumber(val, moveset), cls: "clue", clueT: t }; // e.g. "2.5", or "2" in Classic
+  if (val === -1) return { text: "■", cls: "unexplored" };
+  if (val === -2) return { text: "⚑", cls: "pinned" };
+  if (val === 9) return { text: "💥", cls: "mine" };
+  if (val === 0) return { text: " ", cls: "empty" }; // non-breaking space keeps the cell sized
+  return { text: formatNumber(val, moveset), cls: "clue" }; // e.g. "2.5", or "2" in Classic
+}
+
+// --- Clue phase colour -------------------------------------------------------
+// A clue's number is the sum of its neighbours' mine probabilities, which is
+// the Z part of their summed Bloch vector. The engine also sends the rest of
+// that sum, state.clue_phase[r][c] = [ΣX, ΣY] (see engine.serialize_game), and
+// this section turns it into a colour:
+//
+//   hue      = the angle of (ΣX, ΣY), i.e. the neighbourhood's phase on the
+//              Bloch sphere. S turns it a quarter, Z a half, so a phase gate --
+//              which changes no number -- visibly changes the clue.
+//   strength = the length of (ΣX, ΣY), capped at 1. It is 0 for classical
+//              neighbours, for entangled ones (a qubit entangled with the rest
+//              of the board has no direction of its own), and for opposite
+//              phases that cancel; such a clue is plain ink.
+//
+// The digit and a pastel tint of the tile behind it share the hue. Lightness is
+// one value per theme for every hue, so every phase is equally legible; chroma
+// is as strong as an sRGB screen can show at that hue and lightness, up to the
+// theme's cap. That is why the chroma is computed here rather than written in
+// CSS: at one lightness, a teal runs out of screen colours long before a
+// magenta does, and CSS has no way to ask where. Every number that differs
+// between themes is a token in base.css (--phase-*); this code only reads them.
+
+// OKLCH -> linear-light sRGB, via OKLab (Björn Ottosson's published matrices).
+// Used for one question only: does this colour exist on an sRGB screen?
+function oklchToLinearSrgb(L, C, hueDeg) {
+  const h = (hueDeg * Math.PI) / 180;
+  const a = C * Math.cos(h);
+  const b = C * Math.sin(h);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+  ];
+}
+
+// The largest chroma at (L, hue) still inside sRGB, by bisection: chroma 0 is
+// always inside (a grey), and past the boundary a channel leaves [0, 1].
+// Cached, because a board repeats the same few phases many times over.
+const _gamutCache = new Map();
+function maxSrgbChroma(L, hueDeg) {
+  const key = `${L}|${hueDeg.toFixed(1)}`;
+  if (_gamutCache.has(key)) return _gamutCache.get(key);
+  let lo = 0;
+  let hi = 0.4; // beyond any sRGB colour's chroma
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    const inside = oklchToLinearSrgb(L, mid, hueDeg).every((v) => v >= -1e-6 && v <= 1 + 1e-6);
+    if (inside) lo = mid;
+    else hi = mid;
+  }
+  _gamutCache.set(key, lo);
+  return lo;
+}
+
+// The theme's --phase-* tokens, read from the stylesheet (see base.css).
+function readPhaseTokens() {
+  const css = getComputedStyle(document.documentElement);
+  const num = (name) => parseFloat(css.getPropertyValue(name));
+  return {
+    hue0: num("--phase-hue0"),
+    l: num("--phase-l"),
+    c: num("--phase-c"),
+    tintL: num("--phase-tint-l"),
+    tintC: num("--phase-tint-c"),
+  };
+}
+
+// How one clue's phase is drawn, or null if it has none. `phase` is [ΣX, ΣY].
+// Returns the CSS hue (degrees), the digit's and the tint's chroma, and the
+// phase angle itself (degrees in [0, 360), for the screen-reader label).
+function phaseStyle(phase, tokens) {
+  if (!phase || !Number.isFinite(tokens.l)) return null;
+  const [x, y] = phase;
+  const strength = Math.min(1, Math.hypot(x, y));
+  if (strength < 1e-9) return null;
+  const angle = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  const hue = (tokens.hue0 + angle) % 360;
+  // 0.97: stay a hair inside the boundary, against rounding in the browser's
+  // own conversion.
+  const chroma = Math.min(tokens.c, 0.97 * maxSrgbChroma(tokens.l, hue)) * strength;
+  const tintChroma = Math.min(tokens.tintC, 0.97 * maxSrgbChroma(tokens.tintL, hue)) * strength;
+  return { hue, chroma, tintChroma, angle };
 }
 
 // Human-readable labels for screen readers. The board is visually dense, so
@@ -148,6 +222,7 @@ function cellAriaLabel(r, c, val, decoded, revealed = null) {
   else if (decoded.cls === "mine") label = `${prefix}: mine outcome`;
   else if (decoded.cls === "empty") label = `${prefix}: revealed safe cell`;
   else label = `${prefix}: clue ${decoded.text}`;
+  if (decoded.phase) label += `, phase ${Math.round(decoded.phase.angle) % 360} degrees`;
   if (!revealed) return label;
   const probability = Math.round(Number(revealed.mine_probability) * 100);
   const entangled = Number(revealed.entropy) > 1e-9 ? "; entangled with the board" : "";
@@ -252,12 +327,16 @@ function renderBoard(state) {
   // the width the board has been given by it to pick a tile size that fits.
   // Custom properties inherit, so setting it here reaches every cell button.
   table.style.setProperty("--cols", String(state.cols));
+  const phaseTokens = readPhaseTokens();
   for (let r = 0; r < state.rows; r++) {
     const tr = el("tr");
     for (let c = 0; c < state.cols; c++) {
       const val = state.grid[r][c];
       const decoded = decodeCell(val, state.moveset);
-      const { text, cls, clueT } = decoded;
+      const { text, cls } = decoded;
+      if (cls === "clue") {
+        decoded.phase = phaseStyle(state.clue_phase && state.clue_phase[r] && state.clue_phase[r][c], phaseTokens);
+      }
       const index = r * state.cols + c;
       const revealed = _revealEnabled && _revealData ? _revealData.cells[index] : null;
       const btn = el("button", {
@@ -289,7 +368,12 @@ function renderBoard(state) {
         btn.setAttribute("aria-label", `${btn.getAttribute("aria-label")}; region ${inA ? "A" : "B"}`);
       }
       if (isAnchor) btn.setAttribute("aria-label", `${btn.getAttribute("aria-label")}; selection anchor`);
-      if (clueT !== undefined) btn.style.setProperty("--clue-t", clueT.toFixed(3));
+      if (decoded.phase) {
+        btn.classList.add("phased");
+        btn.style.setProperty("--clue-hue", decoded.phase.hue.toFixed(1));
+        btn.style.setProperty("--clue-chroma", decoded.phase.chroma.toFixed(4));
+        btn.style.setProperty("--clue-tint-chroma", decoded.phase.tintChroma.toFixed(4));
+      }
       // While the game is running, clicking a cell runs clickCell(r, c) (tools.js),
       // which turns the current tool + this cell into a move and submits it.
       // When the game is over, cells are disabled.
@@ -1024,6 +1108,13 @@ function render() {
   const state = readJson("game-state");
   if (state) applyState(state);
 }
+
+// Phase colours are fitted to the current theme's lightness (phaseStyle), so
+// switching theme -- a class change on <html>, see theme_toggle.js -- redraws
+// the board with the new theme's fit.
+new MutationObserver(() => {
+  if (_state) renderBoard(_state);
+}).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
 // Run as soon as the page's HTML is parsed. This <script> sits at the end of
 // <body>, so by the time it runs the slots already exist and render() builds the

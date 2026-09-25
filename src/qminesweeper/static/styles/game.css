@@ -366,25 +366,32 @@
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
 }
 
-/* The clue ramp, green (low) through to red (high). render.js sets --clue-t in
-   [0, 1] per cell; the sweep from a green hue to a red one is this one calc,
-   and the lightness and chroma it is drawn at come from the theme (base.css),
-   which is what the old JS-side rgb() could not do -- a single bright green
-   cannot read on both a near-black and a near-white tile.
+/* Clue colour is the clue's phase. The number is the Z part of the
+   neighbours' summed Bloch vector; the colour is the rest of it, so a phase
+   gate on a neighbour, which leaves every number unchanged, still shows.
+   render.js marks a clue whose neighbourhood has a phase `.phased` and sets
+   its hue (--clue-hue, degrees) and the chroma of the digit and of the tile
+   tint (--clue-chroma, --clue-tint-chroma), already fitted to sRGB for that
+   hue at this theme's lightness. Lightness and caps are the theme's
+   (--phase-* in base.css). A clue with no phase -- classical, entangled, or
+   cancelling neighbours -- is plain ink on a plain opened tile.
 
-   A browser without oklch() drops the declaration and falls back to the plain
-   --fg above, which is legible on both themes; only the ramp is lost. */
+   The digit takes the game-over mute like every other clue (see
+   `.board button:disabled`), but the tint stays: the phase is still worth
+   reading on the final board. A browser without oklch() drops both
+   declarations and shows plain ink on a plain tile. */
 .tile.clue {
-  /* Semibold: the digits have to carry at tile sizes down to 16px, and the
-     extra weight buys back some of the contrast the light theme's ramp spends
-     on staying colourful. */
+  /* Semibold: the digits have to carry at tile sizes down to 16px. */
   font-weight: 600;
   color: var(--fg);
-  color: oklch(
-    calc(var(--clue-l) - var(--clue-l-drop) * var(--clue-t, 0))
-    var(--clue-c)
-    calc(150deg - 125deg * var(--clue-t, 0))
-  );
+}
+
+.board button.tile.clue.phased {
+  background: oklch(var(--phase-tint-l) var(--clue-tint-chroma, 0) calc(var(--clue-hue, 0) * 1deg));
+}
+
+.board button.tile.clue.phased:not(:disabled) {
+  color: oklch(var(--phase-l) var(--clue-chroma, 0) calc(var(--clue-hue, 0) * 1deg));
 }
 
 /* Probe outlines sit outside the tile, preserving its clue/pin colour. */

@@ -15,6 +15,13 @@ decisions, and constraints that hold indefinitely. Active work belongs in
   $p_i = \langle M_i\rangle = (1 - \langle Z_i\rangle) / 2$, where
   $M_i = (I - Z_i) / 2$.
 - The implemented clue is the sum of neighboring Z-basis mine probabilities.
+- A clue's colour is its neighbourhood phase: the angle of the transverse part
+  of the same neighbour sum, $(\sum_j \langle X_j\rangle, \sum_j \langle Y_j\rangle)$,
+  drawn as hue, with no colour when that part is zero. The number is
+  unchanged; the colour makes phase gates visible, and it tells a coherent
+  superposition (coloured) from an entangled or cancelling one (plain).
+  `board.export_clue_phase_grid` computes it, `serialize_game` sends it as
+  `clue_phase`, and `render.js` draws it (see DESIGN.md's clue phase colour).
 - The simulator model is stabilizer/Clifford: it supports superposition,
   measurement, gates, and entanglement while remaining efficiently simulable.
 - `Identify`, `Clear`, and `Sandbox` are win-condition modes. Move sets are a
@@ -70,10 +77,13 @@ and removed because it duplicated existing state.
 - Symbols, labels, colours, and visible tool choices live in the frontend, not
   in the serialized state. Within the frontend they are split once more: the
   renderer decides *which* presentation a cell gets, and the stylesheet decides
-  what that presentation looks like in the active theme. The clue ramp is the
-  worked example — `render.js` sets a `--clue-t` in `[0, 1]` per cell and
-  `game.css` turns it into a colour, because the same hue has to be drawn light
-  on a dark tile and dark on a light one, and only CSS knows which theme is on.
+  what that presentation looks like in the active theme. The clue phase colour
+  is the worked example — `render.js` publishes a hue and a chroma per clue
+  and `game.css` composes the colour from them at the theme's own lightness,
+  because the same hue has to be drawn light on a dark tile and dark on a light
+  one, and only CSS knows which theme is on. The chroma is fitted to the sRGB
+  boundary using the theme's `--phase-*` tokens, so the board redraws when the
+  theme changes.
 - Feature flags travel in a separate application-config object.
 - The board sizes itself to the width it is given, not to the viewport.
   `render.js` publishes the column count as `--cols`; `game.css` divides the
