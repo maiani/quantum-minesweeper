@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Retro is now the default theme: a first visit, or any visit without a saved
+  choice, opens in it instead of following the system's light/dark
+  preference. A saved choice is kept, and the theme button now cycles retro,
+  dark, light. Retro's webfonts are requested from the pre-paint script in
+  `<head>` rather than at `DOMContentLoaded`, so the default theme does not
+  flash its fallback fonts on each load; dark and light still never fetch
+  them.
+- A Classic game (Measure and Pin only) writes its clues and mine counter as
+  whole numbers, "2" rather than "2.0". A fractional value keeps its decimal,
+  since Advanced Setup can pair Classic moves with superposed mines.
 - The help panel keeps the start state you picked when you change gate.
   Picking |+> on X and then moving to H or Measure opens them on |+> instead
   of each topic's own default, for the live Bloch sphere and the gate SVGs
@@ -19,6 +29,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Retro clues no longer run over their tiles' bevel. Retro's font rule for
+  `button` also reached board tiles, and its 1.3em outranked the tile-scaled
+  clue size, giving about 27px clues on tiles of at most 40px. Tiles now keep
+  the font and size the other themes use. Retro's minimum tile is 20px rather
+  than 16px, the shared minimum plus its 2px bevel on each side, and tiles no
+  longer carry the browser's default padding, which on small tiles in any
+  theme pushed a clue off-centre and past the right edge.
 - A Sandbox reveal on the Stim backend, the server default, took 2 to 6
   seconds on the 25x15 preset, and every other player's request waited behind
   it. Each region-entropy query rebuilt and re-parsed every stabilizer as text;

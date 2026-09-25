@@ -121,6 +121,10 @@
   position: relative;
   width: var(--tile-size);
   height: var(--tile-size);
+  /* No padding. The UA default (6px each side in Chrome) leaves a 16px tile
+     4px for its text, and once a clue is wider than that the browser stops
+     centring it and lets it run off the right edge. */
+  padding: 0;
   border: none;
   border-radius: var(--radius);
   background: var(--btn-bg);

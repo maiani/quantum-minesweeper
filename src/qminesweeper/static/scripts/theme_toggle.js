@@ -1,10 +1,10 @@
 // static/scripts/theme_toggle.js
 (function () {
   const KEY = 'qms_theme';
-  // Cycle order for the button. Dark first because it is the shipped
-  // default; retro last because it is the trial theme, not a co-equal third
-  // option in the rotation's framing.
-  const THEMES = ['dark', 'light', 'retro'];
+  // Cycle order for the button, starting from retro, the default (see the
+  // pre-paint script in base.html): retro -> dark -> light -> retro.
+  const DEFAULT_THEME = 'retro';
+  const THEMES = ['retro', 'dark', 'light'];
   const ICONS = { dark: '🌙', light: '☀️', retro: '🕹️' };
   const LABELS = { dark: 'dark', light: 'light', retro: 'retro' };
 
@@ -29,10 +29,11 @@
   }
 
   function applyTheme(mode) {
-    if (!THEMES.includes(mode)) mode = 'dark';
-    // One theme hook per non-default theme. <body> is deliberately not
-    // marked: the pre-paint script in <head> cannot reach it, so a rule
-    // keyed off it would apply a frame late on every load.
+    if (!THEMES.includes(mode)) mode = DEFAULT_THEME;
+    // Dark is the unclassed base in CSS (`:root`); light and retro each add
+    // a class on <html>. <body> is deliberately not marked: the pre-paint
+    // script in <head> cannot reach it, so a rule keyed off it would apply a
+    // frame late on every load.
     document.documentElement.classList.toggle('light', mode === 'light');
     document.documentElement.classList.toggle('retro', mode === 'retro');
     if (mode === 'retro') ensureRetroFont();

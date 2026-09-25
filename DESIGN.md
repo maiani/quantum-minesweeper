@@ -3,14 +3,14 @@ version: alpha
 name: Quantum Minesweeper
 description: >-
   The visual system for the Quantum Minesweeper board, its contextual help, and
-  its setup and about pages. A dark-first interface built on system fonts and
-  CSS custom properties, tuned so that a grid of small square tiles stays
-  readable while carrying colour-coded quantitative information. Dark, light,
-  and retro are the three shipped themes; retro is the newest and still
-  getting its narrow-phone and reduced-motion pass, and the one place a
-  webfont appears.
+  its setup and about pages. An interface built on CSS custom properties,
+  tuned so that a grid of small square tiles stays readable while carrying
+  colour-coded quantitative information. Retro, dark, and light are the three
+  shipped themes. Retro is the default a first visit opens in, the one place a
+  webfont appears, and still getting its narrow-phone and reduced-motion pass;
+  dark and light are set in system fonts.
 colors:
-  # ---- Dark theme (the default) ----------------------------------------
+  # ---- Dark theme (the unclassed base) ---------------------------------
   # These are the values in `:root` in static/styles/base.css, verbatim.
   bg: "#090c13"
   fg: "#e8e8e8"
@@ -231,6 +231,9 @@ spacing:
   # board container actually has; it is never a fixed number.
   tile-max: 40px
   tile-min: 16px
+  # Retro's bevel spends 2px of each side of a tile, so its minimum is the
+  # shared one plus the bevel, leaving clue text the same room.
+  tile-min-retro: 20px
   touch-target: 44px
 components:
   button:
@@ -611,7 +614,13 @@ moment a reader's eye left the title:
   display fonts go wrong.
 - **VT323** on `body`, and explicitly on `button`, `input`, and `select` --
   most browsers' UA stylesheets do not give form controls `body`'s font by
-  inheritance, so those three are named directly rather than relying on it. A
+  inheritance, so those three are named directly rather than relying on it.
+  Board tiles are the exception: they keep the platform stack and the
+  tile-scaled `numeric-clue` size in every theme. Retro's `button` rule used to
+  reach them too, and its 1.3em outranked `numeric-clue`, putting ~27px clues
+  on tiles of at most 40px, over the bevel. VT323 at `numeric-clue`'s size
+  fits, but reads thin and small at the 9px floor, which is why tiles do not
+  use it. A
   first pass paired the heading face with Baloo 2, a smooth rounded face, for
   everything else; it read as "not pixel" the moment a reader's eye left the
   title, which is what VT323 -- a bitmap terminal face redrawn as outlines --
@@ -630,9 +639,12 @@ moment a reader's eye left the title:
 Two things keep three webfonts from quietly breaking the "offline-complete"
 rule above:
 
-- One stylesheet request, fetched by `theme_toggle.js` on demand, only once
-  retro is actually selected -- not linked unconditionally from `<head>`.
-  Dark and light never make the request.
+- One stylesheet request, made only while retro is the page's theme: by the
+  pre-paint script in `<head>` when retro is the saved choice or the default,
+  so the default theme does not flash its fallback fonts on every load, or by
+  `theme_toggle.js` when a reader switches to it. It is never linked
+  unconditionally, and dark and light never make it. The PWA's service worker
+  caches the font files after the first online visit.
 - Every `font-family` list still ends in the same system stack (VT323's and
   Press Start 2P's in a bare `sans-serif`, since neither has an obvious system
   equivalent), so a reader who picks retro while offline gets a plausible
@@ -666,6 +678,12 @@ The last is the important one: clue text scales with the *tile*, not the
 viewport. A twenty-five-column board has small tiles even on a wide screen, and
 a viewport-based size overflows them.
 
+Clues and the mine counter show one decimal place ("2.5"), because on a
+quantum board they are sums of probabilities. A Classic game (Measure and Pin
+only) writes whole numbers without it ("2", not "2.0"); a fraction keeps its
+decimal even there, since Advanced Setup can pair Classic moves with superposed
+mines. `formatNumber` in `render.js` is the one place this is decided.
+
 ## Layout & Spacing
 
 The spacing scale is a 4px-based progression -- 4, 6, 8, 12, 16, 24, 28 -- used
@@ -686,8 +704,12 @@ What *is* strict is the set of measures:
 The board is the one component that does not take a fixed size. Its container
 is a containment context, so `100cqw` is the board area's own width; the tile
 size is that width divided by the column count, clamped between `tile-max`
-(40px) and `tile-min` (16px). Small boards therefore do not inflate into slabs,
-and very wide boards scroll sideways rather than shrinking to illegibility.
+(40px) and `tile-min` (16px; `tile-min-retro`, 20px, under retro, whose 2px
+bevel on each side would otherwise leave a 16px tile's clue running over its
+border). Tiles carry no padding: the browser's default would leave a small
+tile a few pixels for its text and then stop centring it. Small boards
+therefore do not inflate into slabs, and very wide boards scroll sideways
+rather than shrinking to illegibility.
 Every offered board size must stay fully reachable at every supported width.
 
 Two consequences are load-bearing and must not be undone:

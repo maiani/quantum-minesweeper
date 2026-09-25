@@ -251,9 +251,15 @@ body {
    instead. `button`, `input`, and `select` are listed explicitly because
    form controls do not inherit `body`'s font in most browsers' UA
    stylesheets -- `body` alone would leave every dropdown and text button in
-   the system font regardless. */
+   the system font regardless.
+
+   Board tiles are left out. Their font size is the tile-scaled
+   `numeric-clue` value in game.css, which this rule's 1.3em outranked, so
+   retro clues came out near 27px on tiles of at most 40px and ran over the
+   bevel. They keep the other themes' font, size included. `:where()` adds
+   no specificity, so `.btn`'s own retro face below still wins over this. */
 html.retro body,
-html.retro button,
+html.retro button:where(:not(.tile)),
 html.retro input,
 html.retro select,
 html.retro textarea {
@@ -433,6 +439,11 @@ html.retro .app-header h1 {
    alone: DESIGN.md budgets their size and a 2px border would grow them. */
 html.retro {
     --radius: 2px;
+    /* The board's bevel (below) spends 2px of each side of every tile, so
+       retro's smallest tile is the shared minimum plus that bevel: its text
+       gets the same room as a minimum-size tile in the other themes rather
+       than running over the border. */
+    --tile-min: calc(16px + 2 * 2px);
 }
 
 html.retro .btn,

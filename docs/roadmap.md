@@ -183,11 +183,12 @@ the default and are untouched. Checked by `pixi run bloch-check`.
 
 A third theme, `html.retro` in `static/styles/base.css`, colour- and
 shape-sampled from a reference poster and from the original Windows
-Minesweeper's own bevelled chrome and LCD counters. A kept theme, not a
-trial. Switched via the same `#toggle-theme` button as dark/light; its three
-webfonts (Racing Sans One for the title, VT323 for body text and controls,
-Press Start 2P for buttons) load on demand so dark and light stay
-offline-complete. See DESIGN.md's Colors, Typography, Elevation & Depth, and
+Minesweeper's own bevelled chrome and LCD counters. The default theme since
+2026-09-25: a first visit opens in it, and `#toggle-theme` cycles retro, dark,
+light. Its three webfonts (Racing Sans One for the title, VT323 for body text
+and controls, Press Start 2P for buttons) load only while it is the page's
+theme, so dark and light stay offline-complete; board tiles keep the platform
+font at the tile-scaled size. See DESIGN.md's Colors, Typography, Elevation & Depth, and
 Shapes sections.
 
 - [x] Run the light theme's own per-step clue-ramp contrast audit against

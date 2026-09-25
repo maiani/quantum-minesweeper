@@ -97,16 +97,29 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
+// How a clue or the mine counter is written. One decimal place in general,
+// because on a quantum board these are sums of probabilities ("2.5"). A
+// Classic game (Measure and Pin only) is the exception: with nothing to put a
+// cell in superposition its numbers are whole, and "2.0" just reads as noise,
+// so they are written as "2". A fraction is never rounded away: Advanced Setup
+// can pair Classic moves with superposed mines, and those halves are real.
+// The tolerance absorbs a backend's round-off (Qiskit's 1.9999999...).
+function formatNumber(val, moveset) {
+  if (moveset === "CLASSIC" && Math.abs(val - Math.round(val)) < 1e-9) return String(Math.round(val));
+  return val.toFixed(1);
+}
+
 // Decode one grid value into how the cell should look.
 // The server's grid uses sentinel numbers (see board.export_numeric_grid):
 //   -1 = unexplored, -2 = pinned, 9 = definite mine, 0 = empty (clue 0),
 //   anything else (0..8, possibly fractional) = a clue value.
 // Returns { text, cls, color }: the glyph to show, the CSS class, and (for clues)
 // a red→green colour string. This is the ONLY place sentinels are interpreted.
+// `moveset` is the game's (state.moveset), for formatNumber above.
 // The clue value the colour ramp treats as fully "dangerous". See decodeCell.
 const CLUE_RAMP_MAX = 6.0;
 
-function decodeCell(val) {
+function decodeCell(val, moveset) {
   if (val === -1) return { text: "■", cls: "unexplored", color: null };
   if (val === -2) return { text: "⚑", cls: "pinned", color: null };
   if (val === 9) return { text: "💥", cls: "mine", color: null };
@@ -122,7 +135,7 @@ function decodeCell(val) {
   // left 1.0 and 2.0 the same green. Anything above the top of the ramp is
   // already maximally dangerous, so it simply pins to red.
   const t = Math.max(0.0, Math.min(val / CLUE_RAMP_MAX, 1.0));
-  return { text: val.toFixed(1), cls: "clue", clueT: t }; // one decimal place, e.g. "2.5"
+  return { text: formatNumber(val, moveset), cls: "clue", clueT: t }; // e.g. "2.5", or "2" in Classic
 }
 
 // Human-readable labels for screen readers. The board is visually dense, so
@@ -134,7 +147,7 @@ function cellAriaLabel(r, c, val, decoded, revealed = null) {
   else if (decoded.cls === "pinned") label = `${prefix}: pinned cell`;
   else if (decoded.cls === "mine") label = `${prefix}: mine outcome`;
   else if (decoded.cls === "empty") label = `${prefix}: revealed safe cell`;
-  else label = `${prefix}: clue ${val.toFixed(1)}`;
+  else label = `${prefix}: clue ${decoded.text}`;
   if (!revealed) return label;
   const probability = Math.round(Number(revealed.mine_probability) * 100);
   const entangled = Number(revealed.entropy) > 1e-9 ? "; entangled with the board" : "";
@@ -188,7 +201,7 @@ function eyeIcon() {
 function renderStatus(state) {
   const host = document.getElementById("status-bar");
   if (!host) return;
-  const mineValue = state.mines_exp.toFixed(1);
+  const mineValue = formatNumber(state.mines_exp, state.moveset);
   const entValue = String(Math.trunc(state.ent_measure)); // trunc matches the old "%d"
   const mineLabel = `${mineValue} expected mines`;
   const entLabel = `${entValue} bits of entanglement`;
@@ -243,7 +256,7 @@ function renderBoard(state) {
     const tr = el("tr");
     for (let c = 0; c < state.cols; c++) {
       const val = state.grid[r][c];
-      const decoded = decodeCell(val);
+      const decoded = decodeCell(val, state.moveset);
       const { text, cls, clueT } = decoded;
       const index = r * state.cols + c;
       const revealed = _revealEnabled && _revealData ? _revealData.cells[index] : null;

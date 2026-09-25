@@ -42,17 +42,27 @@
     (function () {
       try {
         const KEY = 'qms_theme';
-        let t = localStorage.getItem(KEY);
-        // Retro is opt-in only: prefers-color-scheme never selects it, only
-        // an explicit prior choice does.
-        if (!t && window.matchMedia) {
-          t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        }
+        // Retro is the default: without a saved choice the page opens in it.
+        // Dark and light are reached from the header's theme button, which
+        // saves the choice.
+        const t = localStorage.getItem(KEY) || 'retro';
         // <html> only: this runs from <head>, where document.body does not
         // exist yet. Every theme rule keys off html.light or html.retro for
         // that reason.
         if (t === 'light' || t === 'retro') {
           document.documentElement.classList.add(t);
+        }
+        // Start retro's webfont request here, while <head> is still being
+        // parsed, rather than at DOMContentLoaded from theme_toggle.js: as the
+        // default theme it would otherwise flash the fallback fonts on every
+        // load. Same id and URL as theme_toggle.js, which then skips its own
+        // request. Dark and light still never make it.
+        if (t === 'retro') {
+          const link = document.createElement('link');
+          link.id = 'retro-font-stylesheet';
+          link.rel = 'stylesheet';
+          link.href = 'https://fonts.googleapis.com/css2?family=Racing+Sans+One&family=Press+Start+2P&family=VT323&display=swap';
+          document.head.appendChild(link);
         }
       } catch (e) {}
     })();
