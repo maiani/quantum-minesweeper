@@ -12,7 +12,7 @@ the game runs entirely in the browser via Pyodide. Layout:
       py/chppy/*.py           # the vendored standalone stabilizer library
 
 Run:   python scripts/build_browser.py
-Serve: python -m http.server -d dist 8000   # then open http://127.0.0.1:8000
+Preview: pixi run browser-serve
 """
 
 from __future__ import annotations
@@ -172,8 +172,7 @@ def main() -> None:
     files = sum(1 for _ in DIST.rglob("*") if _.is_file())
     print(f"Built {DIST.relative_to(ROOT)}/ ({files} files).")
     print(f"SW cache: {cache_id}")
-    print("Serve:  python -m http.server -d dist 8000")
-    print("Open:   http://127.0.0.1:8000")
+    print("Preview: pixi run browser-serve")
 
 
 if __name__ == "__main__":

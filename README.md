@@ -156,7 +156,7 @@ Run the game entirely in the browser, on Pyodide and the chppy backend:
 pixi run browser-serve
 ```
 
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). The static build does not need FastAPI, a database, or Cloud Run while you
+Then open [http://127.0.0.1:8190](http://127.0.0.1:8190). The static build does not need FastAPI, a database, or Cloud Run while you
 play. It saves the current game in `localStorage`, so a reload restores the
 in-progress board. The bundle also includes a manifest and service worker for
 installation and offline use after its initial successful load.
